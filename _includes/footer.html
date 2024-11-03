@@ -1,0 +1,59 @@
+<!-- Footer -->
+
+<hr>
+
+<footer>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <ul class="list-inline text-center">
+            <li class="list-inline-item">
+                <img src="/images/kubica.jpg" class="img-fluid rounded-circle" style="width: 48px; height: 48px">
+              </li>
+          {% if site.twitter_username %}
+          <li class="list-inline-item">
+            <a href="https://www.twitter.com/{{ site.twitter_username }}">
+              <span class="fa-stack fa-lg">
+                <i class="fa fa-circle fa-stack-2x"></i>
+                <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          {% endif %}
+          {% if site.linkedin_username %}
+          <li class="list-inline-item">
+            <a href="https://www.linkedin.com/in/{{ site.linkedin_username }}">
+              <span class="fa-stack fa-lg">
+                <i class="fa fa-circle fa-stack-2x"></i>
+                <i class="fa fa-linkedin fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          {% endif %}
+          {% if site.github_username %}
+          <li class="list-inline-item">
+            <a href="https://github.com/{{ site.github_username }}">
+              <span class="fa-stack fa-lg">
+                <i class="fa fa-circle fa-stack-2x"></i>
+                <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+          {% endif %}
+          <li class="list-inline-item">
+            <a href="/feed.xml">
+              <span class="fa-stack fa-lg">
+                <i class="fa fa-circle fa-stack-2x"></i>
+                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+              </span>
+            </a>
+          </li>
+        </ul>
+        <p class="copyright text-muted mx-auto">
+            Pracuji pro Microsoft. Všechno na tomto webu vyjadřuje můj osobní názor, pochází z veřejně dostupných zdrojů a žádným způsobem nevyjadřuje stanoviska Microsoftu.
+        </p>
+    </div>
+
+
+  </div>
+</footer>

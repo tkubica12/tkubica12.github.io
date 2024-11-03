@@ -1,0 +1,87 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Security Center: Update management aneb patchujte Windows i Linux'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 859
+wordpress_url: http://tomaskubica.cz/?p=859
+date: '2017-06-25 06:21:48 +0000'
+date_gmt: '2017-06-25 05:21:48 +0000'
+categories:
+tags:
+- Monitoring
+- Security
+---
+<p>Azure Security Center (produkt, který postupně konsoliduje vlastnosti security v Azure a bezpečnostní analýzu OMS), nástroj pro hybridní správu vašeho datového centra i cloudu, nabízí schopnost přehledu chybějících aktulizací operačních systému Windows a Linux. Ujistěte se, že jsou vaše servery v dobrém stavu a můžete ASC využít i k inicializaci a plánování jejich patchování. Podívejme se dnes jak to funguje a proč je to užitečné.<!--more--></p>
+<h1>Update Management</h1>
+<p>Update Management je dnes součástí systému OMS a bude se postupně integrovat do Azure Security Center. Dnes se k němu dostaneme klasicky přes OMS konzoli, ale v průběhu roku můžete očekávat těsnou integraci do Azure portálu zejména do oblasti Azure Security Center a také přímo na obrazovku jednotlivých VM.  V klasickém OMS si přidejte funkci v "obchůdku".</p>
+<p id="jAcwfpB"><img class="img-fluid wp-image-860 " src="/images/2017/img_59475068e482b.png" alt="" /></p>
+<p>Pro samotné patchování používá OMS funkce Azure Automation, takže pokud ještě nemáte přiřazen Automation účet k vašemo OMS prostoru, musíme to teď udělat.</p>
+<p id="HbklVei"><img class="img-fluid wp-image-861 " src="/images/2017/img_594750abf1b03.png" alt="" /></p>
+<p id="IDHWLRz"><img class="img-fluid wp-image-862 " src="/images/2017/img_594750d93dcaa.png" alt="" /></p>
+<p>Jakmile bude účet vytvořen a provázán, můžeme Update Management přidat.</p>
+<p id="AeNmBWn"><img class="img-fluid wp-image-863 " src="/images/2017/img_59475133df556.png" alt="" /></p>
+<p>Nový modul se vám objeví v hlavním GUI, ale dejme mu chvilku čas o systémech zjistit vše potřebné.</p>
+<p id="wBaTFYt"><img class="img-fluid wp-image-864 " src="/images/2017/img_594751c909b20.png" alt="" /></p>
+<p>Linux se obnovuje zhruba každé tři hodiny, Windows dvakrát denně, takže teď bude dobré chvilku počkat. Odpoledne nacházím tento výsledek:</p>
+<p id="lRNcdsk"><img class="img-fluid wp-image-883 " src="/images/2017/img_594819866debf.png" alt="" /></p>
+<p>Jak to funguje? OMS agent pravidelně posílá informace o nainstalovaných aktualizacích s využitím vlastností daného operačního systému, tedy např. Windows, apt či yum. Azure je napojen na vydavatele patchů a získává informace o vážnosti a kategorii každého chybějícího balíčku. To potom zobrazuje.</p>
+<p>Podívejme se na informace o našich čtyřech systémech.</p>
+<p id="zdqYCQO"><img class="img-fluid wp-image-884 " src="/images/2017/img_59481a5bd7528.png" alt="" /></p>
+<p>Jednotlivé servery můžete rozkliknout a získat tak přesné konkrétní detaily.</p>
+<p id="DCXVoef"><img class="img-fluid wp-image-885 " src="/images/2017/img_59481a986ef75.png" alt="" /></p>
+<p>Každá aktualizace je tedy samostatnou řádkou v Log Analytics a snadno tak můžete vytvářet vlastní vyhledávání, reporty a vizualizace. Pokud přepnete na záložku Updates dostanete souhrné informace za tento konkrétní Windows server.</p>
+<p id="YMVAoLR"><img class="img-fluid wp-image-886 " src="/images/2017/img_59481af58d9b6.png" alt="" /></p>
+<p>Stejně dobře se OMS vypořádá třeba s Ubuntu.</p>
+<p id="sQMkfkh"><img class="img-fluid wp-image-887 " src="/images/2017/img_59481b229a6c5.png" alt="" /></p>
+<p>A také CentOS / Red Hat a další.</p>
+<p id="OjVEfxj"><img class="img-fluid wp-image-888 " src="/images/2017/img_59481b42a632c.png" alt="" /></p>
+<p>Jdeme zpátky do přehledové obrazovky. Místo pohledu přes počítače se můžeme podívat přes aktualizace.</p>
+<p id="GjFmqMF"><img class="img-fluid wp-image-889 " src="/images/2017/img_59481b748578c.png" alt="" /></p>
+<p>Úplně vpravo pak najdete příklady užitečných query do Log Analytics, která vás určitě mohou inspirovat k formulaci vlastních specifických dotazů.</p>
+<p id="JwZbnjp"><img class="img-fluid wp-image-890 " src="/images/2017/img_59481baf4c5ef.png" alt="" /></p>
+<h1>Řízená instalace aktualizací</h1>
+<p>Jednu dlaždici v GUI jsme přeskočili. Tuhle:</p>
+<p id="hrWwHfg"><img class="img-fluid wp-image-891 " src="/images/2017/img_59481be27dd37.png" alt="" /></p>
+<p>Tušíte správně - Azure dokáže naplánovat spuštění aktualizace. K tomu musí být OS namířeno na repozitář, například Windows Update, WSUS a a repozitáře pro package manažery jako je apt nebo yum. Pokud používáte Azure marketplace image Red Hat Enterprise Linux tak ten je namířen na zrcadlo RHUI přímo v Azure. Samotné zajištění aktualizace udělá Azure přes Azure Automation. Pokud chcete řídit i Linux stroje, tato funkce je v době psaní článku zatím v Preview a musíte si ji explicitně povolit v nastavení.</p>
+<p id="NHZLkzJ"><img class="img-fluid wp-image-893 " src="/images/2017/img_59481d7ccdb6d.png" alt="" /></p>
+<p>Pojďmě zpět na Update management, klikněte na dlaždici a následně přidejme plánovaný update.</p>
+<p id="DfKJKNF"><img class="img-fluid wp-image-892 " src="/images/2017/img_59481cf61ddf5.png" alt="" /></p>
+<p>Vybereme si konkrétní Linux mašinu, nicméně v praxi je určitě lepší použít skupiny. Ty mohou být například získány z Active Directory, WSUS, System Center nebo jako jednotlivé Query (můžete tedy vytvořit dotazem na jakoukoli položku dynamickou skupinu serverů). Pro dnešní ukázku si vyberu Linux stroje přímo.</p>
+<p id="bOpdrSD"><img class="img-fluid wp-image-894 " src="/images/2017/img_59481e3b726ac.png" alt="" /></p>
+<p>Úlohu mohu naplánovat jednou nebo ji spouštět každý týden v sobotu, každý měsíc apod.</p>
+<p id="gWnOxLh"><img class="img-fluid wp-image-895 " src="/images/2017/img_59481e87d05f9.png" alt="" /></p>
+<p>Přidám totéž pro Windows stroje.</p>
+<p id="yBUPGVB"><img class="img-fluid wp-image-896 " src="/images/2017/img_59481ed511c51.png" alt="" /></p>
+<p>Teď pojďme čekat, jak to všechno dopadne. Ráno se nacházím v podstatně příznivějším stavu.</p>
+<p id="xvkNoDk"><img class="img-fluid wp-image-898 " src="/images/2017/img_59489a39b115b.png" alt="" /></p>
+<p>Prohlédněme si naše dvě úlohy.</p>
+<p id="gyYrnvd"><img class="img-fluid wp-image-899 " src="/images/2017/img_59489a6717967.png" alt="" /></p>
+<p>Úspěšně jsme nainstalovali několik Windows aktualizací na dva počítače.</p>
+<p id="OCqmCxi"><img class="img-fluid wp-image-900 " src="/images/2017/img_59489a9b5855c.png" alt="" /></p>
+<p>Jaké aktualizace to byly?</p>
+<p id="FNIvgAW"><img class="img-fluid wp-image-901 " src="/images/2017/img_59489abfe0e02.png" alt="" /></p>
+<p>Každou můžete rozkliknout a získat podrobnosti.</p>
+<p id="dNRNEYU"><img class="img-fluid wp-image-902 " src="/images/2017/img_59489af1619ef.png" alt="" /></p>
+<p>Podobně jsme nainstalovali aktualizace na moje Linux stroje.</p>
+<p id="IbFSZbu"><img class="img-fluid wp-image-903 " src="/images/2017/img_59489b3fd82e4.png" alt="" /></p>
+<p>OMS pro patchování používá Azure Automation, tak pokud chcete, podívejte se mu pod ruku přímov Azure portálu.</p>
+<p id="wPiaZDa"><img class="img-fluid wp-image-904 " src="/images/2017/img_59489bb17a16d.png" alt="" /></p>
+<p>Takhle třeba vypadají logy z Windows úlohy.</p>
+<p id="LrWmZHO"><img class="img-fluid wp-image-905 " src="/images/2017/img_59489bd4e63e7.png" alt="" /></p>
+<p>Jak vypadá terminálový výstup z Linuxu?</p>
+<p id="jaHAzNL"><img class="img-fluid wp-image-906 " src="/images/2017/img_59489c2bb69b2.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p><em>Azure přináší mnoho zajímavých řešení pro monitoring a správu a management aktualizací je určitě jedno z nich. Získejte přehled o svých Windows a Linux strojích, plánujte updaty a nad přehledovými dashboardy vytvářejte i svoje vlastní pohledy či alerty na základě query do systému. Vyzkoušejte to!</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

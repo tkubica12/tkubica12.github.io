@@ -1,0 +1,49 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak nastavit Commvault pro zálohování do Azure Storage
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 372
+wordpress_url: http://tomaskubica.cz/?p=372
+date: '2017-03-06 09:56:56 +0000'
+date_gmt: '2017-03-06 08:56:56 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Zálohování je jak známo důležité. Nejen, že vám mohou on-premise zdroje havarovat a je dobré mít jejich kopii, ale také můžete chytnout ransomware nebo omylem smazat něco důležitého a pak se budete chtít vrátit v čase. Zálohování vašich on-premise zdrojů do cloudu dává obrovský smysl. Podívejme se, jak některé zálohovací nástroje napojit na Azure Storage. Dnes to bude Commvault.<!--more--></p>
+<h1>V čem je kouzlo</h1>
+<p>Data dostanete mimo svou serverovnu a nejsou tak závislá na tom, co se v u vás stane. Azure pro vás na pozadí drží tři kopie vašich dat v ceně služby a můžete zvolit i dražší řešení replikované přes dva regiony (pak máte všechna data 6x). Máte prakticky neomezenou storage a platíte pouze za reálné použití, ne za krabice. Neřešíte, jak systémy postavit, propojit, napájet, patchovat nebo upgradovat. Pokud chcete, může Azure všechna vaše data transparentně šifrovat. Vezmete-li v úvahu robustnost řešení zjistíte, že je cenově velmi výhodné - například pokud držíte 1TB dat a měsíčně 500GB zapíšete a 100GB přečtete, vyjde vás to celé asi na 10 EUR měsíčně.</p>
+<h1>Nativní storage vs. virtuální appliance</h1>
+<p>Jedna z možností je, že dodavatel zálohovacího software v cloudu vytvoří VM se svým kódem a on-premise na ni napojí. Tím může zajistit některé zajímavé funkce, ale řešení používá dražší zdroje. Pokud vám jde o nízkou cenu, je ideální schopnost nativního zápisu rovnou do Azure Storage bez ničeho dalšího. Tam si můžete vybrat mezi Hot variantou (když očekáváte časté čtení) nebo (a to je pro zálohování výhodnější) Cool verzí, která je podstatně levnější, pokud hlavně zapisujete a čtete méně.</p>
+<h1>Commvault</h1>
+<p>Uvidíte, že nastavit Commvault pro zálohování do Azure Storage nativním způsobem je snadné. Já vyzkoušel zálohování VM, ale tento produkt toho podle všeho umí daleko víc - zálohování stanic, aplikační zálohy a tak podobně.</p>
+<p>Nejdřív si připravíme Azure Cool Storage - je cenově velmi výhodná v okamžiku, kdy hodně zapisujete a méně čtete, což je u backup dost běžné.</p>
+<p id="MDCzlsu"><img class="img-fluid wp-image-374 " src="/images/2017/img_58a9f21d9246f.png" alt="" /></p>
+<p>Přidejme si pro Commvault kontejner.</p>
+<p id="DFzUraK"><img class="img-fluid wp-image-375 " src="/images/2017/img_58a9f2394e85b.png" alt="" /></p>
+<p>Dáme mu název.</p>
+<p id="GpjwFnW"><img class="img-fluid wp-image-376 " src="/images/2017/img_58a9f25b4f9d8.png" alt="" /></p>
+<p>Okopírujte si klíče pro přístup k tomuto storage accountu.</p>
+<p id="ORMfIST"><img class="img-fluid wp-image-377 " src="/images/2017/img_58a9f28185c95.png" alt="" /></p>
+<p>Commvault zjevně nabízí klasické "tlusté" rozhraní, ale také jednodušší webový přístup (ten jsem použil já). Poměrně snadno v něm najdete Storage targets a tam volbu Cloud, která nás pochopitelně dost zajímá.</p>
+<p id="PZEmYWE"><img class="img-fluid wp-image-378 " src="/images/2017/img_58a9f2ca34f86.png" alt="" /></p>
+<p>Zadejme údaje o mém storage accountu a kontejneru.</p>
+<p id="Ktjzojw"><img class="img-fluid wp-image-379 " src="/images/2017/img_58a9f2dff02ad.png" alt="" /></p>
+<p>A to je všechno! Teď stačí jen v Commvault správně nastavit cloud storage jako target pro zálohovací úlohy. To jsem udělal a přidal si svůj Hyper-V server a teď se pokusím provést zálohu jedné VM.</p>
+<p id="hOKVcpP"><img class="img-fluid wp-image-380 " src="/images/2017/img_58a9f36090f97.png" alt="" /></p>
+<p>Koukám na detaily této úlohy a zdá se, že vše běží podle plánu.</p>
+<p id="zpsfPWz"><img class="img-fluid wp-image-381 " src="/images/2017/img_58a9f37ba4025.png" alt="" /></p>
+<p>A skutečně v mé Azure Storage jsou k nalezení objekty, které si tam Commvault vytvořil.</p>
+<p id="DONobEL"><img class="img-fluid wp-image-382 " src="/images/2017/img_58a9f39d76bbd.png" alt="" /></p>
+<p>Pak už jsem zkontroloval, jestli je záloha vidět pro možné recovery. Je tam.</p>
+<p id="QVMgIyY"><img class="img-fluid wp-image-383 " src="/images/2017/img_58a9f3c31842f.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Commvault pro zálohování nabízí přímou nativní integraci do Azure Storage, takže můžete použít cenově efektivní Cool storage. Jak jsem si sám ověřil, není to nic složitého. Do cloudu se dostanete doslova na pár kliknutí.</em></p>

@@ -1,0 +1,49 @@
+---
+layout: post
+status: publish
+published: true
+title: 3x open source orchestrace kontejnerů s Azure Container Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 198
+wordpress_url: http://beta.tomaskubica.cz/?p=198
+date: '2017-02-06 06:40:24 +0000'
+date_gmt: '2017-02-06 05:40:24 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>&nbsp;</p>
+<p>Kontejnery, open source a Azure? To jde perfektně dohromady. Za asi deset minut můžete mít produkční spolehlivý cluster postavený na orchestrátoru dle vaší volby - Docker Swarm, Kubernetes nebo DC/OS (Mesos).<!--more--></p>
+<h1>Docker bez orchestrátoru</h1>
+<p>Vývojáři mají rádi kontejnery, protože jim umožní na běžném notebooku provozovat obrovské množství virtuálních prostředí. Zkoušet kód přímo v notebooku je těžké, protože různé projekty potřebují třeba různé verze knihoven, frameworků a tak podobně. Navíc co když potřebujete spustit víc aplikací současně? Docker tohle všechno řeší velmi elegantně.</p>
+<p>Další využívají Docker jako způsob pro distribuci aplikace. Místo PDF s release notes (což přináší hodně ručních instalací), instalačního balíčku (což klade nároky na přípravu instalátoru a pokud se neinstaluje "do čistého", tak to nemusí dopadnou dobře) nebo hotové VM image (to je moc velké a špatně se s tím manipuluje) může vývojář zabalit aplikaci a všechno co ta potřebuje do kontejneru. Viděl jsem situace, kdy lidé provozují Docker čistě na jednom nodu jako způsob jak jednoduše spustit aplikaci.</p>
+<p>Přidejte k tomu výborné API, možnost automatizovat vznik image (dockerfile), síťovou konektivitu a namapování souborů "z venku" a je jasné, že pro vývojáře je to velmi příjemné.</p>
+<h1>Proč orchestrátor kontejnerů?</h1>
+<p>Pokud se ale rozhodnete kontejnery skutečně provozovat, zjistíte, že samotný Docker nestačí. Nechci ručně zjišťovat hostitele, který má volno a můžu tam spustit kontejner (tedy chci cluster kontejnerů a scheduler). Chci, aby systém poznal, že například selhal node a nastartoval kontejnery jinde. Hodilo by se mi, aby byla nějak rozumně vyřešena síťařina mezi kontejnery. Rád bych ovládal systém desired state principem, tedy například řekl, že kontejner chci v clusteru pětkrát a orchestrátor to zajistil a udržoval. Kromě toho, aby měl schopnost rolling upgrade (například po update image na novější verzi aplikace je postupně za provozu popřehazoval). Ideálně, aby zajistil balancování provozu na tyto instance kontejnerů. A to stále ještě není všechno. Orchestrátor tedy určitě potřebuji, když myslím nasazení kontejnerů alespoň trochu vážně.</p>
+<p>Jaký zvolit? Variant je několik, ale open source svět má v tuto chvíli tři hlavní tahouny.</p>
+<h2>Docker Swarm</h2>
+<p>Docker sám se pouští do orchestrace a tou je Swarm. Zásadní výhodou je, že API pro Swarm je prakticky stejné, jako API pro jednoduchý Docker. Celý cluster ovládáte téměř shodně, jako jeden samostatný Docker. Z velké trojky byl Swarm obvykle trochu opožděný, ale dnes už dokáže pokročilé věci jako jsou balancovaná služba a rolling update.</p>
+<h2>Mesos (resp. Marathon v Mesosphere DC/OS)</h2>
+<p>Apache Mesos existuje o několik let déle, než Docker (2009 vs. 2013). Mesos je dvouúrovňový scheduler inspirovaný tím, co ve svém DC dělal Google se systémem Borg (nicméně Google za Mesos nikdy nestál a nemá o to zájem, jedním z prvních uživatelů Mesos byl Twitteru, později Airbnb a Apple). První úroveň přiděluje zdroje frameworkům (Big Data, kontejnery, messaging) a druhá úroveň pak řeší scheduling v rámci frameworku (například Marathon, který orchestruje kontejnery). Mesos konverguje víc věcí do jediného systému (orchestrace kontejnerů je tak jen jeho podmnožinou). Je ověřen v obrovských instalacích, má vysokou spolehlivost.</p>
+<h2>Kubernetes</h2>
+<p>Google vnitřně používá vlastní systém Borg, který je v zásadě ideovým základem i Mesos. Nicméně co se kontejnerů týče Google některé své pozitivní a negativní zkušenosti sebral jako vstup do open source projektu Kubernetes. To je kontejnerový scheduler/orchestrátor. Netuším jak to používají vnitřně, ale technicky je možné, aby byl Kubernetes druhou úrovní schedulingu v rámci Borgu (ostatně to lze i s Mesos - teoreticky můžete Marathon nebo Aurora v Mesos nahradit Kubernetesem). Kubernetes má specifické API (nesedne každému), koncept podů (shluků kontejnerů) a IP per pod (to se ukazuje jako velmi užitečné). Tenhle projekt je dnes asi nejbouřlivější, velmi populární a co do funkcí často v čele.</p>
+<h1>Co používá Azure Container Service</h1>
+<p>Sestavit takový cluster nemusí být jednoduché co do instalace a zejména síťařiny, perzistence storage apod. Získat cluster na kliknutí by se hodilo. Některé public cloudy jdou cestou jedné varianty bez možnosti výběru, ale Azure plně podporuje, spravuje a provisionuje hnedka všechny tři. Je na vás, co si vyberete - každý má své výhody, tak proč si omezovat možnosti.</p>
+<h1>Jak vypadá Azure Container Service</h1>
+<p>Nejprve si určíme uživatelské jméno a SSH klíč pro přístup k VM, které v rámci clusteru kontejnerových hostitelů budeme používat.</p>
+<p id="gpwdxCd"><img class="img-fluid wp-image-199 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588a3fb624ea5.png" alt="" /></p>
+<p>To hlavní přichází hned na další obrazovce - vyberte si orchestrátor. Docker Swarm? Mesosphere DC/OS? Kubernetes? To všechno je jen otázkou, na co kliknete - jednodušší to být snad nemůže. V případě Kubernetes tady ještě navíc bude volba principála, tedy vytvořeného Azure účtu - Kubernetes si totiž dokáže s Azure povídat a automaticky nastavovat (z jeho pohledu  externí) Azure Load Balancer (o tom jindy).</p>
+<p id="HhbeLIP"><img class="img-fluid wp-image-200 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588a401094ec8.png" alt="" /></p>
+<p>V dalším kroku určíme, kolik a jakých zdrojů chceme v clusteru mít. Tedy kolik řídících, chcete-li master VM. U nich si typicky volíte z počtů 1, 3 nebo 5 a velikost VM je pevně daná (Azure tým to má odladěné, otestované a podporované a z těchto důvodů potřebuje přesně dané zdroje). K tomu vybíráte počet agentů, tedy nodů, na kterých pak běží kontejnerové workloady. U nich už si vybíráte velikost VM, takže můžete při stejném budgetu volit třeba vícero malých hostitelů nebo menší počet větších - to je na vás.</p>
+<p id="hEFqVBX"><img class="img-fluid wp-image-201 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588a418d383dd.png" alt="" /></p>
+<p>Pak už jen všechno odklikáme a čekáme. Co pro nás ACS vytvořil za zdroje? V mém případě jde o 21 položek - storage accounty, VM s mastery a agenty, balancery pro mastery a agenty, externí IP adresa apod. Kromě toho Azure nastaví všechno potřebné ve VMkách - spojí mastery, nastaví klíče, přidá agenty a v některých případech napojí do orchestrátorů například Azure Load Balancer (orchestrátor kontejneru může ovládat Azure balancer). Tyto všechny znalosti Azure týmu máte k dispozici na kliknutí a to v zásadě zdarma (v ACS platíte jen za použité infrastrukturní zdroje, ne za automatizaci sestavení celého clusteru).</p>
+<p>V dalších článcích už se zaměřím postupně na všechny orchestrátory a trochu si pohrajeme.</p>
+<p>&nbsp;</p>
+<p><em>Chcete objevovat kontejnery? Neztrácejte čas trápením se instalací a sestavováním clusteru, síťařinou apod. Soustřeďte se na to, jak vám pomůžou kontejnery zrychlit vývoj, testování a nasazování aplikací. Použijte Azure Container Service a máte cluster za 10 minut. Večer už ho nepotřebujete? Stačí smazat a neplatíte, sestavíte si ho zase až ráno. Projekt se podařil o potřebujete rozšířit počet agentů? Žádný problém, stačí kliknout. Chcete dnes zkusit Swarm, zítra Kubernetes a pozítří DC/OS? Však víte, kam s tím směřuji...</em></p>
+<p>&nbsp;</p>

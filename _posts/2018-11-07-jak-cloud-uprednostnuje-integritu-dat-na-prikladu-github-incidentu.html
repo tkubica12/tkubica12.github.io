@@ -1,0 +1,36 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak cloud upřednostňuje integritu dat na příkladu GitHub incidentu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2581
+wordpress_url: http://tomaskubica.cz/?p=2581
+date: '2018-11-07 07:25:19 +0000'
+date_gmt: '2018-11-07 06:25:19 +0000'
+categories:
+tags:
+---
+<p>GitHub v říjnu 2018 zaznamenal incident, který po dobu 24 hodin snížil kvalitu služby, která byla pomalejší než obvykle a push notifikace byly odesílány se zpožděním. Díky transparentnosti lidí z GitHub se můžeme podívat, co se vlastně stalo. Je to ukázka toho jak přemýšlí naprostá většina cloud poskytovatelů - upřednostňují integritu dat zákazníků.<!--more--></p>
+<p>Detailní popis co se stalo je k dispozici zde: <a href="https://blog.github.com/2018-10-30-oct21-post-incident-analysis/">https://blog.github.com/2018-10-30-oct21-post-incident-analysis/</a></p>
+<h1>Integrita dat jako nejdůležitější cíl</h1>
+<p>Chyby se stávají v každém cloudu - GitHub, BitBucket, AWS i Azure. Jejich historie ukazuje, že cloudoví poskytovatelé vždy upřednostňují integritu dat. Pokud dojde k nějakému problému ve stavové vrstvě jako je databáze nebo storage, bylo by nejjednodušší nově zapsaná data jednoduše zahodit a službu plnohodnotně zprovoznit. Něco takového je možné udělat doslova za pár minut. Cloudoví hráči ale berou vaše data extrémně vážně a pokud je možné data zrekonstruovat a neztratit ani bit, udělají to, i když to je daleko náročnější a trvá to podstatně déle. Raději nechají službu v degradovaném stavu (například s výkonnostním omezením) hodiny, než abyste přišli byť jen o malý kousíček svých dat. To ukazuje nejen incident v GitHub, ale podobnou strategii najdete i ve všech post-mortem hráčů typu Azure, AWS či Google.</p>
+<p>Ve vašem prostředí jsou tato rozhodnutí na vás a pokud se vám zdá, že vzhledem k povaze vašeho byznysu je rozhodně lepší nová data zahodit a pokračovat dál, je to obchodní rozhodnutí vycházející ze znalosti vašich procesů a potřeb. Něco takového cloudový poskytovatel přijmout nemůže, protože jde o data jeho zákazníků - nechce vaším jménem na data sáhnout, nemůže znát váš obchodní kontext. Proto vždy jde po integritě jako primárním ukazateli.</p>
+<h1>Stavovost, distribuované aplikace, lokálnost a split brain</h1>
+<p>Incident ukazuje několik zajímavých momentů. V první řadě stavovost, tedy datová perzistentní vrstva, je kritickou částí řešení. Nahodit nové stateless komponenty je triviální, jednoduše je pustíte jinde nebo jich nasadíte víc. Zejména v okamžiku potřeby silné konzistence (vs. eventuálně konzistentní systémy) máte problém s tím, že data neustále tečou. Dokud je služba funkční, vznikají nová a nová data. Pokud se vám po nějakou dobu začnou zapisovat způsobem, který vám nevyhovuje (například na jiné místo, v jiném formátu apod.), není jednoduché je zase spojit do konzistentního celku.</p>
+<p>Další s tím související efekt, který mě zaujal, je fakt, že kontinuální replikace generují trvalou, ale rozumnou zátěž. Pokud na nějaký čas replikovat přestanete, nakupí se vám tolik nových dat, že jejich následná doreplikace má výrazný negativní vliv na primární systém.</p>
+<p>Poučný je pro mne i vliv lokálnosti dat v distribuovaném systému. Co se v GitHub stalo bylo, že se zapisovací databáze automaticky přesunula do jiného regionu, než vlastní aplikace a s touto přidanou latencí aplikace nepočítala. Beru si z toho potvrzení DR poučky a nevhodnosti být částečně těhotní. Pokud přesouvám aplikaci z důvodů problémů primární lokality, často nestačí jen nahodit aplikaci na novém místě a datovou vrstvu nechat být. Přesouvat bych měl ideálně všechno nebo mít alespoň dopředu otestováno, že přidaná latence nebude mít dopad na kvalitu služby.</p>
+<p>V neposlední řadě je incident ukázkou toho, že split brain je největší nepříjemnost distribuovaných systémů a to zejména na datové vrstvě. Globální kvórum je určitě dobrá věc ať už svou databázi provozujete kdekoli.</p>
+<h1>Přemýšlím, jak si vzít ponaučení pro distribuované aplikace v Azure</h1>
+<p>V první řadě distribuované aplikace jsou náročné. Zvážil bych, jestli a jak chci běžet v několika regionech a jestli mi náhodou nestačí dostupnost jednoho. Azure dnes na databázových službách dává SLA 99,99% a díky zónám dostupnosti mohu mít totéž na úrovni virtuálních mašin. Potřebuji víc? Dost možná ne. Pak bych se v multi-region strategii soustředil spíše na kvalitní DR pro případ, že by se celému regionu stalo něco hrozného. Nasadil bych transakční replikaci databáze do druhého regionu, takže případná ztráta dat (RPO) je pro mne minimální (pokud jsem ochoten ji tolerovat) a rychlost překlopení je velmi vysoká (RTO). Současně bych v druhém regionu měl přednastartované některé infrastrukturní komponenty - VPN, firewall, doménový řadič. Aplikační vrstvu bych nejraději řešil v kontejnerech, které jsem schopen v druhém regionu rychle zapnout v případě potřeby nebo pokud ještě jedu ve VM, použil bych Azure Site Recovery.</p>
+<p>Druhý poznatek pro mne je uvažovat, zda nutně potřebuji ACID transakce relačního světa. Dobrým multi-region scénářem totiž může být active/active nebo částečný active/active přístup. Pokud mohu ACID oželet, kouknul bych na Cosmos DB a to zejména díky její schopnosti pracovat v režimu multi-master. Všechny regiony tak mohou data jak číst, tak zapisovat s využitím optimistických merge vlastností. Jasně - ne vždy to aplikační architektura a byznys požadavky umožní, ale rozhodně bych to bral jako klíčovou alternativu k tradičnímu databázovému pohledu.</p>
+<p>Třetí pro mne zásadní věc - o databázi se opravdu nechci starat. To, co používají borci v GitHub, vyžaduje zatraceně dobré znalosti, které já nemám, a silný tým. Osobně bych vždy koukal po PaaS službách, kde vím, že za nimi stojí tým, který problematice rozumí lépe, než já.</p>
+<p>Čtvré téma, které si odnáším, je hezký příklad využívání read replik tradiční databáze. Vyšší tiery PaaS databází jsou sice finančně náročnější, ale mají možnost čtení z replik, což ulevuje primárnímu systému a může mít vliv na sizing, který může být potenciálně nižší (a tedy levnější). Azure SQL v tieru Business Critical a Premium nebo v preview read replika pro Azure MySQL. Čtecí operace a reporty, které se spokojí s asynchronní kopií (drobné zpoždění tam být může, ale replika je transakčně konzistentní), mohou být uspokojeny takto. Navíc v případě Azure SQL je takto možné číst i z asynchronní repliky v jiném regionu (tam ale počítejte s o něco větším zpožděním), takže DR lokalita má i svůj užitek, pokud nad ní běží reporting. Co se SQL týče, tak starost o připojení k zapisovací nebo čtecí replice pro vás zajistí přímo SDK, díky políčku ApplicationIntent v connection stringu, takže to ani není nic složitého pro programátora.</p>
+<p>&nbsp;</p>
+<p><em>Mám radost, že velcí cloud poskytovatelé jsou velmi transparentní, což u lokálních datových center nebývá vždy pravidlo. Díky tomu se dá občas nahlédnout pod pokličku a poučit se z toho i pro vaše aplikace.</em></p>

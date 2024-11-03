@@ -1,0 +1,79 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Serverless: primitivní, ale funční ukázka konverze jednotek nad Azure Functions'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 71
+wordpress_url: http://beta.tomaskubica.cz/?p=71
+date: '2017-03-02 13:15:44 +0000'
+date_gmt: '2017-03-02 12:15:44 +0000'
+categories:
+tags:
+- AzureFunctions
+- Serverless
+---
+<p>Nejsem žádný programátor, ale protože se zajímám o celkovou architekturu IT, občas si něco málo rád vyzkouším. Bude to hodně obyčejné, ale přesto bude něco trochu jinak. Nebudeme používat žádný server, VM ani kontejner. Vyzkoušíme serverless architekturu s Azure Functions. Naprogramujeme si jednoduchý převodník mezi Celsius a Fahrenheit. <!--more--></p>
+<p>Pokud jste byli na hotelu v USA, určitě to znáte. Přijdete a na pokoji úděsná klendra. Na termostatu 67. Hmm, no to je evidentně málo, ale kolik teda nastavit, aby to dávalo třeba nějakých rozumných evropských 22? Pojďme si napsat jednoduché API, které bude konvertovat z jednoho do druhého a využijeme k tomu Azure Functions.</p>
+<p>Nejdřív si založíme v Azure Functions aplikaci (je na to průvodce, nemusíme to teď detailně zkoumat).</p>
+<p id="SKpKdIo"><img class="img-fluid wp-image-72 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a45dfa4b4e.png" alt="" /></p>
+<p>Funkci napíšeme v JavaScriptu a událostí, která vyvolá její spuštění, bude webové volání.</p>
+<p id="CvwZbWM"><img class="img-fluid wp-image-73 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a45ee934fd.png" alt="" /></p>
+<p>Nejprve tedy zadáme příslušný kód. V horní části obrazovky je URL, na kterém naši funkci můžeme později vyvolat.</p>
+<p id="wjCqBUV"><img class="img-fluid wp-image-74 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a45fdecca1.png" alt="" /></p>
+<p>Podívejme se na kód blíže.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">module.exports = function (context, req) {
+    context.log('Got conversion request.');
+
+    if (req.query.temp &amp;&amp; req.query.from) {
+        var temp = parseInt(req.query.temp);
+        var fromtemp = req.query.from;
+        if (fromtemp == "C") {
+            result = ((temp*1.8)+32).toFixed(1);
+            res = {
+                body: result + " Fahrenheit"
+            };
+        };
+        if (fromtemp == "F") {
+            result = ((temp-32)*0.5556).toFixed(1);
+            res = {
+                body: result + " Celsius"
+            };
+        }; 
+    }
+    else {
+        res = {
+            status: 400,
+            body: "Supply temp (temperature as number) and from (use C for Celsius or F for Fahrenheit)"
+        };
+    }
+    context.done(null, res);
+};</pre>
+<p>Co se v něm děje? Píšeme si nějaké zprávičky do logu a parsujeme vstupní volání a hledáme GET parametry temp a from. Pokud je najdeme provedeme konverzi buď z Celsius nebo z Fahrenheit a volání ukončíme tak, že do těla jednoduše dáme řetězec s výsledkem (chceme co nejjednodušší ukázku, aby i neprogramátor pochopil co se děje, nicméně odpověď by měla být raději platný JSON, ne jednoduchý text).</p>
+<p>Na stránce integrace nemusíme nic dělat, ale prohlédněte si možnosti. Můžeme omezit použitá HTTP slovesa nebo v rámci výstupu přidat něco dalšího, například zaznamenat výsledek také třeba do databáze, abychom později mohli vyhodnocovat jaké nejčastější teploty lidé konvertují. Záložku Monitor si hnedka vyzkoušíme.</p>
+<p>Nejprve vyzkoušejte, že naše funkce funguje. Použijte příslušné URL a do něj připojte argumenty (tedy na konec URL napište &amp;temp=67&amp;from=F). Teď v Linuxu použijte curl a v PowerShell Invoke-WebRequest a za to do uvozovek dejte příslušné URL včetně přidaných parametrů. Odklepněte a měli bychom vidět výsledek (sledujte vrácený Content).</p>
+<p>&nbsp;</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">StatusCode        : 200
+StatusDescription : OK
+Content           : "19.4 Celsius"
+RawContent        : HTTP/1.1 200 OK
+                    Pragma: no-cache
+                    Content-Length: 14
+                    Cache-Control: no-cache
+                    Content-Type: application/json; charset=utf-8
+                    Date: Thu, 12 Jan 2017 10:07:33 GMT
+                    Expires: -1
+                    Server: Microsoft-IIS/8...
+</pre>
+<p>Můžeme to zkusit i špatně, třeba s chybějícími parametry a dostaneme naše hlášení:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Invoke-WebRequest : "Supply temp (temperature as number) and from (use C for Celsius or F for Fahrenheit)"</pre>
+<p>Podívejme se do záložky Monitor v portálu - měli bychom vidět naše volání i zprávy v logu.</p>
+<p id="luEDKxx"><img class="img-fluid wp-image-75 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a46ea481f1.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>A to je všechno, jednoduché, že? Serverless je nový způsob jak přemýšlet o provozu aplikací. Nestaráte se o server, ani VM, ani kontejner a ani nemusíte řešit, jestli máte nějakou orchestrační platformu, jeslti má dostatek zdrojů a jestli je redundantní. Píšete funkce a platíte za jejich spuštění - ne za běžící server.</em></p>

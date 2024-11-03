@@ -1,0 +1,44 @@
+---
+layout: post
+status: publish
+published: true
+title: Chcete PaaS SQL levněji? Co si přenést licenci nebo předplatit?
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2335
+wordpress_url: http://tomaskubica.cz/?p=2335
+date: '2018-08-09 09:32:24 +0000'
+date_gmt: '2018-08-09 08:32:24 +0000'
+categories:
+tags:
+- SQL
+---
+<p>Platformní varianta SQL je pro mě naprosto ideální. Má SLA 99,99% a já nemusím řešit nějaké clustery, nemusím updatovat OS a engine a přemýšlet jak to udělat tak, aby nedošlo k odstávce, všechno se mi samo zálohuje, snadno udělám geo-replikaci a tak podobně. Jenže při použití obyčejné VM si do ní mohu přenést on-premise licence, které už stejnak mám, a ušetřit. A taky můžu VM předplatit na 1 nebo 3 roky a dostat další slevu. Jé, kdyby tohle šlo pro PaaS ... tak moment, ono to od včerejška jde!<!--more--></p>
+<h1>Nový model sizingu Azure SQL Database</h1>
+<p>Tradiční přístup k sizingu Azure SQL DB je hodně cloudový a počítá se v jednotkách DTU, které reprezentují jednotku vykonané práce, která je přesně popsaná a definovaná. U aplikace si změříte kolik jednotek práce potřebujete (existuje utilitka, která vám to změří na stávajícím serveru) a takovou Azure SQL DB si koupíte. Díky tomu si například můžete pořídit databázi s pouhými 5 DTU za cenu kolem 4 EUR měsíčně. Samozřejmě je to extrémně pomalé, ale pro testování v rámci vývoje nebo malinkatou appku proč ne. Takhle malý server normálně nedostanete a to je výhoda koukání se na sizing podle jednotek práce, ne dle počtu procesorů.</p>
+<p>Na druhou stranu tento model je pro administrátory nový a vždy pátrají po tom, kolik CPU tam je a velikost storage škáluje společně s DTU (nemůžu tak například mít obrovskou ale málo výkonou databázi). Navíc model přes DTU má licencování rozpočtené na tyto jednotky (tzn. je v ceně služby) a tím není dost dobře možné namapovat to na tradiční licencování třeba z důvodu umožnění přenosu licencí do cloudu. Podobné je to s nějakým předplacením výkonu.</p>
+<p>Z těchto důvodů vznikl i druhý model prodeje Azure SQL Database a to přes vCore. Základní jednotkou licencování je tedy počet vCore aktuálně ve velikostech 1/2/4/8/16/24/32/48/80. Jakou dostanete paměť? Do záleží na zvoleném podvozku, kdy u Gen 4 je to 7 GB na vCore a u Gen5 je to 5,5 GB na core. Klíčové je rozhodnutí o tieru - General Purpose nebo Business Critical.</p>
+<h2>General Purpose a vCore model</h2>
+<p>V tomto tieru to funguje tak, že vaše DB běží na jedné instanci s tím, že data jsou na prezistentní storage (Azure Premium Storage). Jak se řeší vysoká dostupnost? Pokud se vaší instanci něco stane, Azure rychle zprovozní jinou instanci a napojí ji na vaše data ve storage. Tento proces je ale rychlejší, než si myslíte. Azure pro tuto službu drží přednastartované stroje bokem, takže když na to přijde musí je jen dokonfigurovat, přidělit vám a namapovat na vaše data. Díky tomu stále máte SLA 99,99%.</p>
+<p>Nejdůležitější ale je vnímat sizing z pohledu storage. Data jsou na SSD, ale v centralizované storage. Ve výsledku dostáváte 500 IOPSů na každý vCore s tím, že maximum je 7000 IOPS (pro větší sizing CPU už IOPS nerostou).</p>
+<h2>Business Critical a vCore model</h2>
+<p>Máte větší nároky? Zvolte Business Critical tier, který je opravdu masakr. V tomto případě se jedná o tři (ne dvě jak je to typické v on-premises) instance Always On clusteru, což umožňuje například zcela bezvýpadkový upgrade a patching (mezitím co se jeden upgraduje máte stále dva v redundanci). Navíc tyto instance mohou být v různých zónách dostupnosti v regionech, kde je to k dispozici (třeba West Europe). A to ještě není všechno. Z read replik můžete číst, takže pokud potřebujete kromě přístupu aplikace nad daty jet nějaké reporty nebo je exportovat za chodu do dalších systémů, nebudete zatěžovat primární repliku.</p>
+<p>K tomu hlavnímu se ale dostáváme až teď - storage. Business Critical tier nepoužívá redundantní vzdálenou storage, ale lokální SSD disky. To vede na neúprosný výkon. Dostáváte 5000 IOPS na každý vCore (10x víc než u General Purpose) s maximálně 200 000 IOPS.</p>
+<p>Přestože to oficiální SLA nijak nezohledňuje, dá se u tohoto tieru rozhodně očekávat velké (byť negarantované) "přeplnění" základního SLA.</p>
+<h1>Azure Hybrid Use Benefit - přeneste si licence</h1>
+<p>Nový model nákupu přes vCore přinesl možnost přenosu vašich stávajících licencí do PaaS SQL v cloudu. Pokud máte licence SQL Server se Software Assurance, můžete je použít pro Azure SQL Database. Standard edice vám přenáší core 1:1 do tieru General Purpose, Enterprise edice je 1:1 do tieru Business Critical nebo 1:4 do tieru General Purpose.</p>
+<p>Kolik ušetřím, když už licenci mám? Azure SQL Database v tieru General purpose bude díky tomu o 37% levnější a v tieru Business Critical o 53%.</p>
+<h1>Reserved Azure SQL DB</h1>
+<p>Pokud si vezmete VM a rozhodnete se jej předplatit na rok či tři roky dopředu, získáte slevu (Reserved Instance). Ta se nevztahuje na licence, jen zdroje samotné. Jednoduše za to, že server bude dobře využit, Microsoftu to zjednodušuje kapacitní plánování a vy dáváte určitý závazek, za to získáváte slevu. Od včerejška jde tohle i pro Azure SQL Database ve vCore modelu! Můžete si tedy DB předplatit na 1 nebo 3 roky a to přímo z Azure portálu.</p>
+<p>Kolik ušetřím, když si předplatím? Ve variantě s licencí v ceně služby vám předplatné na rok ušetříte 22% ceny u General purpose a 17% u Business Critical. Když se rozhodnete rezervovat na 3 roky bude to 34% u General purpose a 26% u Business Critical.</p>
+<h1>Kombinace obojího</h1>
+<p>A co když máte možnost využít jak předplatného tak přenosu licencí? Dostanete se na slevu 72% u General Purpose a 79% u Business Critical při přenesených licencích a rezervaci na 3 roky.</p>
+<p>&nbsp;</p>
+<p><em>Azure SQL Database jako PaaS služba umožňuje nákup přes vCore a díky tomu také možnost přenosu licencí do cloudu a od včerejška i schopnost rezervovat si ji dopředu a ušetřit. Jak jste viděli, dá se dostat i na 79% slevu a to už je tedy docela znát. </em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

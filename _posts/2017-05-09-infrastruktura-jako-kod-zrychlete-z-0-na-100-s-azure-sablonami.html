@@ -1,0 +1,798 @@
+---
+layout: post
+status: publish
+published: true
+title: Infrastruktura jako kód - zrychlete z 0 na 100 s Azure šablonami
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 690
+wordpress_url: http://tomaskubica.cz/?p=690
+date: '2017-05-09 05:00:16 +0000'
+date_gmt: '2017-05-09 04:00:16 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Infrastructure as code, tedy schopnost jednotně popsat a automatizovat kompletní infrastrukturu je obvzláště přínosná ve své desired state podobě. Tedy tak, že deklarujete čeho chcete dosáhnout a nějaký robot vás do tohoto stavu uvede. Nemusíte skriptovat krok za krokem ani přidávat "když tohle, pak tohle" a podobné věci. Váš infrastrukturní předpis je pak dokonalou a spustitelnou dokumentací. Přesně takové jsou ARM šablony. Dnes v jediném článku začneme tou nejjednodušší a na konci už budeme vesele používat vnořené šablony.<!--more--></p>
+<h1>ARM</h1>
+<p>Azure Resource Manager umožňuje popsat dnes už prakticky všechno v Azure konzistentním deklarativním způsobem. To zahrnuje kompletní infrastrukturu (VM, firewall pravidla, storage, disky, sítě, balancery, zaváděcí skripty, napojení Chef a jiných OS konfiguračních nástrojů), ale i většinu platformních služeb pro aplikace, databáze i bezpečnost. Nemusíte znát programování, vše je zapsáno jako datová struktura reprezentovaná formátem JSON.</p>
+<p>Všechny dnešní šablony najdete na mém GitHub tady: <a href="https://github.com/tkubica12/armtutorial">https://github.com/tkubica12/armtutorial</a></p>
+<p>Většina ukázek na internetu se snaží předvádět něco praktického a užitečného, takže zahrnuje tvorbu mnoha zdrojů (VM, IP, storage, ...). To jednak nějakou trvá dobu a také to činí šablonu složitou, oboje na začátek nic příjemného. Já se pokusím pracovat s nerealisticky jednoduchou šablonou (budeme vytvářet jen IP adresy a pozdeji NIC, ale to je vše), ale na ní předvést i relativně složité funkce jako jsou vnořené šablony. Mě to přijde efektivnější. Až dojdete na konec, vrhněte se do oficiálních krásných praktických příkladů: <a href="https://github.com/Azure/azure-quickstart-templates">https://github.com/Azure/azure-quickstart-templates</a></p>
+<h1>01 - jednodušší už to nebude</h1>
+<p>Tohle je moje první šablona:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { },
+  "variables": { },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "name": "mojeIP",
+                "apiVersion": "2016-03-30",
+                "location": "West Europe",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Na první pohled je asi zřejmé, že si vytvoříme jednu veřejnou IP adresu s konkrétním názvem a bude to v regionu West Europe.</p>
+<p>Jak šablonu dostaneme do Azure? Můžeme použít GUI, PowerShell i CLI. Já dnes budu využívat příkazovou řádku.</p>
+<p>Nejprve si vytvořím resource group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n arm -l westeurope</pre>
+<p>A teď do této resource group pošleme naší první ARM šablonu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo01.json -g arm</pre>
+<p>Podívejme se na výsledek.</p>
+<p id="obeAinM"><img class="img-fluid wp-image-692 " src="/images/2017/img_59109a789a2c1.png" alt="" /></p>
+<p>Je tam. Gratuluji, právě jste použili svojí první šablonu, která je jednoduchá a jistě přesně chápete, co jsme v ní udělali.</p>
+<h1>02 - drobná změna a Incremental vs. Complete deployment</h1>
+<p>Ve své druhé šabloně jsem udělal jen jednu drobnost - změnil jsem název své IP adresy:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { },
+  "variables": { },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "name": "mojeIP2",
+                "apiVersion": "2016-03-30",
+                "location": "West Europe",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Teď si ukážeme rozdíl mezi inkrementálním a kompletním deploymentem šablony. ARM totiž není jen o tom, že někdy na začátku svoje zdroje vytvoříte, ale můžete průběžně šablonu měnit a robotovi ji předkládat. Ten se na ní podívá a srovná jí s realitou (tedy předchozí verzí nahranou v Azure). Pokud identifikuje rozdíly, jedná (a za chvilku uvidíte jak). ARM řeší kompletní životní cyklus, nejen začátek.</p>
+<p>Pošleme šablonu do existující resource group, čímž provedeme update té stávající. Pokud neřekneme jinak, bude deployment proveden inkrementálně.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo02.json -g arm
+</pre>
+<p>Co znamená inkrementálně? Azure si projede naši šablonu a pokud zjistí, že jsou v ní nějaké zdroje, které v aktuální realitě nejsou, tak je vytvoří. Co tedy chybí, bude doplněno. Protože jsme mu poslali zdroj mojeIP2 a ten neexistuje, Azure ho přidá.</p>
+<p id="sQBzwzf"><img class="img-fluid wp-image-694 " src="/images/2017/img_5910abab210f0.png" alt="" /></p>
+<p>Teď vyzkoušíme variantu Complete.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo02.json -g arm --mode Complete
+</pre>
+<p>Tato možnost nejen přidá, co chybí, ale také odebere, co přebývá. Měli bychom tedy najít mojeIP2, ale protože o mojeIP už nepadlo ani slovo, Azure by ji měl v tomto režimu odebrat.</p>
+<p id="vqCZyHV"><img class="img-fluid wp-image-695 " src="/images/2017/img_5910ac59221ca.png" alt="" /></p>
+<h1>03 - přesuňme něco do proměnných</h1>
+<p>Psát například regionální umístění přímo do definice zdroje není rozumné. Až jich budeme mít padesát a napadne nás, že by bylo tentokrát dobré to pustit v North Europe, určitě to nechci upravovat na tolika místech. Místo toho můžeme použít proměnnou, tedy definovat to na jednom místě (takže to snadno upravíme, když bude potřeba) a na to se jen odkazovat. Výsledek vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { },
+  "variables": {
+      "umisteni": "West Europe"
+   },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "name": "mojeIP2",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Klidně pusťte šablonu do Azure, proběhne a neměla by nic změnit (vše totiž odpovídá realitě - to, že je to jinak zapsané, je jedno). Místo přímého zápisu regionu k naší IP jsme vytvořili proměnnou umisteni a na tu se na patřičném místě odkazujeme.</p>
+<h1>04 - vytáhneme lokalitu z resource group s použitím funkce</h1>
+<p>ARM šablona je sice JSON, ale v hranatých závorkách můžeme provádět mnoho různých funkcí a operací. Už jsme si vyzkoušeli třeba odkaz na proměnnou, ale možností je víc. Tak například přestože resource group může obsahovat zdroje z různých Azure regionů, obvykle asi budete chtít mít všechno v tom regionu, který jste identifikovali při vytváření skupiny samotné. V šabloně k této informaci máme přístup díky funkci. Nechme tedy proměnnou, ale její obsah naplníme funkcí ze skupiny, do které uživatel šablonu namíří.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": { },
+  "variables": {
+      "umisteni": "[resourceGroup().location]"
+   },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "name": "mojeIP2",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<h1>05 - parametrizace šablony</h1>
+<p>Proměnné jsou dobrý způsob, jak často se opakující věci koncentrovat na jedno místo. Přesto pro jejich úpravu je nutné zasáhnout do šablony samotné, takže nic pro vaše kolegy, kteří se psaní šablon bojí. Pokud potřebujeme dát kolegům možnost volby, použijme parametry. Při nasazení šablony tak uživatel může (nebo musí, to záleží na vás) uvést dodatečné údaje. Podívejte se na novou verzi naší šablony a zkuste odhadnout, co se tam děje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "nazev": {
+          "type": "string",
+          "metadata": {
+              "description": "Nazev IP adresy"
+          }
+      },
+      "prostredi": {
+          "type": "string",
+          "defaultValue": "PROD",
+          "allowedValues": [
+              "PROD", "QA", "TEST", "DEV"
+          ],
+          "metadata": {
+              "description": "Prostredi, ve kterem bude IP adresa pouzita"
+          }
+      }
+   },
+  "variables": {
+      "umisteni": "[resourceGroup().location]"
+   },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "name": "[concat(parameters('nazev'),'-',parameters('prostredi'))]",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Šablona má dva vstupní parametry - nazev a prostredi. Nazev je string a musí být vždy uveden. Prostredi je string, ale může mít pouze hodnoty PROD, QA, TEST nebo DEV - žádné jiné (jinak vrátí šablona chybu). Tento parametr ale uvádět nemusíme povinně, protože pokud není řečeno jinak, použije se hodnota PROD.</p>
+<p>Z těchto dvou vstupních parametrů si smontujeme název IP adresy. Využijeme funkce concat (spojení řetězců) a to tak, že na začátku bude obsah parametru nazev, pak pomlcka a pak zkratka prostredi.</p>
+<p>Pokud pracujeme v GUI, můžeme si prohlédnout i popisky, které jsme u parametrů vytvořili.</p>
+<p>Najděte si Template Deployment.</p>
+<p id="WcUcrMj"><img class="img-fluid wp-image-697 " src="/images/2017/img_5910af956346f.png" alt="" /></p>
+<p>Vytvořte šablonu v editoru.</p>
+<p id="QQucmnw"><img class="img-fluid wp-image-698 " src="/images/2017/img_5910afbd19be4.png" alt="" /></p>
+<p>Výčtové hodnoty se uživatelům zobrazují jako výběrová lišta.</p>
+<p id="SoAfxqu"><img class="img-fluid wp-image-699 " src="/images/2017/img_5910afe5e7da3.png" alt="" /></p>
+<p>A nad informační ikonkou si přečteme naše description.</p>
+<p id="duZIlNJ"><img class="img-fluid wp-image-700 " src="/images/2017/img_5910b0008daa8.png" alt="" /></p>
+<p>My se dnes ale pohybujeme v textovém režimu, takže vstupní parametry pošleme šabloně z jiného JSON souboru. Vypadat bude takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nazev": {
+      "value": "mojeip"
+    },
+    "prostredi": {
+      "value": "TEST"
+    }
+  }
+}</pre>
+<p>Pošleme to do Azure - tentokrát použijeme režim Complete.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo05.json --parameters "@demo05.parameters.json" -g arm --mode Complete
+</pre>
+<p>Výsledek je dle očekávání.</p>
+<p id="oTmnenF"><img class="img-fluid wp-image-703 " src="/images/2017/img_5910b0e947d4c.png" alt="" /></p>
+<p>Mimochodem - pokud jste to ještě neobjevili, tak jednotlivé operace, které Azure na základě šablon dělá, najdete v Activity logu.</p>
+<p id="FOHfVCr"><img class="img-fluid wp-image-702 " src="/images/2017/img_5910b0d183fb7.png" alt="" /></p>
+<h1>06 - nasadíme smyčku</h1>
+<p>Co kdybychom potřebovali IP adres víc, máme vytvářet bloky se zdroji pro každou zvlášť. Klidně můžeme, ale možná se nám bude víc hodit možnost definovat požadovaný počet vstupním parametrem. Každý, kdo šablonu nasazuje, si pak může sám zvolit, kolik IP adres bude chtít. Kromě nového vstupního parametru s počtem si vyzkoušíme právě tvorbu smyčky, tedy sekci copy. Ta se bude opakovat tolikrát, kolik ji řekneme (a to bereme z parametru, takže vlastně kolik řekne ten, kdo ji nasazuje). V každém opakování vytvoříme jinou IP, takže musí mít i jiný název. Proto do něj přidáme copyIndex (v zásadě pořadí opakování smyčky) a to ve variantě copyIndex(1), tedy počítaný od jedničky (jinak se bude moje první IP označovat jako 0, což je pro lidského správce divné).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "nazev": {
+          "type": "string",
+          "metadata": {
+              "description": "Nazev IP adresy"
+          }
+      },
+      "prostredi": {
+          "type": "string",
+          "defaultValue": "PROD",
+          "allowedValues": [
+              "PROD", "QA", "TEST", "DEV"
+          ],
+          "metadata": {
+              "description": "Prostredi, ve kterem bude IP adresa pouzita"
+          }
+      },
+      "pocet": {
+          "type": "int",
+          "defaultValue": 1,
+          "metadata": {
+              "description": "Pocet IP adres k vytvoreni"
+          }
+      }
+   },
+  "variables": {
+      "umisteni": "[resourceGroup().location]"
+   },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "copy": {
+                    "name": "IPsmycka",
+                    "count": "[parameters('pocet')]"
+                },
+                "name": "[concat(parameters('nazev'),'-',parameters('prostredi'),'-',copyIndex(1))]",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Pošleme tyto vstupní parametry:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nazev": {
+      "value": "mojeip"
+    },
+    "prostredi": {
+      "value": "TEST"
+    },
+    "pocet": {
+      "value": 3
+    }
+  }
+}</pre>
+<p>A nasadíme to...</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo06.json --parameters "@demo06.parameters.json" -g arm --mode Complete
+</pre>
+<p>Výsledkem budou 3 IP adresy.</p>
+<p id="nfHaWxk"><img class="img-fluid wp-image-704 " src="/images/2017/img_5910b27c5dd00.png" alt="" /></p>
+<h1>07 - názvy bez čísel aneb smyčka nad polem</h1>
+<p>Co kdybychom chtěli uživatelům dát možnost při nasazení šablony určit kompletní názvy výčtem? Tedy vypsat třeba tři jména IP adres a šablona nechť právě takové vytvoří. Upravme si šablonu tak, že místo pouhého počtu a názvu, vezme jako vstupní parametr pole (výčet) názvů. Pak v sekci copy procházíme jednotlivé členy tohoto výčtu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "nazvy": {
+          "type": "array",
+          "metadata": {
+              "description": "Nazev IP adresy"
+          }
+      },
+      "prostredi": {
+          "type": "string",
+          "defaultValue": "PROD",
+          "allowedValues": [
+              "PROD", "QA", "TEST", "DEV"
+          ],
+          "metadata": {
+              "description": "Prostredi, ve kterem bude IP adresa pouzita"
+          }
+      }
+   },
+  "variables": {
+      "umisteni": "[resourceGroup().location]"
+   },
+  "resources": 
+  [
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "copy": {
+                    "name": "IPsmycka",
+                    "count": "[length(parameters('nazvy'))]"
+                },
+                "name": "[concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi'))]",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Tady jsou parametry:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nazvy": {
+      "value": [
+        "PrvniIP", "DruhaIP", "TretiIP"
+      ]
+    },
+    "prostredi": {
+      "value": "TEST"
+    }
+  }
+}</pre>
+<p>Pošleme šablonu do Azure režimem Complete.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo07.json --parameters "@demo07.parameters.json" -g arm --mode Complete
+</pre>
+<p>Co čekáte za výsledek?</p>
+<p id="EDixbnL"><img class="img-fluid wp-image-706 " src="/images/2017/img_5910b39bf30eb.png" alt="" /></p>
+<h1>08 - věci na sobě závislé v kombinaci se smyčkou</h1>
+<p>Krásně si teď smyčkou vytváříme IP adresy, ale co když potřebujeme něco, co je spolu propletelné. Třeba NIC a její veřejnou IP adresu. Při vytváření NIC (síťové karty) potřebujeme přiřadit IP, ale ta už musí existovat. Uděláme tedy smyčku pro vytváření NIC a jinou pro vytváření IP, ale budeme potřebovat robotovi říct, že NIC je závislá na IP. Robot se snaží co nejvíc věcí dělat paraleleně (což je super pro rychlost a je to velký rozdíl oproti běžně udělanému skriptu), ale nesmí to přehnat - pokud vytvoří NIC a IP ještě není, budeme mít problém. To vyřešíme klauzulí dependsOn.</p>
+<p>V naší šabloně přidáme vytvoření sítě a subnetu (to je nutné pro existenci NIC) a NIC je závislá jednak na tom, ale také na dokončení smyčky vytvářející IP adresy. Možná to zná složitě, ale ze šablony samotné je to docela zřejmé. Všimněte si, že smyčka se vždy týká jen konkrétního zdroje! Máme tedy tentokrát dvě.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "nazvy": {
+          "type": "array",
+          "metadata": {
+              "description": "Nazev IP adresy"
+          }
+      },
+      "prostredi": {
+          "type": "string",
+          "defaultValue": "PROD",
+          "allowedValues": [
+              "PROD", "QA", "TEST", "DEV"
+          ],
+          "metadata": {
+              "description": "Prostredi, ve kterem bude IP adresa pouzita"
+          }
+      }
+   },
+  "variables": {
+      "umisteni": "[resourceGroup().location]",
+      "vnet": "mujNet",
+      "vnetPrefix": "10.0.0.0/16",
+      "subnetPrefix": "10.0.0.0/24"
+   },
+  "resources": 
+  [
+            {
+                "apiVersion": "2016-03-30",
+                "type": "Microsoft.Network/virtualNetworks",
+                "name": "[variables('vnet')]",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('vnetPrefix')]"
+                    ]
+                    },
+                    "subnets": [
+                    {
+                        "name": "[concat(variables('vnet'),'Sub')]",
+                        "properties": {
+                        "addressPrefix": "[variables('subnetPrefix')]"
+                        }
+                    }
+                    ]
+                }
+            },
+            {
+                "type": "Microsoft.Network/publicIPAddresses",
+                "copy": {
+                    "name": "IPsmycka",
+                    "count": "[length(parameters('nazvy'))]"
+                },
+                "name": "[concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi'))]",
+                "apiVersion": "2016-03-30",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "publicIPAllocationMethod": "Dynamic"
+                }
+            },
+            {
+                "apiVersion": "2016-03-30",
+                "type": "Microsoft.Network/networkInterfaces",
+                "copy": {
+                    "name": "NICsmycka",
+                    "count": "[length(parameters('nazvy'))]"
+                },
+                "name": "[concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi'),'-NIC')]",
+                "location": "[resourceGroup().location]",
+                "dependsOn": [
+                    "[concat('Microsoft.Network/virtualNetworks/', variables('vnet'))]",
+                    "IPsmycka"
+                ],
+                "properties": {
+                    "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                        "publicIPAddress": {
+                            "id": "[resourceId('Microsoft.Network/publicIPAddresses/', concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi')))]"
+                        },
+                        "privateIPAllocationMethod": "Dynamic",
+                        "subnet": {
+                            "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/', variables('vnet')),'/subnets/',variables('vnet'),'Sub')]"
+                        }
+                        }
+                    }
+                    ]
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Tady jsou vstupní parametry.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nazvy": {
+      "value": [
+        "PrvniIP", "DruhaIP", "TretiIP"
+      ]
+    },
+    "prostredi": {
+      "value": "TEST"
+    }
+  }
+}</pre>
+<p>Pošleme šablonu do Azure.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo08.json --parameters "@demo08.parameters.json" -g arm --mode Complete
+</pre>
+<p>Tady je výsledek.</p>
+<p id="QbvQbLy"><img class="img-fluid wp-image-707 " src="/images/2017/img_5910b5702e7c6.png" alt="" /></p>
+<h1>09 - vnořená šablona</h1>
+<p>Máme tady dvě odlišné kategorie zdrojů. Jeden je sdílený celou resource group a tím je síť. Možná je to něco, co využijeme v mnoha šablonách a může to mít na starost jiný tým. Jiná věc je samotná tvorba IP adres, to je specifická sada zdrojů a dělá ji třeba jiný tým (jak jsme říkali - dnes zjednodušujeme, aby šablona byla pochopitelná, ale v praxi by se za každou sadou zdrojů schovávaly daleko komlexnější objekty či celé aplikační architektury). K čemu směřuji? Co obě operace oddělit do dvou menších šablon, které budou přehlednější, mohou je vytvářet jiné týmy a dají se použít v různých kontextech a nad tím pak vytvořit "superšablonu", která propojí ty dílčí jednoduché do širšího celku? Pojďme tohle oddělení udělat. Dosáhneme výsledku stejného, jako v předchozím případě, ale budeme připraveni na důležitý krok dopředu (hned v další bodě budeme demonstrovat jakou sílu tím získáme).</p>
+<p>Nejprve tedy šablona pro vytvoření sítě. Všimněte si, že potřebuji všechno definovat jako vstupní parametry, ne proměnné, protože tato "podšablona" musí být hodně univerzální.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+        "vnet": {
+            "type": "string"
+        },
+        "vnetPrefix": {
+            "type": "string"
+        },
+        "subnetPrefix": {
+            "type": "string"
+        }
+   },
+  "variables": {
+      "umisteni": "[resourceGroup().location]"
+   },
+  "resources": 
+  [
+            {
+                "apiVersion": "2016-03-30",
+                "type": "Microsoft.Network/virtualNetworks",
+                "name": "[parameters('vnet')]",
+                "location": "[variables('umisteni')]",
+                "properties": {
+                    "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('vnetPrefix')]"
+                    ]
+                    },
+                    "subnets": [
+                    {
+                        "name": "[concat(parameters('vnet'),'Sub')]",
+                        "properties": {
+                        "addressPrefix": "[parameters('subnetPrefix')]"
+                        }
+                    }
+                    ]
+                }
+            }
+   ],
+  "outputs": { }
+}</pre>
+<p>Druhá malá šablona bude řešit tvorbu IP adres. Na vstupu bude opět mít pole s výčtem názvů IP adres a také parametr označující prostředí (tedy totéž co v předchozím případě - teď roztrháváme jednolitou šablonu na vnořené se zachováním stejného výsledku).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "nazvy": {
+            "type": "array"
+        },
+        "prostredi": {
+            "type": "string"
+        },
+        "vnet": {
+            "type": "string"
+        },
+        "vnetPrefix": {
+            "type": "string"
+        },
+        "subnetPrefix": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "umisteni": "[resourceGroup().location]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "copy": {
+                "name": "IPsmycka",
+                "count": "[length(parameters('nazvy'))]"
+            },
+            "name": "[concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi'))]",
+            "apiVersion": "2016-03-30",
+            "location": "[variables('umisteni')]",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic"
+            }
+        },
+        {
+            "apiVersion": "2016-03-30",
+            "type": "Microsoft.Network/networkInterfaces",
+            "copy": {
+                "name": "NICsmycka",
+                "count": "[length(parameters('nazvy'))]"
+            },
+            "name": "[concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi'),'-NIC')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "IPsmycka"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses/', concat(parameters('nazvy')[copyIndex()],'-',parameters('prostredi')))]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[concat(resourceId('Microsoft.Network/virtualNetworks/', parameters('vnet')),'/subnets/',parameters('vnet'),'Sub')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {}
+}</pre>
+<p>Nad tím vším uděláme hlavní šablonu. Ta bude přijímat parametry od toho, kdo šablonu nasazuje. Její zdroje budou deploymenty, tedy nasazení jiných šablon. Těm předají potřebné parametry. Nutno ale říct, že při volání podšablony ji musíme mít dostupnou na nějaké URL - třeba na GitHubu (to je můj případ) nebo v Azure Blob Storage (včetně neveřejného přístupu) nebo nějak jinak (třeba z vašeho web serveru). Hlavní šablona vypadá tedy takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "nazvy": {
+            "type": "array",
+            "metadata": {
+                "description": "Nazev IP adresy"
+            }
+        },
+        "prostredi": {
+            "type": "string",
+            "defaultValue": "PROD",
+            "allowedValues": [
+                "PROD",
+                "QA",
+                "TEST",
+                "DEV"
+            ],
+            "metadata": {
+                "description": "Prostredi, ve kterem bude IP adresa pouzita"
+            }
+        }
+    },
+    "variables": {
+        "vnet": "mujNet",
+        "vnetPrefix": "10.0.0.0/16",
+        "subnetPrefix": "10.0.0.0/24"
+    },
+    "resources": [
+        {
+            "apiVersion": "2015-01-01",
+            "name": "sdilenaSit",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri" : "https://raw.githubusercontent.com/tkubica12/armtutorial/master/demo09shared.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vnet": {
+                        "value": "[variables('vnet')]"
+                    },
+                    "vnetPrefix": {
+                        "value": "[variables('vnetPrefix')]"
+                    },
+                    "subnetPrefix": {
+                        "value": "[variables('subnetPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-01-01",
+            "name": "ip",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                    "Microsoft.Resources/deployments/sdilenaSit"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri" : "https://raw.githubusercontent.com/tkubica12/armtutorial/master/demo09ip.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vnet": {
+                        "value": "[variables('vnet')]"
+                    },
+                    "vnetPrefix": {
+                        "value": "[variables('vnetPrefix')]"
+                    },
+                    "subnetPrefix": {
+                        "value": "[variables('subnetPrefix')]"
+                    },
+                    "nazvy": {
+                        "value": "[parameters('nazvy')]"
+                    },
+                    "prostredi": {
+                        "value": "[parameters('prostredi')]"
+                    }                   
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}</pre>
+<p>Pošleme šablonu do Azure.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo09main.json --parameters "@demo09.parameters.json" -g arm 
+</pre>
+<p>Na výsledku se vůbec nic nezměnilo. Naše vnořené řešení funguje stejně, jako to předchozí. Nicméně podařilo se nám problém rozdělit na menší jednodušší šablony, bude se nám to lépe udržovat a vysledky naší práce můžeme daleko snadněji sdílet s ostatními kolegy. Připomínám - můj příklad je jednoduchý studijní, ale u rozsáhlé šablony s mnoha zdroji pocítíte zásadní snížení složitosti a zlepšení udržitelnosti.</p>
+<p>Ještě jedna věc - šablony spolu mohou komunikovat. Nejen, že nadřazená šablona může posílat těm vnořeným parametry, ale ty vnořené mohou v sekci outputs dát výstupy, které lze přečíst v hlavní šabloně (a třeba je poslat jako parametr jiné vnořené).</p>
+<h1>10 - využijme oddělených šablon použitím smyčky nad deploymentem</h1>
+<p>Blížíme se k závěru dnešního článku a slíbil jsem ukázat, že vnořená šablona dokáže elegantně udělat to, co by jinak bylo příšerně kostrbaté. Celou dobu tady vytváříme několik IP pro jedno konkrétní prostředí, které definujeme jako vstupní parametr. Co kdybychom chtěli mít jednoduchý způsob, jak v jednom kroku jedním složitějším parametrem vytvořit různá IP pro různá prostředí? Datově řečeno potřebujeme pole prostředí a uvnitř každého z nich pole adres. V jedné šabloně se utrápíte, pro nás ale něco takového nebude zásadní potíž. Dokážeme totiž provést smyčku, ve které voláme jiné šablony. A nejen to. Potřebné úpravy se budou týkat jen naší hlavní šabony, nemusíme sáhnout na jednotlivé podšablony!</p>
+<p>Moje hlavní šablona teď vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adresy": {
+            "type": "object",
+            "metadata": {
+                "description": "Prostredi a adresy"
+            }
+        }
+    },
+    "variables": {
+        "vnet": "mujNet",
+        "vnetPrefix": "10.0.0.0/16",
+        "subnetPrefix": "10.0.0.0/24"
+    },
+    "resources": [
+        {
+            "apiVersion": "2015-01-01",
+            "name": "sdilenaSit",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri" : "https://raw.githubusercontent.com/tkubica12/armtutorial/master/demo10shared.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vnet": {
+                        "value": "[variables('vnet')]"
+                    },
+                    "vnetPrefix": {
+                        "value": "[variables('vnetPrefix')]"
+                    },
+                    "subnetPrefix": {
+                        "value": "[variables('subnetPrefix')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "2015-01-01",
+            "name": "[concat('ip',copyIndex(1))]",
+            "type": "Microsoft.Resources/deployments",
+            "dependsOn": [
+                    "Microsoft.Resources/deployments/sdilenaSit"
+            ],
+            "copy": {
+                "name": "prostrediSmycka",
+                "count": "[length(parameters('adresy').seznam)]"
+            },
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri" : "https://raw.githubusercontent.com/tkubica12/armtutorial/master/demo10ip.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vnet": {
+                        "value": "[variables('vnet')]"
+                    },
+                    "vnetPrefix": {
+                        "value": "[variables('vnetPrefix')]"
+                    },
+                    "subnetPrefix": {
+                        "value": "[variables('subnetPrefix')]"
+                    },
+                    "nazvy": {
+                        "value": "[parameters('adresy').seznam[copyIndex()].nazvy]"
+                    },
+                    "prostredi": {
+                        "value": "[parameters('adresy').seznam[copyIndex()].prostredi]"
+                    }                   
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}</pre>
+<p>Na vstupu místo seznamu adres a stringu s prostředím bereme komplexní objekt adresy (za chvilku uvidíte, jakou má strukturu). Nejprve pustíme šablonu na vytvoření sítě (má jinou URL, ale obsah je přesně stejný, jako v předchozím kroku) a pak projedeme pole objektů v našem vstupním parametru. Pro každý průchod zavoláme vnořenou šablonu a té předáme příslušnou část včetně pole obsahujícího adresy pro jedno prostředí.</p>
+<p>Vše se vyjasní, když si ukážeme soubor vstupních parametrů:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adresy": {
+      "value": {
+        "seznam": [
+          {
+            "prostredi": "TEST",
+            "nazvy": [
+              "PrvniIP",
+              "DruhaIP",
+              "TretiIP"
+            ]
+          },
+          {
+            "prostredi": "DEV",
+            "nazvy": [
+              "PrvniIP",
+              "DruhaIP"
+            ]
+          },
+          {
+            "prostredi": "QA",
+            "nazvy": [
+              "PrvniIP"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}</pre>
+<p>Pošleme to do Azure.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group deployment create --template-file .\demo10main.json --parameters "@demo10.parameters.json" -g arm 
+</pre>
+<p>Výsledek bude jistě dle očekávání.</p>
+<p id="bfbbvXh"><img class="img-fluid wp-image-708 " src="/images/2017/img_5910ba857383f.png" alt="" /></p>
+<p>Ještě jedna věc - v GUI najdete všechny deploymenty.</p>
+<p id="ZIWjJYj"><img class="img-fluid wp-image-709 " src="/images/2017/img_5910bb243e4ff.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>ARM šablony jsou velmi mocné a dnes jsme si ukázali jednoduché i složitější vlastnosti, ale ještě mnohem víc toho zbývá - na tomto blogu se k tomu ještě několikrát vrátím. Kdy doporučuji používat ARM šablony? Skoro vždycky. Je fajn začít v GUI a podívat se, jakou ARM strukturu to vygeneruje (můžete se na ni totiž podívat - byť samozřejmě vychytávky typu smyčky a vnořené šablony za vás GUI nevymyslí). Dříve či později ale pocítíte touhu automatizovat. Moje doporučení je odolat zažitému skriptování. Dejte na chvilku svůj PowerShell nebo Bash na stranu a naučte se desired state principy v ARM. Pak se vám otevře prostor pro zajímavé kombinace. Třeba nahoře budete implementovat IT process (včetně schvalování šéfem) v PowerShell Workflow v Azure Automation. Z něj budete spouštět desired state infrastrukturní ARM šablony včetně navázání na OS desired state jako je PowerShell DSC, Ansible či Chef. Uvnitř těchto šablon třeba ale občas budete mít potřebu zavolat jednoduchý skript, protože vám Chef či PowerShell DSC nedává všechny možnosti, ale skript pro vás vykoná. Zkrátka - ARM je zásadní zbraní vašeho arzenálu a nahradit ho pouhým skriptem je škoda!</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

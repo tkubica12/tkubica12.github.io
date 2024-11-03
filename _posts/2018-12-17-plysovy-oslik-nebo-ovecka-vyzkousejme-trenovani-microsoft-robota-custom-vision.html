@@ -1,0 +1,53 @@
+---
+layout: post
+status: publish
+published: true
+title: Plyšový oslík nebo ovečka? Vyzkoušejme trénování Microsoft robota Custom Vision.
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2643
+wordpress_url: http://tomaskubica.cz/?p=2643
+date: '2018-12-17 06:20:36 +0000'
+date_gmt: '2018-12-17 05:20:36 +0000'
+categories:
+tags:
+- AI
+---
+<p>Kognitivní služby v Azure mají připravené vision modely, které jsou schopné říct, zda je na obrázku ovce nebo osel (pro strojové vyhodnocování živého betléma se vám to příští týden může hodit). Ale co ty plyšové? Ty samozřejmě nepozná. O strojovém učení nevím skoro nic, ale služba Custom Vision vypadá tak jednoduše, že bych ji mohl zvládnout a vy určitě také. Pojďme natrénovat model, který na obrázku označí kde je oslík a kde ovečka. <!--more--></p>
+<p>Pojďme na stránku <a href="https://www.customvision.ai/">https://www.customvision.ai/</a></p>
+<p id="aVCXTcd"><img class="img-fluid" src="/images/2018/img_5c1608d5473d0.png" alt="" /></p>
+<p>Po přihlášení budete mít trialku, ale já mám svůj Azure a chci si zaplatit těch doslova pár korun za plnou verzi. Mohl bych samozřejmě účet vytvořit v Azure, ale přímo z této stránky se to dá udělat taky.</p>
+<p id="cWSxlKk"><img class="img-fluid wp-image-2646 " src="/images/2018/img_5c160985d3e77.png" alt="" /></p>
+<p>V Azure se nám vyvořily příslušné zdroje.</p>
+<p id="MCggmuP"><img class="img-fluid wp-image-2647 " src="/images/2018/img_5c160ab61dbe5.png" alt="" /></p>
+<p>Vytvořme si tedy nový projekt.</p>
+<p id="GCdOXEG"><img class="img-fluid wp-image-2648 " src="/images/2018/img_5c160ae46cdf4.png" alt="" /></p>
+<p>Můžeme provádět klasifikaci obrázků, ale já bych chtěl raději detekci objektů. Ať mi hračky počítač nejen pozná, ale i řekne kde v obrázku jsou.</p>
+<p id="iQvsUmh"><img class="img-fluid wp-image-2649 " src="/images/2018/img_5c160b3852f92.png" alt="" /></p>
+<p>Nejdřív musíme trénovat a tak jsem si vyfotil oba plyšáky z různých úhlů, s různým pozadím, v jiných polohách a světelných podmínkách. Jen tak na zkoušku mám asi kolem 25 fotek, ale na přesnějších model by jich to chtělo víc. Nahraji je do Custom Vision.</p>
+<p id="NVsVkKz"><img class="img-fluid wp-image-2650 " src="/images/2018/img_5c160df1c1421.png" alt="" /></p>
+<p>Teď potřebuji robotovi říct, kde je jaký objekt, tedy ovečka a oslík.</p>
+<p id="cavpmcQ"><img class="img-fluid wp-image-2651 " src="/images/2018/img_5c160e28c0367.png" alt="" /></p>
+<p id="dJYcAzr"><img class="img-fluid wp-image-2652 " src="/images/2018/img_5c160e6728983.png" alt="" /></p>
+<p>Tohle uděláme pro všechny obrázky a jdeme natrénovat model.</p>
+<p id="iDXpqnW"><img class="img-fluid wp-image-2653 " src="/images/2018/img_5c1611267ccf7.png" alt="" /></p>
+<p>Máme hotovo.</p>
+<p id="fuAACbP"><img class="img-fluid wp-image-2654 " src="/images/2018/img_5c161189e7ef5.png" alt="" /></p>
+<p>Teď už můžeme rovnou přistupovat na API a začlenit vyhledávání oslíka a ovečky do vlastní aplikace.</p>
+<p id="WQZCfGZ"><img class="img-fluid wp-image-2655 " src="/images/2018/img_5c1611d813591.png" alt="" /></p>
+<p>Pojďme si ale přímo z GUI vyzkoušet, jak nám to funguje. Mám dvě fotky, které robot ještě neviděl, tak pojďme na to.</p>
+<p id="zVqfnYc"><img class="img-fluid wp-image-2656 " src="/images/2018/img_5c16121eb6b34.png" alt="" /></p>
+<p>Funguje krásně!</p>
+<p id="fPaCKSQ"><img class="img-fluid wp-image-2657 " src="/images/2018/img_5c16140777a32.png" alt="" /></p>
+<p>A teď něco složitějšího. Pozadí s rušivými obrázky, plyšáci v zákrytu. Tady je to horší, ale dvě nejvyšší pravděpodobnosti jsou naprosto správně.</p>
+<p id="XVRyMit"><img class="img-fluid wp-image-2658 " src="/images/2018/img_5c16147a00498.png" alt="" /></p>
+<p>Kromě toho ale robot našel i další objekty, které mu taky trochu připadají, jako oslík.</p>
+<p id="NYcBfvO"><img class="img-fluid wp-image-2659 " src="/images/2018/img_5c1614afea2d6.png" alt="" /></p>
+<p>Rozhodující ale je, jak velký máme procentuální odstup mezi správnou odpovědí a nesprávnou. Pokud je dostatečně velký, je to naprosto v pořádku. Pokud ne, možná bude potřeba lepší data na vstupu - víc obrázku s větší variabilitou apod. Nicméně pro dnešní pohrání je to přesnost naprosto dostatečná a bylo to opravdu velmi jednoduché.</p>
+<p>Navíc pokud bychom na začátku zvolili kompaktní model, tak ho můžeme vyexportovat. Kromě cloudového endpointu jako služba si tak kontejner můžeme odnést kam potřebujeme.</p>
+<p><em>Vyzkoušejte si Custom Vision v Azure. Je to geniálně jednoduché a při tom to opravdu krásně funguje. Můžete obohatit svoje aplikace - například kontrolovat vstup uživatele. Je to opravdu fotka člověka nebo vám tam zkouší podstrčit psa? Je to fotografie jeho Škodovky nebo vám podstrčil Ferrari? Je to opravdu scan dokumentu, který čekáte, nebo nějaký náčrtek rukou? A nejde náhodou o závadný obsah, který na svých stránkách nechcete? S tím vším vám mohou kognitivní služby pomoci a to nesmírně jednoduše.</em></p>

@@ -1,0 +1,44 @@
+---
+layout: post
+status: publish
+published: true
+title: První kroky v Azure SQL Database
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 101
+wordpress_url: http://tomaskubica.cz/?p=101
+date: '2017-02-08 09:06:39 +0000'
+date_gmt: '2017-02-08 08:06:39 +0000'
+categories:
+tags:
+- SQL
+---
+<p>Pokud chcete databázi v cloudu, můžete použít Azure IaaS a SQL Server ve VM. Dokonce na to existují šablony, které vám nasazení usnadní. Máte velkou míru flexibility, funkce identické s on-premise verzí a jste pány svého osudu. Jenže máte také dost práce. V čem je kouzlo Azure SQL a proč se mi hodně líbí?<!--more--></p>
+<p>Pokud použijete SQL server ve VM, je na vás pořešit vysokou dostupnost a AlwaysOn cluster (např. mít redundantní AD v cloudu, dát VM do clusteru, nad ním běžel AlwaysOn apod.). Sami si také budete řešit nějakou asynchronní replikaci do jiného regionu pro případ havárie (DR) a lokálního čtení (spouštět reportovací úlohy na této read-only kopii, která je třeba fyzicky blíž a navíc nesdílí výkon pro zápisy). Vysoká dostupnost ale není záloha - pokud vám například nějaký Malware bude potají několik dní ničit data (třeba je šifrovat a pak vydírat - klíč si budete moci koupit) tak máte v rámci HA sice několik kopií, ale všechny jsou k ničemu. Potřebujeme k tomu ještě backup pro Point-in-time restore. I tohle si musíme obsluhovat sami. No a k tomu samozřejmě pravidelné patchování jak hostitelského OS tak SQL serveru samotného.</p>
+<p>Azure SQL Database je PaaS varianta. Jsou tam některé rozdíly oproti třeba Windows 2016, ale po funkční stránce už si jsou obě varianty hodně podobné (ostatně dokonce některé funkce byly nejdřív v Azure SQL DB a teprve potom v klasickém on-premise SQL serveru). Výhodou pak je, že si jen nakliknete databázi a Azure se vám o dost věcí postará. Například o HA a řešení situace, kdy by nějaká z kopií nefungovala (to se v zásadě ani nedozvíte, jen vidíte, že je DB stále dostupná). Když chcete replikovat do jiného regionu, stačí kliknout. Automaticky pro vás Azure dělá Point-in-time zálohy s možností vrátit se do libovolného času za posledních 7 nebo 35 dní (podle výkonnostního tieru, který si vyberete). Když chcete tyto zálohy archivovat, tak si to jen nastavíte a Azure je vám bude schovávat jak budete chtít. Potřebujete všechna data transparentně šifrovat? Stačí označit jediné zaškrtávací pole (nemusíte řešit a spravovat klíče, Azure to pro vás udělá a uloží si je do hardwaru). A pokud máte hodně databází (například pro každého svého klienta jednu) a nevíte kolik bude potřeba výkonu, použijete elastické pooly. Zkrátka můžete se věnovat samotným datům, ladit si indexy, řešit bezpečnost a hlavně - psát a provozovat aplikace spíše, než trávit veškerý čas patchováním, konfigurací clusteru a sledováním backupů.</p>
+<h1>Vaše první databáze</h1>
+<p>Dnes si jen vytvoříme DB a připojíme se. Zajímavé funkce si necháme na další články.</p>
+<p>Zvolte jméno, resource group a kromě databáze si vytvoříme také "server",  kterém DB "bude" (proč uvozovky - vaše databáze nepoběží v nějakém konkrétním vašem VM, ale Azure zdroje hostuje za vás; nicméně z pohledu správy a připojování jsou takové koncepty hostitelského serveru důležité, ale je to spíše virtuální administrátorské členění). Vyplňte potřebné parametry a také jako zdroj nepoužijeme prázdnou DB, ale ukázkovou (ať tam něco máme).</p>
+<p id="sKVsEIm"><img class="img-fluid wp-image-103 " src="/images/2017/img_588115898c4cc.png" alt="" /></p>
+<p>Vyberte si pricing tier podle potřebného výkonu (ten je vyjádřen jako DTU, což je číslo reprezentující CPU a IO DB a logů - pro začátek ho berme informativně a relativně, stejně je nejlepší to zkusit prakticky a podívat se na graf, z kterého bude zřejmé kolik výkonu naše DB využívala a podle toho tier můžeme za plného provozu upravit), velikosti DB, počtu současných spojení a tak podobně.</p>
+<p id="ARjwDZJ"><img class="img-fluid wp-image-104 " src="/images/2017/img_588115bcab27d.png" alt="" /></p>
+<p>To je vše, teď jen chvilku počkejme, až se DB vytvoří. V naší resource group najdeme server a DB.</p>
+<p id="fwlsCro"><img class="img-fluid wp-image-105 " src="/images/2017/img_5881164754a42.png" alt="" /></p>
+<p>Podívejme se nejprve na virtuální entitu serveru a půjdeme do záložky Firewall. Ve výchozím stavu není povolen přístup z žádné IP. Portál ukazuje IP vašeho notebooku, to se nám hodí, protože tu budeme chtít povolit.</p>
+<p id="kaLFJOn"><img class="img-fluid wp-image-106 " src="/images/2017/img_588116b325ea4.png" alt="" /></p>
+<p>Zaneste záznamy o potřebných IP nebo celý rozsazích.</p>
+<p id="IwlXBjK"><img class="img-fluid wp-image-107 " src="/images/2017/img_5881170b7e3d3.png" alt="" /></p>
+<p>Výborně - teď si na počítači nastartujeme SQL Server Management Studio a namíříme ho na URL naší DB, kterou najdeme zde:</p>
+<p id="puPIQUG"><img class="img-fluid wp-image-108 " src="/images/2017/img_5881178da81cc.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>V SQL Management Studio zvolte SQL způsob ověřování a nalogujte se do serveru.</p>
+<p id="WgDLfdw"><img class="img-fluid wp-image-109 " src="/images/2017/img_588117ebf099c.png" alt="" /></p>
+<p>Jsme tam.</p>
+<p id="ztMoOEV"><img class="img-fluid wp-image-110 " src="/images/2017/img_5881186751e6a.png" alt="" /></p>
+<p>Pro dnešek nám to bude stačit, ale příště už si zkusíme mnoho zajímavých vlastností, jako je geo-replikace, obnova ze zálohy, dynamické maskování citlivých dat, práci s uživately a jejich přístupy k tabulkám či sloupcům, row-level security, transparentní šifrování nebo AlwaysEncrypted.</p>
+<p><em>Provozovat vysoce dostupnou, bezpečnou, plně zálohovanou a starostlivě aktualizovanou SQL databázi je v Azure snadné.</em></p>

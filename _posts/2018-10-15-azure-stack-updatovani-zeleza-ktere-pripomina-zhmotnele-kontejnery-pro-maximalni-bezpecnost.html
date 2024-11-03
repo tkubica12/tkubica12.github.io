@@ -1,0 +1,33 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Stack: updatování železa, které připomíná zhmotnělé kontejnery pro maximální
+  bezpečnost'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2550
+wordpress_url: http://tomaskubica.cz/?p=2550
+date: '2018-10-15 04:59:07 +0000'
+date_gmt: '2018-10-15 03:59:07 +0000'
+categories:
+tags:
+- AzureStack
+---
+<p>Jak se staráte o vaše fyzické servery, hypervisor a nějakou orchestrační platformu? Budu hádat: updatujete, patchujete a postupně se vám systém zaneřáďuje tak, že to po dvou letech smažete a začnete znovu. A co svět kontejnerů? Tam je to úplně jinak. Co verze aplikace, co "patch", to nový kontejnerový obraz. Každý update znamená, že jedete vlastně od začátku, pěkně z čistého. Podobné techniky nevyžadují nutně Docker, Azure Stack je používá pro váš privátní cloud i na železe.<!--more--></p>
+<h1>Proč nemám rád klasické updatování</h1>
+<p>Znáte, jak neustálé patchování boptná a boptná systém? Kolikrát se vám stalo, že po pár letech přišlo rozhodnutí začít raději znova? Představte si také jak složité je něco takového pro dodavatele software. Při instalaci updatu musí vzít v úvahu stávající stav systému (a to je po pár letech docela divoký předpoklad) a vyřešit jak dostat systém do nového požadovaného stavu. Instalace a update jsou tak dvě dramaticky odlišné disciplíny. Umíte si představit jak je to složité a kolik bugů z toho vzniká?</p>
+<p>A co víc - přemýšleli jste o bezpečnosti v kontextu updatů? Ano, každý patch může uzavřít zranitelnost, které mohla útočníka vpustit do systému. Proto je tak důležité aktualizace dělat. Jenže co integrita systému? Pokud patch zabední dveře neznamená to, že už je před tím někdo nepoužil! Útočník už může být vevnitř, má někde nějaký kousek software a vlamovat se tam už nepotřebuje. Patch vám nepomohl. Teď přichází ke slovu assume breach strategie - co nejnižší oprávnění pro různé účty, častá rotace klíčů, just enough administration a tak podobně. Tím se limituje šíření, ale stále tam útočníka můžeme mít a budeme ho muset najít.</p>
+<h1>Azure Stack update procedura</h1>
+<p>Azure Stack update funguje podobně, jako v případě kontejnerů. Fyzické servery využívají technologie boot from VHD. Zavaděč tedy skočí do VHD souboru velmi podobně, jak to dělají třeba virtuální mašiny. Aktualizace Azure Stack není o žádném updatování stávajícího stroje, ale aktualizace přináší nové čisté VHD s vyšší verzí všeho. Na node se tedy nahraje nový image a ten starý se zahodí.</p>
+<p>To má velmi zajímavé důsledky. Pokud by náhodou existovala nějaká možnost pro útočníka se dostat dovnitř a něco si tam nainstalovat (což je nepravděpodobné - Azure Stack nedovoluje na úrovni host spouštět Microsoftem nepodepsané aplikace), tak s každou aktualizací (což je jednou za měsíc) je vše vymeteno. Každý měsíc se dostáváte do originální stavu definovaného Microsoftem a každý zákazník má stejný image.</p>
+<p>Po takovémto prohození na úrovni hostitele následuje prakticky totéž na všech dalších vrstvách Azure Stacku. Ten pro svůj běh potřebuje několik VM, v kterých běží důležité komponenty. Někdy samostatné (například load balancer či VPN koncentrátor), ale většinou jsou tyto VM podhoubí pro Service Fabric orchestrátor. Každopádně tyto VM se updatují podobným stylem jako hostitel, tedy s aktualizací přichází jejich nové image. No a co Service Fabric? Tam je to jak čekáte, tedy máte novou verzi mikroslužby, která nahrazuje předchozí.</p>
+<p>Ještě si řekněme jak to funguje v rámci clusteru a jak dlouho to trvá. Při aktualizaci Azure Stack (pozor neplatí o development kit, ten je jen na hraní a aktualizace nepodporuje, vždy se musí instalovat znova) se postupuje node po nodu, aby nedocházelo k výpadkům. Běžící workloady, tedy IaaS VM nebo PaaS webovky apod. se přestěhují automaticky na zbývající nody. V okamžiku kdy je node prázdný, nabootuje z nového vhd, pak hypervisor nastartuje nové verze VM a v nich novou verzi Service Fabric. Následně si začne povídat s ostatními členy clusteru. Tady je to důležité - musí si rozumět, aby novější node pochopil konfiguraci celého clusteru. To je důvod, proč Azure Stack updaty nejsou kumulativní, ale musíte upgradovat verzi po verzi a nepřeskakovat. Jakmile je node zpět v clusteru, můžou se na něj přesouvat workloady. Následně se uvolní další node a začne jeho aktualizace a tak to jde tak dlouho, dokud není všechno updatováno. Jeden node trvá obvykle tak 2-3 hodiny, takže 8-nodový cluster se bude updatovat zhruba den. Ale je to bez výpadků a nemusíte u toho sedět.</p>
+<p>A je to složité? Vůbec. V portálu se vám objeví ikonka, že je něco nového a na vás je říct pouze "krleš".</p>
+<p><img src="https://docs.microsoft.com/en-us/azure/azure-stack/media/azure-stack-updates/image1.png" alt="Updates tile on default dashboard" /></p>
+<p><em>Způsob aktualizace Azure Stack je velmi moderní a přináší vyšší spolehlivost a bezpečnost. Pokoušet se něco takového stavět vlastníma rukama je zatraceně náročné. Azure Stack je cloud pro ty, co ho chtějí používat, ne stavět. Instalace za 5 dní. Aktualizace za den a bez výpadků s tím, že jedete vlastně z čistého. Pokud máte Azure a potřebujete pro některé situace svůj vlastní region ve svém sklepě, přidejte si k Azure váš Azure Stack.</em></p>

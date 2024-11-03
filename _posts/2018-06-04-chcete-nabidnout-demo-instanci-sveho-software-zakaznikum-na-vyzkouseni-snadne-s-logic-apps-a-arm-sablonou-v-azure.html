@@ -1,0 +1,170 @@
+---
+layout: post
+status: publish
+published: true
+title: Chcete nabídnout demo instanci svého software zákazníkům na vyzkoušení? Snadné
+  s Logic Apps a ARM šablonou v Azure.
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2193
+wordpress_url: http://tomaskubica.cz/?p=2193
+date: '2018-06-04 04:46:03 +0000'
+date_gmt: '2018-06-04 03:46:03 +0000'
+categories:
+tags:
+- LogicApps
+- Automatizace
+---
+<p>Vyvíjíte software a chcete zákazníkům nabídnout možnost během pár minut získat vlastní instanci a produkt ihned vyzkoušet? Stačí na webu vyplnit údaje, email a za pár minut jim přijde odkaz na běžící instanci vašeho software vytvořenou právě pro ně. Jak to udělat? Workflow zprocesujeme v Azure Logic App (posílání emailů, založení a zrušení instance) a samotné nasazení provedeme ARM šablonou v rámci flow. Úžasně jednoduché a užitečné, podívejte se, jak na to.<!--more--></p>
+<h1>Příprava a ARM šablona</h1>
+<p>Hlavním cílem u mě bude schopnost nasadit řešení pro vyzkoušení zákazníkem velmi rychle, ideálně do 3 minut. Pro příklad budu za "svou aplikaci" považovat WordPress. Abych měl nasazeno co nejrychleji, použiji kontejnerizaci a Azure Container Instances. ARM šablonou založím jednu container group obsahující kontejner s WordPress a kontejner s MySQL. Podobně rychlých výsledků dosáhnete třeba s použitím web appky v Azure Application Services a Azure Database for MySQL. Nicméně můžete použít cokoli v Azure, klidně deployment IaaS z nějakého připraveného demo image.</p>
+<p>Moje ARM šablona tedy vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "siteName": {
+      "type": "string",
+      "defaultValue": "[uniquestring(resourceGroup().id)]",
+      "metadata": {
+        "description": "WordPress Site Name"
+      }
+    },
+    "mysqlPassword": {
+      "type": "securestring",
+      "defaultValue": "Azure12345678",
+      "metadata": {
+        "description": "MySQL database password"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "cpuCores": "0.5",
+    "memoryInGb": "0.7",
+    "wordpressContainerGroupName": "wordpress-containerinstance"
+  },
+  "resources": [
+    {
+      "name": "[variables('wordpresscontainerGroupName')]",
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2018-02-01-preview",
+      "location": "[parameters('location')]",
+      "properties": {
+        "containers": [
+          {
+            "name": "wordpress",
+            "properties": {
+              "image": "wordpress:4.9-apache",
+              "ports": [
+                {
+                  "protocol": "tcp",
+                  "port": 80
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "WORDPRESS_DB_HOST",
+                  "value": "127.0.0.1:3306"
+                },
+                {
+                  "name": "WORDPRESS_DB_PASSWORD",
+                  "value": "[parameters('mysqlPassword')]"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": "[variables('cpuCores')]",
+                  "memoryInGb": "[variables('memoryInGb')]"
+                }
+              }
+            }
+          },
+          {
+            "name": "mysql",
+            "properties": {
+              "image": "mysql:5.6",
+              "ports": [
+                {
+                  "protocol": "tcp",
+                  "port": 3306
+                }
+              ],
+              "environmentVariables": [
+                {
+                  "name": "MYSQL_ROOT_PASSWORD",
+                  "value": "[parameters('mysqlPassword')]"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": "[variables('cpuCores')]",
+                  "memoryInGb": "[variables('memoryInGb')]"
+                }
+              }
+            }
+          }
+        ],
+        "ipAddress": {
+          "ports": [
+            {
+              "protocol": "tcp",
+              "port": 80
+            }
+          ],
+          "type": "Public",
+          "dnsNameLabel": "[parameters('siteName')]"
+        },
+        "osType": "Linux"
+      }
+    }
+  ],
+  "outputs": {
+    "siteFQDN": {
+      "type": "string",
+      "value": "[concat('http://', reference(resourceId('Microsoft.ContainerInstance/containerGroups/', variables('wordpresscontainerGroupName'))).ipAddress.fqdn)]"
+    }
+  }
+}</pre>
+<p>Na konci jsou outputs, ve kterých si smontuji výsledné URL, na které se zákazník může připojit.</p>
+<h1>Logic App pro celé workflow</h1>
+<p>Celé založení a zrušení demo prostředí provedeme v Logic App. Ta bude reagovat na HTTP request a na vstupu bude očekávat trojici dat - login (použiji pouze pro název zakládané Resource Group), jméno (použiji v uvítacím emailu) a email (na ten budu posílat informace). Do vašeho firemní webu si pak uděláte jednoduchý formulář a ten POSTnete do Logic App.</p>
+<p>V druhém kroku založím Resource Group v Azure.</p>
+<p id="QsTQWik"><img class="img-fluid wp-image-2194 " src="/images/2018/img_5b052bbdc23b2.png" alt="" /></p>
+<p>Následně provedu deployment ARM šablony.</p>
+<p id="PaLGMHz"><img class="img-fluid wp-image-2195 " src="/images/2018/img_5b052bddc6d7b.png" alt="" /></p>
+<p>Důležité pro mě bude počkat, až to celé doběhne, aby už aplikace byla připravena.</p>
+<p id="XiBqIMo"><img class="img-fluid wp-image-2196 " src="/images/2018/img_5b052bfdb6f4b.png" alt="" /></p>
+<p>V dalším kroku potřebuji parsovat output z deploymentu. V něm je uložena výsledná URL, kam se zákazník může připojit, ale je v JSON struktuře.</p>
+<p id="iFWzlCm"><img class="img-fluid wp-image-2197 " src="/images/2018/img_5b052c2ae57f5.png" alt="" /></p>
+<p>Tím pádem mám vše potřebné k poslání emailu zákazníkovi.</p>
+<p id="lCjNWSv"><img class="img-fluid wp-image-2198 " src="/images/2018/img_5b052c485d397.png" alt="" /></p>
+<p>Výsledný email vypadá takhle:</p>
+<p id="ySBJxdq"><img class="img-fluid wp-image-2199 " src="/images/2018/img_5b052c6716e00.png" alt="" /></p>
+<p>Zákazník klikne na odkaz a už vidí WordPress a může si s ním hrát.</p>
+<p>Nicméně doba na zkoušení bude omezena. Ve své Logic App použiji Delay, která její zpracování uspí (tzn. nebude čerpat peníze, jen po vypršení doby se probudí a bude pokračovat dál). Mohou to být minuty, hodiny, dny, týdny i měsíce. Já pro demo nabídnu uživatelům zkoušení jen na dvě minuty.</p>
+<p id="EqxqCBz"><img class="img-fluid wp-image-2200 " src="/images/2018/img_5b052cb9a5753.png" alt="" /></p>
+<p>Po vypršení doby chci zákazníka informovat, že prostředí bude zrušeno.</p>
+<p id="xuVtaCj"><img class="img-fluid wp-image-2201 " src="/images/2018/img_5b052cd689a3e.png" alt="" /></p>
+<p>Přijde mu něco takového:</p>
+<p id="YAngpIp"><img class="img-fluid wp-image-2203 " src="/images/2018/img_5b052d03c961a.png" alt="" /></p>
+<p>A následně zdroje v Azure zruším likvidací této Resource Group.</p>
+<p id="kZWVcKw"><img class="img-fluid wp-image-2202 " src="/images/2018/img_5b052cf055322.png" alt="" /></p>
+<p>A to je všechno! Nádherně snadné.</p>
+<p>Běh Logic App můžeme samozřejmě monitorovat.</p>
+<p id="EcOPWuQ"><img class="img-fluid wp-image-2204 " src="/images/2018/img_5b052d36f3d50.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>A teď si představte co díky Logic App můžeme do tohoto workflow snadno přidat. Co kdyby třeba tato událost založila lead do CRM systému jako je Microsoft Dynamics nebo SFDC? Bude tam informace o startu zkoušení, takže můžete zákazníkovi zavolat a nabídnout pomoc. Po ukončení zkoušení můžete zavolat a nabídnout cenu. V průběhu zkoušení můžete třeba posílat informační emaily například 2 dny po založení (něco jako a víte, že se s tím dá dělat ještě to a to). Vaše workflow může obsahovat emaily s tlačítkem pro reakci zákazníka, které následné flow změní - třeba Chci objednat (a provede migraci na produkční prostředí) nebo Potřebuji pomoc (a zadáte do Dynamics požadavek na telefonát) nebo Už to nepotřebuji (a smažete zdroje dřív, ať je neplatíte).</p>
+<p>&nbsp;</p>
+<p><em>ARM šablony a obecně Infrastructure as Code vám pomůže nejen u vnitřních procesů, ale i při nasazování pro zákazníky. Krásně se to dá obalit uceleným flow díky Logic Apps. Zlepšete svůj byznys a nabídněte demo svým zákazníkům snadno a téměř okamžitě.</em></p>

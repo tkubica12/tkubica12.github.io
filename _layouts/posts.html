@@ -1,0 +1,102 @@
+---
+layout: default
+---
+<meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('/images/front.jpg'); background-size: cover; background-position: center center;">
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="page-heading mx-auto" style="padding-top: 120px; padding-bottom: 80px;">
+          <h2>{{ site.title }}</h2>
+          {% if site.description %}
+          <span class="subheading">{{ site.description }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+
+      {{ content }}
+
+      <ul class="post-list">
+        <!-- 
+        Here is the main paginator logic called.
+        All calls to site.posts should be replaced by paginator.posts 
+    -->
+        {% for post in paginator.posts %}
+        <article class="post-preview">
+          <a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">
+            <h2 class="post-title">{{ post.title }}</h2>
+            {% if post.subtitle %}
+            <h5 class="post-subtitle">{{ post.subtitle }}</h3>
+              {% else %}
+              <h5 class="post-subtitle">{{ post.excerpt | strip_html | truncatewords: 50 }}</h3>
+                {% endif %}
+          </a>
+          <p class="post-meta">
+            {{ post.date | date: '%-d. %-m. %Y' }}
+          </p>
+          <p>
+            <h5 class="font-family: 'Lora', 'Times New Roman', serif; font-weight: 300; font-size: 18px;">
+              Téma:&nbsp;
+              {% for tag in post.tags %}
+              {% capture tag_name %}{{ tag }}{% endcapture %}
+              <a href="/tag/{{ tag_name | slugify }}/">
+                <nobr>{{ tag_name }}</nobr>&nbsp;
+              </a>
+              {% endfor %}
+            </h5>
+          </p>
+        </article>
+
+        <hr>
+        {% endfor %}
+      </ul>
+
+      <!-- 
+    Showing buttons to move to the next and to the previous list of posts (pager buttons).
+  -->
+      <!-- {% if paginator.total_pages > 1 %}
+  <ul class="pager">
+      {% if paginator.previous_page %}
+      <li class="clearfix">
+          <a class="btn btn-primary float-left" href="{{ paginator.previous_page_path | prepend: site.baseurl | replace: '//', '/' }}">&larr; Novější příspěvky</a>
+      </li>
+      {% endif %}
+      {% if paginator.next_page %}
+      <li class="clearfix">
+          <a class="btn btn-primary float-right" href="{{ paginator.next_page_path | prepend: site.baseurl | replace: '//', '/' }}">Starší příspěvky &rarr;</a>
+      </li>
+      {% endif %}
+  </ul>
+  {% endif %} -->
+
+      {% if paginator.total_pages > 1 %}
+      <div class="clearfix col-lg-8 col-md-10 mx-auto">
+        {% if paginator.previous_page %}
+
+        <a class="btn btn-primary float-left" href="{{ paginator.previous_page_path | prepend: site.baseurl | replace: '//', '/' }}">&larr;
+          Novější příspěvky</a>
+        {% endif %}
+        {% if paginator.next_page %}
+        <a class="btn btn-primary float-right" href="{{ paginator.next_page_path | prepend: site.baseurl | replace: '//', '/' }}">Starší
+          příspěvky &rarr;</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | relative_url }}">via RSS</a></p> -->
+
+  </div>
+</div>
+</div>

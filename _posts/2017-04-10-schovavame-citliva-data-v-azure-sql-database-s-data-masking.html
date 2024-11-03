@@ -1,0 +1,44 @@
+---
+layout: post
+status: publish
+published: true
+title: Schováváme citlivá data v Azure SQL Database s Data Masking
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 127
+wordpress_url: http://tomaskubica.cz/?p=127
+date: '2017-04-10 06:21:01 +0000'
+date_gmt: '2017-04-10 05:21:01 +0000'
+categories:
+tags:
+- SQL
+- Security
+---
+<p>Azure SQL má zajímavou funkci Data Masking, která "za živa zahvězdičkuje" citlivá data. Přemýšlel jsem, k čemu je to dobré.<!--more--></p>
+<p>Pokud řešíme přístup uživatelů k datům a některý z nich jednoduše číslo kreditní karty nebo rodné číslo vidět nemá, použil bych asi jinou metodu. například column security (o tom jindy), nedal bych přístup k hlavní tabulce, ale pouze view, které tyto údaje neobsahuje nebo bych celou logiku implementoval aplikačně v nějaké mikroslužbě. K čemu tedy maskování dat?</p>
+<h1>Maskování dat</h1>
+<p>Mě se líbí následující scénář. V rámci agilního (ale i tradičního) vývoje potřebujeme aplikace dobře testovat. V jednoduchých testech si vystačíme zcela bez databáze, použijeme mockup nebo testovací data. V pozdějších fázích je ale vhodné se co nejvíce přiblížit provozní situaci co do dat samotných a jejich objemu. Chybějící sloupeček je problém, protože kód počítá, že tam bude a mít jiný kód pro testování a jiný pro produkci by popíralo celý smysl. Sloupeček tam chceme, potřebujeme i reálná data, jen citlivé údaje ať zobrazí jen třeba poslední 3 čísla karty, ale zbytek je za hvězdičkou.</p>
+<p>Jak toho dosáhnout? Mohli bychom udělat skript, který bude načítat tabulku a přepisovat ji do jiné databáze  s tím, že zahvězdičkuje co potřebujeme. To je náročná čas, na datový tok a spotřebu zdrojů a peněz. Data Masking v Azure SQL tohle dokáže přímo za běhu. Nemusíte nic nikam kopírovat, stačí pro některé uživatele data schovávat a pro jiné ne.</p>
+<h1>Vyzkoušejme si Data Masking</h1>
+<p>Vytvořte si databázi v Azure a použijte vzorovou. Připojte se do DB a přidejme si jednoho nového uživatele. Použijeme contained usera (tedy existuje pouze v DB, ne v master). Přidejte ho jako read only.</p>
+<p id="vMjFcoG"><img class="img-fluid wp-image-131 " src="/images/2017/img_58831639d95da.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Odpojte se od DB coby administrátor a připojte se jako tento nový uživatel. Zkuste si vypsat pár sloupců z tabulky zákazníků.</p>
+<p id="rHzrSIM"><img class="img-fluid wp-image-129 " src="/images/2017/img_588313fc3276e.png" alt="" /></p>
+<p>Pojďme teď zamaskovat příjmení tak, aby bylo vidět jen první písmeno. V portálu půjdeme na naší DB a záložku Dynamic Data Masking. Najděte náš sloupec a přidáme masku. Všimněte si, že můžeme vyjmenovat uživatele, kterých se maskování týkat nebude (tam ni psát nemusíme, administrátora se maskování netýká).</p>
+<p id="xyqNnCA"><img class="img-fluid wp-image-135 " src="/images/2017/img_588328f967902.png" alt="" /></p>
+<p>Nahoře klikněte na maskovací pravidlo - upravíme si ho. Zvolíme vlastní způsob maskování a to tak, že necháme první písmeno a zbytek nahradíme hvězdičkou. Nakonec nezapomeňte všechno uložit.</p>
+<p id="PrqFoXA"><img class="img-fluid wp-image-138 " src="/images/2017/img_58832affd5eb1.png" alt="" /></p>
+<p>Vraťte se zpět do SQL Server Management Studio a vypište si data (připomínám, že jste pod účtem ctenar, tedy nikoli administrátorem).</p>
+<p id="vWvIMFb"><img class="img-fluid wp-image-139 " src="/images/2017/img_58832bbb52b74.png" alt="" /></p>
+<p>Všechno funguje jak potřebujeme!</p>
+<p>&nbsp;</p>
+<p><em>Dynamické maskování dat je velmi dobrý způsob, jak dát uživatelským účtům přístup k datovým sloupečkům, ale data v nich zamaskovat. Nic se nemusí kopírovat, vše je plně dynamické, nevznikají žádné dodatečné náklady. Pro testování aplikací myslím ideální.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

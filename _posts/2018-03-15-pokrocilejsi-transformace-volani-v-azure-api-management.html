@@ -1,0 +1,122 @@
+---
+layout: post
+status: publish
+published: true
+title: Pokročilejší transformace volání v Azure API Management
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1970
+wordpress_url: http://tomaskubica.cz/?p=1970
+date: '2018-03-15 08:07:05 +0000'
+date_gmt: '2018-03-15 07:07:05 +0000'
+categories:
+tags:
+- Apps
+---
+{% raw %}
+<p>O Azure API Management už jsem psal a dnes si ukážeme příklad o něco složitějších transformací. Máte API, které není RESTful a připomíná spíše JSONové RPC přes http? Podívejme se, jak se dá transformovat na moderní API, které bude každému vývojáři vyhovovat.<!--more--></p>
+<p>Představme si následující situaci a reálné nejmenované API, s kterým jsem si hrál. To využívalo na všechno metodu POST, zatímco RESTful přístup využívá vícero http sloves (GET pro čtení, POST pro vytvoření, PUT pro vytvoření nebo modifikaci, DELETE pro výmaz a PATCH pro jednoduchou modifikaci). Samotné sloveso bylo v URL, například /get/device, /create/device nebo /delete/device. Dále přihlašovací údaje, token nebo verze API bylo přímo v JSON s dotazem, který byl součást body, zatímco u RESTful tohle typicky chcete v headeru. Samotný dotaz byl formulován jako JSON v body - to je u RESTful běžné pro POST nebo PUT, ale čtení a filtrování typicky řešíte jako query v GETu. API vždy vracelo 200 z HTTP hlediska a uvnitř response body byl JSON obsahující položku error_code. V RESTful přístupu chcete využít http kódů přímo v odpovědi jako je 200 pro OK, 201 pro vytořeno, 202 pro přijato, 400 pro špatně formulovaný dotaz, 401 při selhání autentizace nebo 403 při selhání autorizace (uživatel je v pořádku, ale k této informaci nemá přístup).</p>
+<p>Jak by se dalo toto API transformovat na RESTful s využitím Azure API Management?</p>
+<h1>Liquid syntaxe v set-body</h1>
+<p>Nejprve samozřejmě nadefinujeme novou podobu API, ale při volání na backend musíme provést transformace. Prvním způsobem při vytváření potřebného JSON je Liquid syntaxe (podobná například Jinja2 template v Pythonu).</p>
+<p>Mějme na vstupu GET namířený na /devices, definovaný parametr count a offset a definovaný header s tokenem. Jak tohle dostat do POST volání a zakomponovat do JSON v body tak, jak to starší API potřebuje?</p>
+<p>Nejprve v politice změním cílové URL, protože staré api očekává /get/devices:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;rewrite-uri id="apim-generated-policy" template="/get/devices" /&gt;
+</pre>
+<p>Následně místo GET musím použít sloveso POST:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;set-method id="apim-generated-policy"&gt;POST&lt;/set-method&gt;</pre>
+<p>A teď k samotnému JSON. V liquid syntaxi mohu do JSON šablony vložit proměnnou ve stylu {{ tocohledam }}. Takovýmto způsobem se mohu odkázat na header stejně jako na query:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;set-body template="liquid"&gt;
+    {
+    "authtoken": "{{ context.Request.Headers.TOKEN }}",
+    "count": {{ context.Request.OriginalUrl.Query.count }},
+    "offset": {{ context.Request.OriginalUrl.Query.offset }}
+     }
+&lt;/set-body&gt;</pre>
+<p>Dalším příkladem je GET na konkrétní device. RESTful řešení je mít ID zařízení v URL cestě, například /devices/mojeid. To jsem v definici API udělal:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+      "id": "/apis/wsv-api/operations/5aa4dcfaa0dad42e6e43f505",
+      "name": "Get device",
+      "method": "GET",
+      "urlTemplate": "/devices/{deviceId}",
+      "templateParameters": [
+        {
+          "name": "deviceId",
+          "description": "Device ID",
+          "type": "string",
+          "defaultValue": null,
+          "required": true,
+          "values": []
+        }
+      ],
+      ...</pre>
+<p>Jak toho využiji v set-body, abych to transformoval do POST s JSON na starší api?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;set-body template="liquid"&gt;
+    {
+    "authtoken": "{{ context.Request.Headers.TOKEN }}",
+    "deviceId": "{{ context.Request.MatchedParameters.DEVICEID}}"
+    }
+&lt;/set-body&gt;</pre>
+<p>Liquid syntaxe se vám může hodit i pro přeskládání JSON. Tak například ve fasádním JSON potřebujete něco takového:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{  
+  "modernkeyarray":[  
+    {  
+      "modernkey1":"value"
+    },
+    {  
+      "modernkey2":"value"
+    }
+  ]
+}</pre>
+<p>Ale starší API očekává tohle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{  
+  "legacykeyarray":[  
+    {  
+      "legacykey1":"value"
+    },
+    {  
+      "legacykey2":"value"
+    }
+  ]
+}</pre>
+<p>Jak na to? S Liquid syntaxí je tranformace snadná:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;set-body template="liquid"&gt;
+    {
+    "legacykeyarray":[
+        {"legacykey1": "{{ context.Request.Body.legacykey1 }}"}, 
+        {"legacykey2": "{{ context.Request.Body.legacykey2 }}"}
+        ]
+    }
+&lt;/set-body&gt;</pre>
+<p>Stejně jednoduše můžeme ale strukturu předělat třeba na YAML, když ho naše backend API očekává:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;set-body template="liquid"&gt;
+legacykeyarray:
+- legacykey1: {{ context.Request.Body.legacykey1 }}
+- legacykey2: {{ context.Request.Body.legacykey2 }}
+&lt;/set-body&gt;</pre>
+<h1>Použití C#</h1>
+<p>Pokud potřebujete v transformaci něco složitějšího, můžete vložit skutečný kód. V mém případě to potřeba bylo. Při aktualizaci něčeho v backendu mělo klasické API nutnost mít opět autentizaci v samotném JSON (a já to chci ve fasádě v headeru - tentokrát to ale nebude token, ale objekt obsahující username a password), device ID bylo rovněž v JSON (ale v RESTful chci PUT na /devices/mojeid) a současně struktura JSON byla proměnlivá podle toho, které atributy zařízení bylo potřeba opravit. V Liquid šabloně sice můžete dělat věci jako "if exist", ale bylo by to komplikované. Jednodušší je použít C#.</p>
+<p>Nejprve si načtu JSON z těla nového API.  Následně do objektu "device", který obsahuje atributy zařízení, potřebuji přidat klíč s device ID, takže si z původního JSON vyndám objekt device a do něj klíč přidám. Následně pro starší API potřebuji další objekt (na úrovni device) obsahující username a password z headeru.  Vypadá to nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">&lt;set-body&gt;
+@{   
+    JObject inBody = context.Request.Body.As&lt;JObject&gt;();   
+    JObject device = inBody["device"] as JObject;
+    device.Add("deviceId", context.Request.MatchedParameters["deviceId"]);
+    var auth = new JObject();
+    auth.Add("n", context.Request.Headers.GetValueOrDefault("LOGIN", ""));
+    auth.Add("p", context.Request.Headers.GetValueOrDefault("PASSWORD", ""));
+    var output = new JObject();
+    output.Add("auth", auth);
+    output.Add("device", device);
+    return output.ToString();   
+}
+&lt;/set-body&gt;</pre>
+<p>Určitě si teď dokážete představit v zásadě jakoukoli transformaci, máte k ruce skutečný programovací jazyk.</p>
+<p>&nbsp;</p>
+<p><em>Berme to jako naťuknutí, dále bychom pokračovali transformací odpovědi (starší API vrací response code v JSON a my ho chceme konvertovat na http kód) a tak podobně. V každém případě myslím, že Azure API Management nabízí nejen velmi dobrou správu API, automatizaci dokumentace, zabezpečení, ochranu před přetížením, monitoring i caching, ale v oblasti tranformace můžete kromě zabudovaných koverzí typu XML do JSON vytvořit i cokoli svého. K ruce máte Liquid, v zásadě templatovací jazyk podobný Jinja2, s kterým snadno provedete změny v JSON i vytváření jiného formátu jako je YAML a pokud potřebujete dělat něco složitějšího, můžete přímo využít C#. Dnešní svět je o API, zkuste si Azure API Management ještě dnes.</em></p>
+{% endraw %}

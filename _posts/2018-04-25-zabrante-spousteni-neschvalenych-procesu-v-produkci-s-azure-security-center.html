@@ -1,0 +1,42 @@
+---
+layout: post
+status: publish
+published: true
+title: Zabraňte spouštění neschválených procesů v produkci s Azure Security Center
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2086
+wordpress_url: http://tomaskubica.cz/?p=2086
+date: '2018-04-25 12:02:17 +0000'
+date_gmt: '2018-04-25 11:02:17 +0000'
+categories:
+tags:
+- Security
+---
+<p>Dnešní útoky na vaše prostředí už nejsou tolik o hackování firewallů, ale spíše o infiltraci do infrastruktury, kde vstupním bodem bývá zdařilý útok na RDP/SSH či průnik přes phishing na klientovi. Aby se ale útočník dostal k něčemu zajímavému musí se propracovat k serverům. Na nich si obvykle potřebuje spustit nějaké nástroje. Scanování sítě, lámač hesel, odposlouchávadlo. Zajímavou možností je zjistit, jaké procesy a služby za normálních okolností běží na vašem produkčním serveru a zabránit spouštění čehokoli jiného s App Locker ve Windows. Ale jak to nastavit a spravovat? Tady vám pomůže Azure Security Center.<!--more--></p>
+<h1>App Locker</h1>
+<p>Tato funkce je v toto chvíli dostupná pouze pro Windows, ale pracuje se na něčem podobném i pro Linux svět. V zásadě jde o whitelisting aplikací. Řeknete které aplikace (případně který vydavatel) mohou na serveru běžet (a kde, můžete například zabránit spuštění systémového procesu z nestandardního adresáře) a všechno ostatní bude buď generovat hlášení nebo bude rovnou zablokováno. Nicméně správa takového systému je komplikovaná a tady přichází na pomoc Azure Security Center.</p>
+<h1>Adaptive Application Control v Azure Security Center</h1>
+<p>Azure Security Center je hybridní řešení pro bezpečnost vašeho prostředí, kdy většina funkcí funguje jak pro zdroje běžící v Azure, tak pro operační systémy provozované kdekoli jinde, třeba v hostingu nebo on-premises. Adaptivní řízení aplikací je řešení, které po zapnutí bude sledovat co se na monitorovaném systému děje. Díky agentovi se sbírají události typu start process a machine learning je vyhodnocuje. ASC se minimálně 14 dní bude učit co je ve vašich VM běžné a následně vám předloží sadu doporučení co je vhodné dát do whitelistu.</p>
+<p id="xCCPKmN"><img class="img-fluid wp-image-2087 " src="/images/2018/img_5ae005d57b87c.png" alt="" /></p>
+<p>Já už tu doporučení mám. Pokud máte ve správě VM víc, ASC vám také nabídne seskupení podobných VM. Tak například pokud máte webovou farmu, kde jsou všechny nody stejné, ASC to pozná a seskupí. Jak doporučení vypadá?</p>
+<p id="zjUVaab"><img class="img-fluid wp-image-2088 " src="/images/2018/img_5ae006417d42c.png" alt="" /></p>
+<p>Mám tady seznam návrhů a to včetně účtu, pod kterým se proces běžně spouští. Můžeme si rozkliknout pro detaily.</p>
+<p id="EKeiwnb"><img class="img-fluid wp-image-2089 " src="/images/2018/img_5ae0067bddc57.png" alt="" /></p>
+<p>Já jsem se strojovým učením spokojen a tak kliknu na Create. To nastaví whitelist v auditním režimu - tedy pokud se cokoli jiného, budu informován.</p>
+<p id="Fnbmxlh"><img class="img-fluid wp-image-2091 " src="/images/2018/img_5ae0076a958f5.png" alt="" /></p>
+<p id="oAeveVw"><img class="img-fluid wp-image-2092 " src="/images/2018/img_5ae00a53db098.png" alt="" /></p>
+<p>Připojím se do VM, nainstaluji a spustím něco jiného. Protože jsme v auditovacím režimu tomu nebude zabráněno, ale dříve či později se vám to zobrazí v Azure Security Center (může to nějakou dobu trvat - ostatně je to pro sledování, pokud chcete okamžitou reakci, použijte Enfore režim viz dále).</p>
+<p id="sBFgVlq"><img class="img-fluid wp-image-2095 " src="/images/2018/img_5ae05c7317c64.png" alt="" /></p>
+<p id="rurQuWr"><img class="img-fluid wp-image-2096 " src="/images/2018/img_5ae05dc9c37a0.png" alt="" /></p>
+<p>Přepněme si teď režim na Enforce.</p>
+<p id="oAlQXAD"><img class="img-fluid wp-image-2093 " src="/images/2018/img_5ae00c7d0dcb6.png" alt="" /></p>
+<p>Jakmile to bude nastaveno zkusíme ve VM spustit zase něco dalšího. Rozdíl ale je, že teď už přímo lokální stroj nedovolí něco takového udělat.</p>
+<p id="ouTdWfO"><img class="img-fluid wp-image-2098 " src="/images/2018/img_5ae05fc50619d.png" alt="" /></p>
+<p><em>Azure Security Center toho nabízí samozřejmě daleko víc: bezpečnostní doporučení pro vaše Windows i Linux OS ať běží kdekoli, návrhy pro vaší infrastrukturu v Azure (zapnout šifrování, přidat WAFku třetí strany, NGFW) a to včetně jednoduché nasazení průvodcem (například zapnete F5, Imperva či jinou WAFku z pár jednoduchých obrazovek ASC), síťová bezpečnost v Azure (just in time access, správa NSG logů), vyhodnocování přístupů na botnety pro vaše VM ať už jsou kdekoli nebo pokročilé strojové učení pro identifikaci útoků díky porozumění kontextu útoku, korelaci událostí z mnoha zdrojů a krásna vizualizace souvislostí mezi stopami v rámci vyšetřování opět jak pro VM v Azure tak mimo něj.</em></p>
+<p><em>Chcete si vyzkoušet Azure Security Center? Nasaďte Log Analytics (OMS) a ASC jednoduše zapněte. Tuším prvních pár desítek dní ho dostanete zdarma! Pokud se vám osvědčí můžete ho mít za 12,65 EUR na node a měsíc. Nemusíte nic předplácet, platíte za tolik nodů, kolik aktuálně chcete sledovat.</em></p>

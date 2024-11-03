@@ -1,0 +1,118 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: Azure Container Registry'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2286
+wordpress_url: http://tomaskubica.cz/?p=2286
+date: '2018-07-03 05:47:01 +0000'
+date_gmt: '2018-07-03 04:47:01 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Kam s kontejnerovými obrazy? Do registru. Zní to dost triviálně. Azure Container Registry ale není jen o uložení diskového obrazu. K dispozici máte řízení přístupu integrované do Azure Active Directory (a potažmo vašeho AD), build as a service (sestaví vám kontejner rovnou v cloudu, nemusíte to dělat na svém notebooku), automatizované buildy, webhooky nebo globální replikaci. ACR můžete integrovat do svých vývojových nástrojů, CI/CD nebo navázat na akce třeba s Logic App a posílat si zprávy emailem nebo do nějakého moderního komunikačního nástroje jako jsou Microsoft Teams.<!--more--></p>
+<h1>Ruční práce s registrem a integrace Azure Active Directory</h1>
+<p>Nejprve si vytvořme registr. Bude samozřejmě kompatibilní s docker protokolem, takže vám bude fungovat prakticky s čímkoli.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n acr -l westeurope
+az acr create -n tomasacrdemo -g acr --sku Standard
+</pre>
+<p>To šlo rychle. Jak se k němu ale připojit? Můžete využít jeden zabudovaný administrátorský účet, ale toho se pokuste vyvarovat (ostatně ve výchozím stavu je zakázaný). ACR totiž má řízení přístupu na základě Azure Active Directory. Práva přidělujete stejně jako jiným zdrojům v Azure (RBAC), tedy dáváte je uživatelům či skupinám. Vybrat si můžete Reader (může stahovat image), Contributor (stahovat i publikovat image) a Owner (všechno co předchozí a navíc přidělovat práva dalším).</p>
+<p id="OVTvROM"><img class="img-fluid wp-image-2291 " src="/images/2018/img_5b3af7e1ca8cc.png" alt="" /></p>
+<p>Pro lidské potřeby použijte přihlášení do registru takto:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr login -n tomasacrdemo
+</pre>
+<p>Stačí tedy být přihlášen do Azure CLI 2.0 a s tím je spojená celá hora možností zabezpečení včetně vícefaktorového ověřování, identifikace rizikových loginů, podmíněné přístupy (například podle zařízení z kterého se připojujete) a tak podobně. CLI potom vygeneruje časově omezený token a ten uloží bezpečně tak, aby ho příkazová řádka dockeru našla (používá se Docker Credential Helper).</p>
+<p>Pokud potřebujete pracovat s obrazy  nějakým robotem (ve skriptu, v rámci CI/CD pipeline), použijte AAD service principal. Jde o systémové účty, které rovněž podporují RBAC a které můžete použít přímo v příkazu docker login.</p>
+<p>Začneme tedy ručně. Použiji podklady uložené zde: <a href="https://github.com/tkubica12/acrdemo-base">https://github.com/tkubica12/acrdemo-base</a></p>
+<p>Mám tedy velmi jednoduchý Dockerfile:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">FROM python:3-alpine
+RUN pip3 install flask==1.0.1</pre>
+<p>Ten můžu lokálně buildovat, otagovat identifikátory mého repozitáře a následně odeslat do ACR.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">docker build --tag tomasacrdemo.azurecr.io/base:flash .
+docker push tomasacrdemo.azurecr.io/base:flask</pre>
+<p>To je celé, kontejnerový obraz je na svém místě.</p>
+<h1>Build as a Service</h1>
+<p>Co když potřebujete vybudovat kontejner, ale nemáte na právě používaném zařízení Docker? Zní to nepravděpodobně? Možná máte něco ve Windows Subsystem for Linux (a v tom Docker nejde), něco ve Windows, něco s použitím Docker for Windows. Není problém mezera v cestě? Nechybí vám od administrátora práva, aby váš Docker for Windows mohl natahovat zdrojové soubory s aplikací? Nebo jste aktuálně na tabletu a využíváte Azure Cloud Shell?</p>
+<p>ACR nabízí v preview (zatím pouze pro Linux kontejnery) build as a service. Všechno vyřešíme jedním příkazem:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr build --registry tomasacrdemo --image base:flask .
+</pre>
+<p>Co se stane? Azure CLI zabalí obsah adresáře do build kontextu (aby vám fungovalo třeba COPY), ten včetně Dockerfile odešle do Azure, který během chvilky získá volného agenta, na kterém pro vás provede docker build a výsledek uloží do ACR.</p>
+<h1>Automatizovaný build</h1>
+<p>V předchozím odstavci jsme použili build as a service pro sestavení základního image s nainstalovaným Flask pro Python. Berme to jako základní obraz, který pro aplikační týmy připravuje třeba IT se zvláštním zřetelem na bezpečnost (integraci bezpečnostních systémů jako je Aqua Security si ukážeme někdy příště). Teď nad ním vybudujeme aplikační kontejner. Ukázka je tady: <a href="https://github.com/tkubica12/acrdemo-app">https://github.com/tkubica12/acrdemo-app</a></p>
+<p>Tentokrát ale použijeme automatizaci. ACR je připravena pracovat s veřejným i privátním GitHub nebo VSTS a další podporující PAT tokeny pro Git. Funguje to tak, že ACR dostane informaci, že došlo ke změně kódu a automaticky provede vybudování kontejneru. Nejprve tedy na GitHub musím získat osobní token:</p>
+<p id="HihhmXu"><img class="img-fluid wp-image-2292 " src="/images/2018/img_5b3af8c3da65e.png" alt="" /></p>
+<p>S ním pak založíme automatizovaný build task a navážeme ho na můj GitHub repozitář a master branch. Jako image tag použijeme unikátní číslo buildu, které pro nás ACR vygeneruje.</p>
+{% raw  %}
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr build-task create \
+    --registry tomasacrdemo \
+    --name appautobuild \
+    --image app:{{.Build.ID}} \
+    --context https://github.com/tkubica12/acrdemo-app.git \
+    --branch master \
+    --git-access-token $GIT_PAT</pre>
+{% endraw %}
+
+<p>Začneme tím, že trigger vyvoláme ručně.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr build-task run --registry tomasacrdemo --name appautobuild
+</pre>
+<p>Po chvilce uvidíme svůj aplikační kontejner. ACR provede klon GitHub repozitáře s aplikací a Dockerfile a sestaví obraz. Na logy z buildování se můžeme podívat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr build-task logs --registry tomasacrdemo</pre>
+<p>Ted už můžeme změnit kód a dát commit do master branch. To automaticky spustí vytvoření nového buildu kontejneru. Protože základní image aplikačního kontejneru je veden ve stejném ACR, změna základního image rovněž udělá automatický trigger a aplikační kontejner se přebuilduje. V okamžiku kdy třeba IT tým zavede nové patche do základního image, ACR vám vytvoří nové verze aplikačních kontejnerů, které na něm staví.</p>
+<p>Podívejme se na seznam našich buildů.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acr build-task list-builds --registry tomasacrdemo -o table
+BUILD ID    TASK           PLATFORM    STATUS     TRIGGER       STARTED               DURATION
+----------  -------------  ----------  ---------  ------------  --------------------  ----------
+abh         appautobuild   Linux       Succeeded  Image Update  2018-07-02T13:57:57Z  00:01:05
+abg                        Linux       Succeeded  Manual        2018-07-02T13:57:16Z  00:00:40
+abf         appautobuild   Linux       Succeeded  Git Commit    2018-07-02T13:55:05Z  00:00:50
+abe         appautobuild   Linux       Succeeded  Manual        2018-07-02T13:53:02Z  00:00:50
+abd                        Linux       Succeeded  Manual        2018-07-02T13:50:39Z  00:00:55</pre>
+<p>Nejprve vidíme dva manuální buildy - to je můj base a mnou vyvolaný build aplikačního kontejneru. Dál tam je aplikační build v reakci na Git Commit. Následuje manuální build základního image a aplikační build vyvolaný Image Update, tedy aktualizací základního (FROM) image.</p>
+<h1>Změna v ACR jako trigger</h1>
+<p>Triggery fungují i opačně, tedy ACR dokáže zavolat webhook v okamžiku, kdy dojde ke změně, například push nového image. V sekci Webhook si je můžete zaregistrovat a omezit scope třeba jen na vybrané repozitáře (třeba jen pro aplikační kontejner). Vyzkoušel jsem poslat na Requestbin, abych se podíval na strukturu zprávy.</p>
+<p id="fjuWQMM"><img class="img-fluid wp-image-2293 " src="/images/2018/img_5b3afaa1e6987.png" alt="" /></p>
+<p>Přistálo mi tohle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "id": "0df7389b-8905-498f-989d-9f80568b9b71",
+    "timestamp": "2018-07-02T18:35:07.571430398Z",
+    "action": "push",
+    "target": {
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "size": 1579,
+        "digest": "sha256:bcd0588795040673a589dea695b5902ffb9f83c2338efdbaeadefec4d935c794",
+        "length": 1579,
+        "repository": "base",
+        "tag": "flask"
+    },
+    "request": {
+        "id": "67a46a97-cec3-4200-adcf-0b39e366db64",
+        "host": "tomasacrdemo.azurecr.io",
+        "method": "PUT",
+        "useragent": "docker/18.03.1-ce go/go1.9.5 git-commit/9ee9f40 kernel/4.13.0-38-generic os/linux arch/amd64 UpstreamClient(Docker-Client/17.12.0-ce \(linux\))"
+    }
+}</pre>
+<p>Co kdybychom na ACR navázali Azure Logic App a změny publikovali třeba do ChatOps kanálu v Microsoft Teams? Nic složitého. Logic App bude reagovat na request (URL zadáme do ACR) a předchozí výstup použiji pro definici přijímaného schématu, takže mi to Logic App pěkne rozparsuje. Pak už jen napojím svůj Teams kanál a upravím zprávu.</p>
+<p id="AdiHZgD"><img class="img-fluid wp-image-2294 " src="/images/2018/img_5b3afb0f7ebe8.png" alt="" /></p>
+<p>Výsledek vypadá nějak takhle:</p>
+<p id="sqBkZxD"><img class="img-fluid wp-image-2295 " src="/images/2018/img_5b3afb228d7f6.png" alt="" /></p>
+<h1>Publikování do ACR (nejen) z Microsoft vývojářských nástrojů</h1>
+<p>Azure Container Registry můžete využívat s naprosto libovolného vývojového nástroje typu IDE, build manager nebo CI/CD.  Eclipse, Maven Jenkins, Visual Studio Code, zkrátka cokoli. Samozřejmě ucelené řešení z dílny Microsoft nejen nesmí chybět, ale určitě očekáváte ještě lepší integraci. Třeba nestarat se o přihlašování (vytváření service principal apod.), zakládání registru a tak podobně. Je to jak čekáte. Ve Visual Studio 2017 můžete například vytvořit .NET Core projekt, ten vám rovnou připraví Dockerfile (a vybíráte si jestli Windows nebo Linux), při zmáčknutí F5 rovnou debuggujete v kontejneru a máte k dispozici tlačítko Push:</p>
+<p id="uquDglc"><img class="img-fluid wp-image-2288 " src="/images/2018/img_5b3a7c8702016.png" alt="" /></p>
+<p>Stejně tak CI/CD s Visual Studio Team Services dokáže v rámci CI buildu výsledek poslat do ACR.</p>
+<p id="IesjkrN"><img class="img-fluid wp-image-2289 " src="/images/2018/img_5b3a7cb5057a1.png" alt="" /></p>
+<h1>Přístup z Kubernetes ve stejné subscription</h1>
+<p>Máte Azure Kubernetes Service ve stejné subscription? Při vytváření AKS jste zadávali (nebo si nechali generovat) service principal účet v AAD. Ten můžete využít k přístupu do registru - netřeba tedy v Kubernetes nic složitě zadávat! Pokud jste si nechali service principal generovat, vytvořil se vám pravděpodobně tak, že má ve scope resource group s Kubernetes zdroji (začíná na písmena MC). Pokud nasadíte ACR to této resource group nemusíte nic dalšího řešit. Pokud chcete ACR do jiné (což mi dává větší smysl), nezapomeňte service principála ACRku přiřadit minimálně v roli Reader.</p>
+<h1>Přístup z Kubernetes mimo vaši subscription</h1>
+<p>Pokud máte Kubernetes třeba u sebe a chcete použít ACR, není to problém, ale nedojde k autentizaci na pozadí. Musíte tedy vytvořit ideálně dalšího service principal, dát mu práva na ACR a tento login v Kubernetes založit jako Secret a následně ji přiřadit pri definici Podu použitím imagePullSecrets.</p>
+<h1>Globální replikace</h1>
+<p>Co když provozujete globální aplikaci, které běží ve víc regionech? Můžete samozřejmě přistupovat k ACR v jiném regionu, ale to znamená nějakou latenci a poplatky za odchozí data. Dávalo smysl mít repozitář v každém regionu. Jak ale zajistit distribuci obrazů do všech regionů? Pokud zvolíte ACR v SKU Premium je tato funkce pro vás připravena. Provedete Push v jednom regionu a systém sám zajistí replikaci do dalších.</p>
+<p>&nbsp;</p>
+<p><em>Správa vašich Docker image je zásadní komponta vašeho života s kontejnery. Azure Container Registry vám nabídne službu integrovanou s Azure Active Directory, příjemné SLA i funkce jako jsou build as a service, automatizace, replikace či integrace do dalších nástrojů. Zkuste si to.</em></p>

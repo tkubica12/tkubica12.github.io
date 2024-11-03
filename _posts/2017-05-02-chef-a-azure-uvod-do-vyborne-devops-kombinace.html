@@ -1,0 +1,111 @@
+---
+layout: post
+status: publish
+published: true
+title: Chef a Azure, úvod do výborné DevOps kombinace
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 674
+wordpress_url: http://tomaskubica.cz/?p=674
+date: '2017-05-02 06:10:20 +0000'
+date_gmt: '2017-05-02 05:10:20 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Azure vám umožní perfektně automatizovat svoje infrastrukturní prostředí - virtuální stroje, sítě, firewall pravidla, balancery, storage, a to všechno desired state principy v ARM šabloně. Ale jak se desired state způsobem starat o vnitřek vašich VM? Pro svět Windows se nabízí PowerShell DSC v rámci Azure Automation, ale pro univerzálnější pojetí možná půjdete do Puppet, Chef, Ansible nebo SaltStack. Mám dva oblíbence - Ansible a Chef a ten druhý jmenovaný je s Azure výborně integrovaný. Podívejme se na DevOps s Azure a Chef.<!--more--></p>
+<h1>Úvod do Chef s Azure</h1>
+<p>Chef patří do kategorie configuration management nástrojů, tedy jeho primární zaměření byla schopnost definovat jak má vypadat server co do aplikací a procesů a zajistit, aby tomu tak vždy bylo, ať je výchozí stav serveru jakýkoli. Jde tedy o desired state přístup k věci (říkám co chci, ne jakými kroky se to má stát). Z moderních variant (CFEngine tedy opravdu nechme spát) jsou Ansible a SaltStack řešeny bezagentově (= buší do cílového serveru použitím vzdáleného přístupu, čili SSH nebo WinRM) a Chef s Puppet používají agenta. Ten má výhody a nevýhody. Zásadním přínosem je, že jakmile tam agent je, ten se pak dle svého nastavení sám bezpečně dobouchá na server - nevyžaduje tedy, aby byl někdo zvenčí schopen iniciovat spojení a znát jeho IP adresu (tedy agentové řešení se parádně vypořádává s firewally, NAT a tak podobně). Jenže je tu to "jakmile" - jak dostat agenta do serveru tak, aby to nevyžadovalo řešit přímý přístup a loginy, což tu hlavní výhodu vyruší (a pak možná jednodušší Ansible bude minimálně do začátku lepší volba)? Tak přesně tohle má Azure s Chef výborně rozmyšleno.</p>
+<p>Krátce k Chefu. Základem je Chef Server, který je jakýmsi centrálním repozitářem Cookbooků (tedy konfiguračních předpisů - co má být nainstalováno, běžet, nastaví z templatů konfigurační soubory deamonů apod.) a registrátorem nodů. Samotnou tvorbu Cookbooků a jejich publikování neřešíte přímo na serveru, ale z Chef Workstation (řekněme administrátorského počítače). Třetí komponentou je Chef Client a to je právě ten agent v cílové VM, který se dobouchá na server, zjistí co se má udělat, stáhne si to a lokálně to zajistí. Cookbooky v Chefu ne náhodou připomínají Ruby a proto je velmi oblíben mezi těmi, kdo se bojí mezer (pokud mezi ně patříte, Ansible a Salt s YAML formátem nejsou pro vás). Puppet je historicky hodně deklarativní, Chef měl na začátku trochu víc imperativních možností, takže byl obvykle blíž lidem s trochou programátorských zkušeností (byť je naprosto nevyžaduje). Dnes je rodina Chef silnější, než jen configuration management a zahrnuje Compliance modul, často se Chef používá i pro některé testy v rámci CI/CD (na smoke testy řekl bych ideální) a před časem tento tým založil Habitat, což je řešení pro deployment aplikací.</p>
+<h1>Chef Server v Azure</h1>
+<p>Díky Azure Marketplace můžete mít plně podporovaný Chef Server během pár minut.</p>
+<p id="TnWUpZH"><img class="img-fluid wp-image-675 " src="/images/2017/img_59080825510c6.png" alt="" /></p>
+<p>Dnes použijeme variantu, která není zalicencovaná (BYOL), což nám umožní využít 30 dní trial. Ostatní varianty dovolují platit za Chef "cloudově". Projděte průvodce, který je stejný, jako při spuštění běžné VM. Nakonec můžete jít do public IP a přiřadit jí nějaké hezčí DNS jméno, ale nemusíte. Počkejte něž všechno dochroupá a připojte se webem na svůj nový Chef Server. Ten se vás nejprve zeptá na jméno vaší VM, aby bylo zřejmé, že se k ní chce připojit skutečný tvůrce (pokud zadáte jméno správně a dialog vás vrátí zpět bez chybové hlášky, zkuste jiný prohlížeč - alespoň mě to pomohlo).</p>
+<p id="QgXlwXW"><img class="img-fluid wp-image-676 " src="/images/2017/img_590808460e254.png" alt="" /></p>
+<p>Pak projdete procesem registrace Chef Serveru, tedy vytvoříte si účet u Chefu a tuto instanci s ním svážete (jak jsem říkal 30 dní trial dostanete automaticky). Po zalogování nejsme členem žádné organizace (Chef dovoluje multi-tenancy, takže pro různé své týmy můžete mít oddělené organizace) a my si jednu vytvoříme.</p>
+<p id="vEaXtnJ"><img class="img-fluid wp-image-677 " src="/images/2017/img_59080864f39a1.png" alt="" /></p>
+<p id="LWHTmSv"><img class="img-fluid wp-image-678 " src="/images/2017/img_59080877b5121.png" alt="" /></p>
+<p>Na úvodní stránce organizace si stáhněte Starter Kit … ten budeme za chvilku potřebovat.</p>
+<p id="UXdSChp"><img class="img-fluid wp-image-679 " src="/images/2017/img_59080893167b4.png" alt="" /></p>
+<h1>Připravme si Chef Workstation</h1>
+<p>Vytvářet Cookbooky můžeme z Linux i Windows, já jsem dnes pro workstation zvolil Ubuntu 16.04.</p>
+<p>Nejdřív si stáhněte ChefDK, nainstalujte a ověřte, že vše dopadlo dobře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">wget https://packages.chef.io/files/stable/chefdk/1.3.43/ubuntu/16.04/chefdk_1.3.43-1_amd64.deb
+sudo dpkg -i chefdk_1.3.43-1_amd64.deb
+chef verify
+</pre>
+<p>Pokud je vše v pořádku, nakopírujte stažený starter kit ze server a rozbalte ho.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cd ~
+unzip chef-repo.zip</pre>
+<p>Následně skočte do startovacího repozitáře a stáhneme si certifikát serveru. Ten je totiž v našem případě self-signed a workstation by mu jinak nevěřila.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cd ~/chef-repo
+knife ssl fetch
+</pre>
+<p>Výstupem bude umístění, kam se certifikát stáhnul - z něj si certifikát vezměte k sobě, budeme ho později potřebovat v Azure při zakládání nových VM spravovaných Chefem (nebudeme chtít SSL ověření vypnout a tím, že máme self-signed certifikát, ho musíme mít poruce - ale uvidíte za chvilku).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">/home/tomas/chef-repo/.chef/trusted_certs/chef-server_ytzehab00eiunncfzorhwulqwh_ax_internal_cloudapp_net.crt</pre>
+<p>Tím jsme připraveni začít z workstation psát Cookbooky. Pro dnešek uděláme jen jeden velmi primitivní, ale i na ten potřebujeme nejdřív stáhnout pár hotových receptů. Skočte do adresáře s cookbooky, stáhněte a rozbalte tyto dva recepty:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cd ~/chef-repo/cookbooks/
+knife cookbook site download apt
+tar zxf apt-6.1.0.tar.gz
+knife cookbook site download compat_resource
+tar zxf compat_resource-12.19.0.tar.gz
+</pre>
+<p>Příprava hotová, teď už si vytvoříme svůj vlastní recept. Založme si příslušnou strukturu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">chef generate cookbook mujWebServer
+</pre>
+<p>Otevřete hlavní soubor s předpisem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cd mujWebServer/
+nano recipes/default.rb
+</pre>
+<p>Vložte náš recept. Nechme dnes stranou jak přesně funguje, je to jen extrémně primitivní ukázka (ostatně na Apache2 jsou hotové propracované recepty, takto humpolácky to dělat netřeba). V zásadě nainstalujeme web server a do index.html zapíšeme něco svého.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">#
+# Cookbook Name:: mujWebServer
+# Recipe:: default
+#
+# Copyright (c) 2015 The Authors, All Rights Reserved.
+
+package 'apache2'
+
+service 'apache2' do
+  supports :status =&gt; true
+  action [:enable, :start]
+end
+
+file '/var/www/html/index.html' do
+  content 'Tohle je muj web!'
+end
+</pre>
+<p>Máme hotovo! Nahrajte svůj nový recept na Chef Server.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">knife cookbook upload mujWebServer</pre>
+<p>Ověřme si v GUI, že tam opravdu je.</p>
+<p id="vhqCmBc"><img class="img-fluid wp-image-680 " src="/images/2017/img_59080bf1aead8.png" alt="" /></p>
+<h1>Spustíme VM v Azure tak, že ji Chef rovnou nastaví</h1>
+<p>Dostáváme se k hlavnímu kouzlu Azure a Chef. Nativní image v Azure umožňují použít VM Extension a jednou z nich je právě řešení pro Chef. Aniž byste potřebovali přístup do VM, aniž by bylo nutné řešit odkud kam vede spojení přes firewall a jaká NAT je po cestě, přímo z Azure control plane dokážete kompletně rozjet agenta uvnitř VM. Vyzkoušejme si to.</p>
+<p>Začněte v portálu zakládat VM s Ubuntu běžným způsobem, jen u Network Security Group povolte HTTP přístup (budoucí VM bude přece webový server). V části nastavení ale klikněte na VM Extension a dejte přidat.</p>
+<p id="dDCGqrz"><img class="img-fluid wp-image-681 " src="/images/2017/img_59080d7927c53.png" alt="" /></p>
+<p>Najděte Chef.</p>
+<p id="FCyuTxP"><img class="img-fluid wp-image-682 " src="/images/2017/img_59080da4147e5.png" alt="" /></p>
+<p>Objevil se nám konfigurační dialog - tady nastavujeme Chef klienta (agenta). Většinu potřebných údajů najdeme ve starter kitu.</p>
+<p>URL Chef Server najdete ve vaší workstation (resp. ve starter kitu) zde:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cat ~/chef-repo/.chef/knife.rb</pre>
+<p>V mém případě to je https://chef-server.ytzehab00eiunncfzorhwulqwh.ax.internal.cloudapp.net/organizations/tom</p>
+<p>Jedná se o interní Azure DNS, což je co mi teď stačí. Pokud bych chtěl ze serveru řešit konfigurace i přes internet (všechno je silně šifrované)  nebo do jiného VNetu, změnili bychom to (ale teď ne).</p>
+<p>Dále zadáváme Chef Node Name, což je na vás, může to být cokoli. Jako recept zadáme recipe[mujWebServer], což je to, co jsme před chvilkou společně vytvořili.</p>
+<p>Validation Client Name najdete také v knife.rb a v mém případě to je tom-validator. Tomu odpovídá privátní klíč, který najdete ve starter kitu tady:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">~/chef-repo/.chef/tom-validator.pem</pre>
+<p>Tím se bude klient ověřovat vůči serveru. Poslední co musíme vyřešit je na konci Chef Server SSL Certificate, abychom nemuseli ověřování serveru vůči klientovi vypínat. Ten jsme si stáhli do workstation viz výše, takže tento soubor použijte.</p>
+<p>Myslím, že tím máme hotovo. Potvrďte a čekejme.</p>
+<p id="UQozWXO"><img class="img-fluid wp-image-683 " src="/images/2017/img_59080fcb20578.png" alt="" /></p>
+<h1>Ověřme, že všechno dobře dopadlo</h1>
+<p>Podívejme se na Chef Server - uvidíme nový spravovaný Node.</p>
+<p id="oUHpFuy"><img class="img-fluid wp-image-685 " src="/images/2017/img_5908137219ea4.png" alt="" /></p>
+<p>Připojte se na IP vaší nové VM - náš web server běží!</p>
+<p id="OVTYywM"><img class="img-fluid wp-image-686 " src="/images/2017/img_5908138f02ebb.png" alt="" /></p>
+<p>Pokud se chcete podívat co přesně Chef client dělal, logy najdete tady:</p>
+<p>&nbsp;</p>
+<p><em>Chef je jeden z nejoblíbenějších DevOps nástrojů na to, abyste dostali VM do stavu, který potřebujete. Azure je s ním výborně integrovaný a Chef Server jednoduše dostanete na Azure Marketplace. Někdy příště si ukážeme trochu víc, zejména ARM šablony (desired state pro infrastrukturu) a jejich perfektní kombinaci s Chef Cookbooky (desired state pro vnitřek VM), například společně s Azure Scale Set vznikají zajímavé DevOps scénáře. Rozhýbat svoje prostředí a dostat se k DevOps můžete i bez kontejnerů a podobných technologií, na které třeba ještě nejste připraveni. Azure + Chef ... skvělá kombinace.</em></p>

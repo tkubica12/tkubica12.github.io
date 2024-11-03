@@ -1,0 +1,52 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak nastavit HPE Data Protector pro zálohování do Azure Storage
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 369
+wordpress_url: http://tomaskubica.cz/?p=369
+date: '2017-04-26 06:16:28 +0000'
+date_gmt: '2017-04-26 05:16:28 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Zálohování je jak známo důležité. Nejen, že vám mohou on-premise zdroje havarovat a je dobré mít jejich kopii, ale také můžete chytnout ransomware nebo omylem smazat něco důležitého a pak se budete chtít vrátit v čase. Zálohování vašich on-premise zdrojů do cloudu dává obrovský smysl. Podívejme se, jak některé zálohovací nástroje napojit na Azure Storage. Dnes to bude HPE Data Protector.<!--more--></p>
+<h1>V čem je kouzlo</h1>
+<p>Data dostanete mimo svou serverovnu a nejsou tak závislá na tom, co se v u vás stane. Azure pro vás na pozadí drží tři kopie vašich dat v ceně služby a můžete zvolit i dražší řešení replikované přes dva regiony (pak máte všechna data 6x). Máte prakticky neomezenou storage a platíte pouze za reálné použití, ne za krabice. Neřešíte, jak systémy postavit, propojit, napájet, patchovat nebo upgradovat. Pokud chcete, může Azure všechna vaše data transparentně šifrovat. Vezmete-li v úvahu robustnost řešení zjistíte, že je cenově velmi výhodné - například pokud držíte 1TB dat a měsíčně 500GB zapíšete a 100GB přečtete, vyjde vás to celé asi na 10 EUR měsíčně.</p>
+<h1>Nativní storage vs. virtuální appliance</h1>
+<p>Jedna z možností je, že dodavatel zálohovacího software v cloudu vytvoří VM se svým kódem a on-premise na ni napojí. Tím může zajistit některé zajímavé funkce, ale řešení používá dražší zdroje. Pokud vám jde o nízkou cenu, je ideální schopnost nativního zápisu rovnou do Azure Storage bez ničeho dalšího. Tam si můžete vybrat mezi Hot variantou (když očekáváte časté čtení) nebo (a to je pro zálohování výhodnější) Cool verzí, která je podstatně levnější, pokud hlavně zapisujete a čtete méně.</p>
+<h1>HPE Data Protector</h1>
+<p>Data Protector je robustní zálohovací software pro celou řadu situací včetně integrace do mnoha aplikací. Pro mě důležité, že podporuje nativní záloho do Azure Storage. Vyzkoušel jsem si, není to těžké.</p>
+<p>Jako u všech ostatních řešení si nejprve připravíme Cool storage v Azure.</p>
+<p id="RUHWqYh"><img class="img-fluid wp-image-385 " src="/images/2017/img_58a9f4ab10499.png" alt="" /></p>
+<p>Přidejte kontejner.</p>
+<p id="nJPjtdg"><img class="img-fluid wp-image-386 " src="/images/2017/img_58a9f4b6c7ca5.png" alt="" /></p>
+<p id="sRDQnnq"><img class="img-fluid wp-image-387 " src="/images/2017/img_58a9f4be95f3f.png" alt="" /></p>
+<p>V Data Protector přidáme zálohovací zařízení a vybereme Azure.</p>
+<p id="WqEXzSW"><img class="img-fluid wp-image-388 " src="/images/2017/img_58a9f4eb913b7.png" alt="" /></p>
+<p>Vyplníme potřebné parametry a přidáme zálohovací gateway.</p>
+<p id="VUMCxqK"><img class="img-fluid wp-image-389 " src="/images/2017/img_58a9f5083b612.png" alt="" /></p>
+<p>Tu vlastně jen odklikneme a vyzkoušíme Check - pokud je vše v pořádku, spojení se podaří a máme napojeno.</p>
+<p id="AiGhIxl"><img class="img-fluid wp-image-390 " src="/images/2017/img_58a9f5328ff44.png" alt="" /></p>
+<p id="OLmjMrv"><img class="img-fluid wp-image-391 " src="/images/2017/img_58a9f53a0603b.png" alt="" /></p>
+<p id="gxETGam"><img class="img-fluid wp-image-392 " src="/images/2017/img_58a9f544704ec.png" alt="" /></p>
+<p>Vyzkoušíme si. Provedu zálohu několika souborů.</p>
+<p id="fGkAVOV"><img class="img-fluid wp-image-393 " src="/images/2017/img_58a9f557248fa.png" alt="" /></p>
+<p>Cílovým místem bude Azure.</p>
+<p id="aqXdRRu"><img class="img-fluid wp-image-394 " src="/images/2017/img_58a9f56c49189.png" alt="" /></p>
+<p>Spustím backup a vidím, že pokračuje dobře.</p>
+<p id="SmaLKhw"><img class="img-fluid wp-image-395 " src="/images/2017/img_58a9f580cff34.png" alt="" /></p>
+<p>V mé Azure Storage se skutečně objevila řada objektů, které si tam Data Protector uložil.</p>
+<p id="lGEZAYk"><img class="img-fluid wp-image-396 " src="/images/2017/img_58a9f5a11c968.png" alt="" /></p>
+<p>V samotném software jsem pak schopen provést restore.</p>
+<p id="yVRZgzR"><img class="img-fluid wp-image-397 " src="/images/2017/img_58a9f5b924fc0.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Používáte HPE Data Protector nebo o něm uvažujete? Díky nativní integraci s Azure Storage ho můžete použít pro zálohování do cloudu.</p>

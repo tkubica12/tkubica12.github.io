@@ -1,0 +1,50 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Stack: jak se kupuje a rozjíždí'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2339
+wordpress_url: http://tomaskubica.cz/?p=2339
+date: '2018-08-13 05:52:13 +0000'
+date_gmt: '2018-08-13 04:52:13 +0000'
+categories:
+tags:
+- AzureStack
+- Compute
+---
+<p>Azure Stack je váš malý Azure, který si dáte k sobě nebo si ho půjčíte od lokálního poskytovatele. Ještě, než si začneme Azure Stack zkoušet, jak se vlastně kupuje? A když si vyberete co se bude dít dál?<!--more--></p>
+<h1>Kde vzít hardwarový balíček a co obsahuje</h1>
+<p>Azure Stack není jako obvyklé privátní cloudy, které si musíte doslova smontovat z jednotlivých hardwarových a softwarových komponent a integrovat do svého prostředí. Azure Stack je hotový připravený balíček.</p>
+<h2>Co obsahuje?</h2>
+<p>Základem balíčku jsou nody, které fungují jako konvergované řešení pro compute, storage i networking.  Detaily si rozebereme někdy příště, ale v nodech jsou výpočetní prostředky, cache vrstva (SSD nebo NVMe storage, která dramaticky akceleruje storage subsystém) a kapacitní disky (většinou HDD, ale existují i all-flash varianty). Minimální počet jsou 4 a aktuální maximum je dnes 12 s tím, že 16 bude již velmi brzy. Typické balíčky jsou 4, 8 nebo 12, ale od release z minulého týdne (1807) můžete přidávat nody po jednom postupně i po zakoupení. Servery se sdružují do Scaling Unit (o tom taky později) a aktuálně je možná jedna Scaling Unit o 12 nodech maximum, ale brzy bude podpora pro 16 nodů ve Scaling Unit a především vícero Scaling Unit v jednom regionu.</p>
+<p>K serverům máte v balíčku networking, především dvojici výkonných L3 prvků (downlinky jsou obvykle 10G, ale některé modely výrobců používají 25G nebo 40G porty). Proč? Azure Stack používá konvergovanou storage a potřebuje perfektně vyladěné RDMA. Pro interní komunikaci fyzických věcí ve stacku se používá MLAG mezi prvky, ale pro public/externí IP používá Azure Stack BGP mezi virtuálním swichem a fyzickými. Zkrátka pro cloud je to zásadní komponenta a pro dokonalou funkčnost celého řešení je i networking (a jeho nastavení) součástí balíčku.</p>
+<p>Co zbývá? Hardwarové prvky je potřeba monitorovat, řídit aktualizace firmware a to se děje ve spolupráci Azure Stack a řešení hardwarového partnera. To je nainstalováno na speciálním monitorovacím serveru (na něm se při instalaci, kterou provádí přímo hardwarový parner u vás, odehrává i počáteční deployment) a ten je přes out-of-band management switch (další komponenta balíčku) připojen na management rozhraní serverů.</p>
+<p>Kromě hardware dostáváte v balíčku i pokročilý support dodávaný ve spolupráci hardwarového výrobce a Microsoftu včetně instalace řešení.</p>
+<p>Azure Stack je tedy kompletní systém. Konvergované servery a storage, potřebný networking a management. Pro Azure Stack tedy zajistíte jen jeho napojení do sítě (L3 spojení, obvykle BGP do DMZ nebo páteře), elektřinu, externí DNS a buď přístup do Azure Active Directory nebo místního ADFS. Doslova za pár dní máte rozchozený kompletní hybridní cloud - compute, storage, networking, hypervisor, SDN, IaaS i PaaS.</p>
+<h2>Jak se vybírá velikost?</h2>
+<p>Při výběru Azure Stack tedy v zásadě řešíte jen sizing. Každý node v jedné Scaling Unit musí být naprosto identický. Výrobci vám většinou dají na výběr typ CPU a velikost paměti na nodu (typické velikosti jsou 386GB, 576GB, 768GB a někdy i 1,5TB). Poslední parametr, který vybíráte, je storage. Typické řešení je SSD (nebo NVMe) cache vrstva a k tomu HDD kapacitní vrstva (ale u některých výrobců existují i all-flash varianty). SSD je skutečně perzistentní cache, veškeré zápisy směřují na SSD a odtamtud se data po optimalizaci propisují na kapacitní vrstvu. Pokud jsou data v cache, servírují se odtamtud při čtení. U výrobců se poměr cache ke kapacitě pohybuje od 8% do 20% s tím, že 10% je nejběžnější. Azure Stack využívá 3-cestný mirror ve storage (pro maximální výkon a spolehlivost - můžete současně ztratit celý node a třeba jeden disk v nějakém jiném a stále to není problém), celková kapacita storage (disky, Blob storage apod.) je tedy součet kapacitních disků na všech nodech dělená třemi. Více si o storage řekneme někdy příště.</p>
+<p>Škálování lze dnes dělat po jednotlivých nodech (v rámci omezení popsaných výše) a protože je to hyperconverged řešení, s každým nodem vám naroste celková výpočetní kapacita Azure Stacku stejně jako kapacita storage a cache.</p>
+<h2>Kdo ho nabízí?</h2>
+<p>Azure Stack je dostupný v České Republice, kde ho v tuto chvíli oficiálně nabízí Cisco, HPE, Huawei a Lenovo. Dell EMC podle mých informací v tuto chvíli ještě ne, ale předpokládám, že je to jen otázka chvilky (pokud preferujete tohoto výrobce, určitě se na něj obraťte a zjistěte si o dostupnosti víc).</p>
+<h1>Jak se platí za software</h1>
+<p>Azure Stack má pod kapotou Windows, softwarově definovanou storage i networking a vrstvu Azure, tedy ARM, portál, Azure storage a tak podobně (podrobnosti někdy příště). Jak se za to platí? Preferovaný je tzv. connected scénář, který přináší obrovské výhody včetně hybridního cloudu a cloudové chování, tedy pay-as-you-go model. Pro velmi specifické případy je možné použít i disconnected režim, ve kterém se softwarová výbava Azure Stack předplácí. To je vhodné pro situace, kdy je celý Azure Stack odpojen od přístupu do Azure, například v armádních řešeních nebo na záoceánské lodi apod.</p>
+<h2>Pay as you go model</h2>
+<p>Ceník kopíruje aktuálně podporované služby a to jsou především IaaS a ze světa PaaS je to zatím Application Services (Web App, API App, Functions). Ceník najdete zde: <a href="https://azure.microsoft.com/en-us/overview/azure-stack/how-to-buy/">https://azure.microsoft.com/en-us/overview/azure-stack/how-to-buy/</a></p>
+<p>IaaS vás vyjde na 5 EUR měsíčně za použitý core (granularita je stejně jako v Azure vteřinová) pro stroje samotné (Linux nebo pokud použijete své on-premises verze Windows) nebo 29 EUR měsíčně pokud chcete i licenci Windows v pay-as-you-go modelu. Storage pro disky je za 0,01 EUR za GB a měsíc respektive 0,006 EUR za GB a měsíc pro Blob storage a 0,016 EUR za GB a měsíc pro Azure Table a Azure Queue.</p>
+<p>PaaS (dnes zahrnuje Application Services) pak stojí 35 EUR za core a měsíc.</p>
+<p>Z licenčního hlediska je Azure Stack on-premises prostředí a vztahují se na něj tak stejné podmínky licencování třeba Windows nebo SQL Server jako pro standardní prostředí (nebo SPLA program pro lokální providery).</p>
+<p>Vyúčtování je cloudové a bude buď součástí vaší EA smlouvy (tedy úplně stejně jako Azure samotný) případně CSP programu přes vašeho partnera.</p>
+<h2>Kapacitní model</h2>
+<p>Pokud nemůžete Azure Stack připojit do Azure a vytvořit tak skutečný hybridní cloud, dá se použít předplacený model bez ohledu na reálnou spotřebu. Platíte 144 USD za core a rok a 400 USD za core a rok pokud chcete využívat PaaS funkce a to za celkový počet core ve vašem Azure Stack. V tomto modelu je možné využití pouze EA (CSP není podporováno) a není možné pořizovat licence VM v pay-as-you-go modelu.</p>
+<h1>Co se děje po objednávce</h1>
+<p>Co se stane po objednávce? Hardwarový partner vaší volby vám pošle jednoduchý dotazníček, kam vyplníte základní informace jako jsou IP rozsahy či doménové jméno. Azure Stack se z pohledu identit napojuje na Azure Active Directory, ale pro disconnected scénáře můžete provést integraci na lokální ADFS. To všechno pro vás zajišťuje hardwarový partner. Přiveze boxy, nainstaluje a propojí. Od okamžiku návozu železa do kompletního zprovoznění plně funkčního privátního cloudu konzistentního s Azure prostředím uplyne skutečně jen pár dní.</p>
+<p>Azure Stack vydává aktualizace přibližně jednou za měsíc a pro podporu musíte být maximálně tři verze pozadu. Aktualizace komplet všeho od driverů až po software je triviální a obvykle bezvýpadková (rolling upgrade), takže to není žádný velký problém. Na podrobnosti se také podíváme někdy příště.</p>
+<p>&nbsp;</p>
+<p><em>Možná máte obavu, že budování hybridního cloudu je práce na několik let. Nákup serverů, storage, sítí, hypervisorů, SDN, cloudové a orchestrační platformy a nad tím nějaký portál schopný to propojit s veřejným cloudem. To skutečně často trvá strašlivě dlouho, je to náročné a velmi riskantní. Po roce práce a hromadě investic se vám klidně stane, že to dohromady nějak nehraje a to je opravdu průšvih. Pokud je vaším záměrem používat hybridní cloud a ne ho "jen budovat", podívejte se na Azure Stack. Pokud se vám zdá investice moc velká, doporučuji promyslet si, kolik času a rizika by vás stálo montovat si to dohromady sami. Azure Stack objednáte a výrobce vám ho rozchodí během pár dní. Od železa až po funkční IaaS a PaaS řešení.</em></p>

@@ -1,0 +1,57 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Governance v Azure: jmenná konvence a tagování'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1861
+wordpress_url: http://tomaskubica.cz/?p=1861
+date: '2018-02-07 07:03:05 +0000'
+date_gmt: '2018-02-07 06:03:05 +0000'
+categories:
+tags:
+- Governance
+- Security
+---
+<p><em>Jste enterprise firma a myslíte to s cloudem vážně? Pak určitě budete chtít dobře řídit governance - kdo co smí, co komu patří, jaké politiky se mají vynutit, jak si rozdělit práci, jak řídit náklady. V tomto seriálu se na to zaměříme.</em></p>
+<p><em>Dnes se podíváme na téma, které sice není cool, ale důležité je tedy dost... jmennou konvenci a tagování.</em><!--more--></p>
+<h1>Jak na jmennou konvenci a proč</h1>
+<p>Určitě to znáte. Najdete ve vašem prostředí názvy jako TomikuvServer, knedlik, prvniPokus, dalsi-pokus, nemazat nebo moje_aplikace? Pokud ano, do Azure si to neberte, nepracuje se pak moc dobře :)</p>
+<p>Z názvu prostředku v Azure byste měli být schopni dobře poznat o co jde. Ne všechny informace musí (nebo mohou díky omezením na délku) být součástí samotného názvu, ale vyberte ty, co jsou pro vás nejzásadnější. Jaké kategorie můžete typicky zvažovat pro zakomponování do názvu?</p>
+<ul>
+<li>Typ prostředku, buď nějakou zkratkou s fixní délkou (vm, ip, rg, fw) či s proměnlivou délkou (vm, ip, nsg, disk)</li>
+<li>Typ prostředí (dev, qa, prod)</li>
+<li>Organizační jednotka (ať už textem typu finance, marketing nebo kódem)</li>
+<li>Služba či produkt (crm, billing, eshop)</li>
+<li>Komponenta či tier (fronend, db, appserver, auth, catalog)</li>
+<li>Region nasazení (westeu, northeu)</li>
+<li>Instance (01, 02)</li>
+<li>Nákladové středisko</li>
+</ul>
+<p>Jednotlivé prostředky mají z technických či historických důvodů různá omezení ve tvoření názvů (vezměte v úvahu, že například storage account je tu od roku 2009). Někde velká písmena jdou, někde jdou ale jsou case insensitive, někde nejdou (takže camel case názvy typu jednaDveTri nejsou ideální). Někde můžete použít podtržítko, někde ne (takže jedna_dve nedoporučuji). Ideální je tady najít nejmenšího společného jmenovatele - tím jsou malá písmena a pomlčky. Bohužel existuje jedna výjimka - název storage accountu pomlčky nepodporuje, ale i tak je tahle varianta myslím ideální.</p>
+<p>Jak si tedy vybrat co do názvu dávat? Doporučoval bych vybrat jen ty, které jsou nejdůležitější k identifikaci na první pohled - ty ostatní totiž můžete uložit do tagů (viz dále). Tak například nákladové středisko si dám to tagu, organizační jednotku nutně v názvu nepotřebuji, protože třeba pro každou mám samostatnou subskripci. Region nasazení vám třeba nedává smysl, protože chcete pracovat pouze v jednom regionu. Já bych si zvolil například tohle s tím, že pokud nějaké políčko vyloženě nedává smysl, tak ho vynechám (třeba subnet či network jsou každé jiné a nemají víc "instancí", resource group zase nepotřebuje políčko komponenta):</p>
+<p>&lt;služba&gt;-&lt;komponenta&gt;-&lt;typ prostredku&gt;-&lt;instance&gt;</p>
+<p>Vypadat by to pak mohlo nějak takhle:</p>
+<p id="DTSkaxj"><img class="img-fluid wp-image-1863 " src="/images/2018/img_5a72d55ed2438.png" alt="" /></p>
+<p>V pohledu si je můžeme třeba seskupit podle typu prostředku a stále je to samovysvětlující.</p>
+<p id="KvDUwry"><img class="img-fluid wp-image-1865 " src="/images/2018/img_5a72d6948004b.png" alt="" /></p>
+<p>Nebo si vyfiltrovat konkrétní komponentu/tier.</p>
+<p id="QjVjPxF"><img class="img-fluid wp-image-1866 " src="/images/2018/img_5a72d6c0b768f.png" alt="" /></p>
+<p>Nastavení jmené konvence je skutečně na vašem zvážení. Tak například typ prostředí (dev, test, prod) do názvu jednotlivých zdrojů dávat nebudeme (to je můj případ), ale můžeme mít specifické názvosloví pro resource group třeba takhle:</p>
+<p>&lt;služba&gt;-&lt;prostredi&gt;-&lt;typ prostredku&gt;</p>
+<p>Takže moje resource group pak mohou vypadat takhle:</p>
+<p id="PJcWWFC"><img class="img-fluid wp-image-1869 " src="/images/2018/img_5a72d9f465a06.png" alt="" /></p>
+<h1>Tagování</h1>
+<p>Každý zdroj v Azure může mít tagy, což jsou libovolné key:value řetězce. Proč je používat? Typicky je vhodné ke zdrojům přidat nějaká metadata jako je nákladové středisko, typ prostředí (dev, test, prod), kontakt na správce či klasifikace dat (PCI-DSS, confidential, internal, public). Na základě těchto hodnot pak můžeme chtít třeba billingové pohledy (kolik mě stojí všechna test prostředí v organizaci, kolik mám naúčtovat na konkrétní nákladové středisko), řešit provozní situace (koho mám kontaktovat, když tam je chyba) či zjišťovat jak se ke zdrojům chovat z pohledu bezpečnosti.</p>
+<p>Můžeme je přidat třeba v portálu na úrovni Resource Group.</p>
+<p id="WbkzrxI"><img class="img-fluid wp-image-1871 " src="/images/2018/img_5a72de5f8145d.png" alt="" /></p>
+<p>Pozor na to, že tagy se nedědí. Při vyúčtování tak můžete nejdřív najít správné resource group a pak koukat na zdroje vevnitř, ale praktičtější (zejména pokud používáte nějakou formu automatizace) je tag dávat ke všem zdrojům.</p>
+<p>V GUI si také můžete sloupeček s konkrétním tagem přidat na obrazovku.</p>
+<p id="YYjhrKK"><img class="img-fluid wp-image-1872 " src="/images/2018/img_5a72e1c52cab7.png" alt="" /></p>
+<p><em>Jak vidíte Azure vám umožňuje nasadit dobrou governance nad celým prostředím. Dnes jsme probrali nijak vzrušující, ale důležité téma jmenné konvence a tagování. Udělejte si v Azure pořádek. </em><em>V příštích dílech se podíváme na další aspekty jako je návrh subscription, virtuální datové centrum či Azure Security Center.</em></p>

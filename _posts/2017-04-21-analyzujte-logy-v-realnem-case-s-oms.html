@@ -1,0 +1,111 @@
+---
+layout: post
+status: publish
+published: true
+title: Analyzujte logy v reálném čase s OMS
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 588
+wordpress_url: http://tomaskubica.cz/?p=588
+date: '2017-04-21 05:02:25 +0000'
+date_gmt: '2017-04-21 04:02:25 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Analýza logů je Big Data problém. Podívejme se jak můžete provádět velmi komplexní analýzu nad logy v Microsoft Operations Management Suite v reálném čase.<!--more--></p>
+<h1>Fulltextové vyhledávání</h1>
+<p>Hledání v logu OMS disponuje velmi silným query jazykem, který v tomto článku budeme postupně odhalovat.</p>
+<p id="wGIzAON"><img class="img-fluid wp-image-589 " src="/images/2017/img_58f09c92d2853.png" alt="" /></p>
+<p>Pro začátek si zobrazíme všechno - za jediný den tu máme nějakých 123 milionů hlášek a měření. V levé části vidíte časové rozmezí a můžete si ho jednoduše myší přizpůsobit. Také v levé straně máte návrhy na filtrování - ale k tomu se dostaneme později.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">*</pre>
+<p id="ekJyWbO"><img class="img-fluid wp-image-590 " src="/images/2017/img_58f09d18ce26e.png" alt="" /></p>
+<p>Aniž bychom ještě znali nějaký query jazyk můžeme jednoduše udělat fulltextové vyhledávání.</p>
+<p id="HVtJbhf"><img class="img-fluid wp-image-591 " src="/images/2017/img_58f09da5719f1.png" alt="" /></p>
+<h1>Filtrujeme podle políček</h1>
+<p>OMS dokáže filtrovat podle jednotlivých položek. Zkuste v pravé části kliknout na jednu z doporučených filtračních hodnot, třeba Event.</p>
+<p id="xXTTmBF"><img class="img-fluid wp-image-593 " src="/images/2017/img_58f0a1e98b983.png" alt="" /></p>
+<p>Co se stalo? OMS pro vás vytvořilo vaše první jednoduché query, které říká, že chcete zobrazit jen informace typu Event, což jsou hlášky z Windows OS (podobně můžete získat třeba Syslog z Linux apod.).</p>
+<p id="TreSvyX"><img class="img-fluid wp-image-594 " src="/images/2017/img_58f0a25b7b943.png" alt="" /></p>
+<p>V levé části sjeďme trochu níž a podívejme se na všechny doporučované možnosti dalšího filtrování. Co třeba zobrazit jen hlášky z konkrétního stroje? Z EX01.contoso.com jich tam je jak vidno 72 000. Klikněme na to a query se nám upraví.</p>
+<p id="mGfYvFR"><img class="img-fluid wp-image-595 " src="/images/2017/img_58f0a2bedc4fb.png" alt="" /></p>
+<p>Takhle to pak vypadá.</p>
+<p id="udyuymM"><img class="img-fluid wp-image-596 " src="/images/2017/img_58f0a2fe8a5d6.png" alt="" /></p>
+<p>A co když nás zajímají jen Error a Warning hlášky?</p>
+<p id="hhofqRL"><img class="img-fluid wp-image-599 " src="/images/2017/img_58f0a3bb704f0.png" alt="" /></p>
+<p>Toto bude výsledek.</p>
+<p id="ZGSOFfF"><img class="img-fluid wp-image-600 " src="/images/2017/img_58f0a3e39b016.png" alt="" /></p>
+<p>Tak vidíte, začínáte na to přicházet. Pojďme teď do query zasáhnout napřímo. Co třeba dotaz rozšířit na všechny počítače, které obsahují v názvu slovo contoso?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Event Computer=*contoso* (EventLevelName=warning OR EventLevelName=error)</pre>
+<p id="KKVuoeJ"><img class="img-fluid wp-image-601 " src="/images/2017/img_58f0a46c9b3de.png" alt="" /></p>
+<p>Pokud jste příznivci komplexnějšího pattern matchingu s Regular Expressions (já tedy jsem), tak i ty můžete v OMS použít. Pojďme například zahrnout hlášky jen z počítačů, jejich jméno začíná na "i" a dále někde obsahují řetězec "web0" následovaný buď 0 nebo 1 nebo 2 nebo 3.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Event Computer=RegEx("i@web0[0123]@") (EventLevelName=warning OR EventLevelName=error)</pre>
+<p id="stiVGnF"><img class="img-fluid wp-image-602 " src="/images/2017/img_58f0a5f89187d.png" alt="" /></p>
+<h1>Najdi podobnost v milionech hlášek</h1>
+<p>Vraťme jsme k hláškám typu Event, tedy těm z Windows OS. Máme jich za den 596 000 - jak se v tom vyznat?</p>
+<p id="xWBHonp"><img class="img-fluid wp-image-604 " src="/images/2017/img_58f0b561400e6.png" alt="" /></p>
+<p>Můžeme si zobrazení přepnout do tabulky, ale to nám tolik nepomůže.</p>
+<p id="mqWcSMM"><img class="img-fluid wp-image-605 " src="/images/2017/img_58f0b58b11a14.png" alt="" /></p>
+<p>Velmi zajímavou funkcí je hledání podobných hlášek. Ne stejných, ale podobných a to je disciplína z kategorie Machine learning. Klikněte na Minify a uvidíte co se stane.</p>
+<p id="PNlWfPa"><img class="img-fluid wp-image-606 " src="/images/2017/img_58f0b60ed1fc5.png" alt="" /></p>
+<p>Vidíme hlášky seskupené podle podobnosti, takže se dá poměrně rychle zjistit co se v mém prostředí nejčastěji odehrává. Pokud najedete myší nad hvězdičku zjistíte, kolik různých hodnot se v tomto místě objevuje.</p>
+<p id="KDpXAtE"><img class="img-fluid wp-image-607 " src="/images/2017/img_58f0b66b37774.png" alt="" /></p>
+<p>Můžete na ni i kliknout.</p>
+<p id="kuFgTzj"><img class="img-fluid wp-image-609 " src="/images/2017/img_58f0b6bf11de8.png" alt="" /></p>
+<p>Vnímavost funkce Minify k podobnostem můžete změnit.</p>
+<p id="GkRHmRP"><img class="img-fluid wp-image-610 " src="/images/2017/img_58f0b76c54580.png" alt="" /></p>
+<h1>Základní funkce</h1>
+<p>Dnes se nebudeme pouštět do něčeho příliš složitého, ale základní funkce bych rád prošel. Tak například pojďme na začátek spočítat všechny události. Query jazyk používá symbol pipe a tím můžete předávat výstup jedné funkce do další a takto je řetězit. Například první funkce bude vracet všechny Syslog zprávy a v druhé budeme počítat počet výskytů za jednotlivé monitorované stroje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog | measure count() by Computer</pre>
+<p id="sFNhSNd"><img class="img-fluid wp-image-612 " src="/images/2017/img_58f0b91674623.png" alt="" /></p>
+<p>Co kdybychom výsledný sloupeček pojmenovali nějak lépe?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog | measure count() as Hlasky by Computer</pre>
+<p id="wsUybKu"><img class="img-fluid wp-image-613 " src="/images/2017/img_58f0b95305ced.png" alt="" /></p>
+<p>Výsledky máme seřazené podle počtu hlášek, ale co když potřebujeme abecedně podle názvu stroje?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog | measure count() as Hlasky by Computer | sort Computer</pre>
+<p id="SGCfGQu"><img class="img-fluid wp-image-614 " src="/images/2017/img_58f0b99c066d7.png" alt="" /></p>
+<p>Nebo jen tři počítače s nejvyšším počtem hlášek?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog | measure count() as Hlasky by Computer | top 3</pre>
+<p id="hjNtlVw"><img class="img-fluid wp-image-615 " src="/images/2017/img_58f0b9f6bdf21.png" alt="" /></p>
+<p>Na začátku můžeme samozřejmě také filtrovat - to už umíme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog Computer=acme* | measure count() as Hlasky by Computer</pre>
+<p id="pfBlhCM"><img class="img-fluid wp-image-616 " src="/images/2017/img_58f0ba4c2fcb9.png" alt="" /></p>
+<p>O co kdybychom nestáli jen o celkový součet třeba za den (interval jsme nastavili v levé části obrazovky), ale sledovali vývoj počtu třeba v intervalech deseti minut? Snadné - sledujte.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Syslog Computer=acme* | measure count() as Hlasky by Computer interval 10MINUTES</pre>
+<p id="hvBPTTs"><img class="img-fluid wp-image-617 " src="/images/2017/img_58f0baac39dcc.png" alt="" /></p>
+<p>Agregačních funkcí je daleko víc a to využijeme hned v další kapitolce.</p>
+<h1>Další typy údajů</h1>
+<p>OMS toho sbírá daleko víc, než jen hlášky. Jedním z podkladů jsou výkonnostní ukazatele. Zkuste tohle:</p>
+<p id="tTeLXRF"><img class="img-fluid wp-image-618 " src="/images/2017/img_58f0bb438e9af.png" alt="" /></p>
+<p>Každé měření je údaj v OMS. Ani nemusíme tvořit složitější query (ale můžeme, to si ukážeme) - takhle si třeba vypíšeme údaje o CPU a necháme si GUI to hezky vyobrazit.</p>
+<p id="eUHGXzP"><img class="img-fluid wp-image-619 " src="/images/2017/img_58f0bd2ac4d38.png" alt="" /></p>
+<p>OMS sbírá informace o síťovém provozu ve vašich VM. Zkusme si to.</p>
+<p id="YKuAaAD"><img class="img-fluid wp-image-620 " src="/images/2017/img_58f0bd67727a2.png" alt="" /></p>
+<p>Například se tedy můžeme podívat kolik počítače jejichž jméno začíná řetězcem acme posílají dat v jednotlivých cílových TCP portech.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=WireData Direction=Outbound Computer=acme* | measure sum(SentBytes) by RemotePortNumber</pre>
+<p id="jEBOBOh"><img class="img-fluid wp-image-621 " src="/images/2017/img_58f0be6c0855e.png" alt="" /></p>
+<p>Nebo vám přijde zajímavější vidět vývoj posílání na jednotlivé porty v čase?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=WireData Direction=Outbound Computer=acme* | measure sum(SentBytes) by RemotePortNumber interval 5MINUTES</pre>
+<p id="OoXbdmN"><img class="img-fluid wp-image-622 " src="/images/2017/img_58f0bec344478.png" alt="" /></p>
+<p>Pokud do OMS zařadíte váš Windows DNS server, můžeme se koukat na DNS dotazy a dělat nad tím docela chytré analýzy. Pro dnešek se jen podíváme kam nejčastěji naše systémy žádají překlad.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=DnsEvents SubType=LookupQuery  | measure count() by Name</pre>
+<p id="FWDwePC"><img class="img-fluid wp-image-623 " src="/images/2017/img_58f0bf6123490.png" alt="" /></p>
+<p>Co třeba zjistit na jakých počítačích je Microsoft Silverlight a v jaké verzi? Využijeme funkce OMS, které shromažďuje změny v konfiguracích systémů - v jejich aplikacích, službách, daemonech i souborech. Abychom u každého neměli dlouhý seznam atributů, použil jsem funkci select, která do výstupu vypíše jen ta políčka, která chci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=ConfigurationChange ConfigChangeType=Software SoftwareName="Microsoft Silverlight" | select Computer,Current</pre>
+<p id="ngctolV"><img class="img-fluid wp-image-624 " src="/images/2017/img_58f0bfc842c6d.png" alt="" /></p>
+<p>A co najít situace, kdy vám chybí důležitá aktualizace?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Update UpdateState=Needed Optional=false (Classification="Security Updates" OR Classification="Critical Updates")</pre>
+<p id="OlYQwzj"><img class="img-fluid wp-image-625 " src="/images/2017/img_58f0c03031d1a.png" alt="" /></p>
+<p>Dá se toho dělat ještě daleko víc, OMS toho dokáže opravdu hodně. Ale pro dnešek už je toho hodně, vrátíme se k tomu příště.</p>
+<h1>Na co query použít?</h1>
+<p>Je zřejmé, že pokud se jazyk naučíte, dá se v reálném čase velmi efektivně vyhledávat s využitím Big Data engine, který je pod kapotou. Dotazy mají ale ještě několik dalších použití.</p>
+<p>Můžete si do GUI přidat vlastní budíky a grafy. Co myslíte, že je plní daty? Přesně tak - query. Odladíte si dotaz, pak si řeknete jak chcete údaje vizualizovat a vytvoříte z toho nový budík na dashboard.</p>
+<p>Query je také použito pro vytváření automatických skupin počítačů. OMS vám umožní mít stroje seskupené třeba podle údajů v Active Directory, ale navíc si dokážete vytvořit vlastní skupin jejíž členy definujete jako výsledek query.</p>
+<p>Pokud chcete dostávat alerty a hlášky tak máte jednu velmi mocnou možnost - query. OMS bude pravidelně query provádět a pokud vrátí nějaký výsledek, udělá z toho alert. Nejste omezeni nějakým GUI na to co může všechno být alert, použijete velmi mocný query jazyk. Ve výsledku si pak můžete třeba nechat poslat email, zavolat webhook do nějaké jiné aplikace nebo využít třeba integraci se ServiceNow a automaticky založit servisní ticket.</p>
+<p>&nbsp;</p>
+<p><em>Dnes jsme prohledávání logů v OMS naťukli, ale ještě se k tomu vrátíme. Dá se s tím totiž dělat ještě mnohem víc.</em></p>

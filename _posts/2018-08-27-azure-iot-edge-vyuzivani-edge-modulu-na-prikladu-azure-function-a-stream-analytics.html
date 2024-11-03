@@ -1,0 +1,221 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure IoT Edge: využívání Edge modulů na příkladu Azure Function a Stream
+  Analytics'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2432
+wordpress_url: http://tomaskubica.cz/?p=2432
+date: '2018-08-27 05:25:33 +0000'
+date_gmt: '2018-08-27 04:25:33 +0000'
+categories:
+tags:
+- AzureFunctions
+- Data Analytics
+- IoT
+---
+<p>Podívejme se dnes jak můžeme s využitím Visual Studio Code a Azure vytvořit a poslat do IoT Edge zařízení kód s Azure Function, konfiguraci i proudové zpracování dat s Azure Stream Analytics modulem pro IoT Edge.<!--more--></p>
+<h1>Napojení IoT Edge zařízení</h1>
+<p>Dnes nám bude stačit nejjednodušší zprovoznění IoT Edge. Zkoušel jsem to s Ubuntu na Linux amd64 zařízení, ale i s Raspberry na armv7 s Rasbianem. Pro tento článek jsem použil Ubuntu verzi. Postupujte podle návodu v dokumentaci: <a href="https://docs.microsoft.com/en-us/azure/iot-edge/quickstart-linux">https://docs.microsoft.com/en-us/azure/iot-edge/quickstart-linux</a></p>
+<p>Někdy příště se na proces chci podívat trochu detailněji. V zásadě jde o IoT Edge daemona, který zajišťuje bezpečnost a integritu systému (včetně možnosti napojení na HSM čipy, využití trusted execution prostředí typu SGX na Intelu nebo TrustZone na ARMu, napojení na secure boot a tak podobně). Ten následně nahodí Docker a v něm základní systémové moduly, tedy IoT agenta zajišťujícího komunikaci s Azure a místní IoT Hub, který slouží pro lokální sběr a routing zpráv stejně tak jako pro příjem zpráv z jiných zařízení (gateway režim). Ale o tom všem někdy jindy.</p>
+<h1>Kde vzít moduly</h1>
+<p>Moduly jsou Docker kontejnery, které v sobě nejčastěji mají SDK, které jim umožňuje napojit se na IoT Edge platformu (například Hub v zařízení, který jim umožňuje přijímat a odesílat zprávy do dalších modulů nebo do Azure, číst si konfiguraci z Device Twin apod.). Můžete si vytvořit svoje vlastní (to uděláme s konfiguračním modulem), využít programátorského rámce Azure Functions (i to si vyzkoušíme), vytvořit modul se Stream Analytics nebo si sáhnout pro AI modul vyexportovaný třeba z Azure Machine Learning.</p>
+<p>Do budoucna se dá očekávat, že se začnou objevovat hotové moduly aplikačních partnerů. V Azure portálu je na to vytvořena kategorie (jedním z modulů je SQL v Linux kontejneru).</p>
+<p id="bdayttY"><img class="img-fluid wp-image-2434 " src="/images/2018/img_5b82e17076497.png" alt="" /></p>
+<p>Naše custom moduly budeme umisťovat do vlastního kontejnerového repozitáře. Nasaďte si tedy Azure Container Registry, budeme ho potřebovat.</p>
+<h1>První demo modul se simulátorem senzoru</h1>
+<p>Zařízení mám připojeno do Azure a pro vytváření modulů použiji extension do Visual Studio Code.</p>
+<p id="JmMmllZ"><img class="img-fluid wp-image-2435 " src="/images/2018/img_5b82eac6c800d.png" alt="" /></p>
+<p>Když zmáčkneme CTRL + SHIFT + P a v paletě napíšeme edge objeví se nám řada užitečných příkazů.</p>
+<p id="bCSHljy"><img class="img-fluid wp-image-2436 " src="/images/2018/img_5b82eb3e0ed47.png" alt="" /></p>
+<p>Začneme vytvářet obsah svého zařízení tím, že zvolíme New IoT Edge Solution.</p>
+<p>Odpovím na název adresáře se svou solution a vyberu si první modul. Pro začátek budu chtít custom modul psaný v C#.</p>
+<p id="mMMMhFy"><img class="img-fluid wp-image-2437 " src="/images/2018/img_5b82ebbd174b8.png" alt="" /></p>
+<p>Dáme mu název configModule.</p>
+<p id="pSJryxe"><img class="img-fluid wp-image-2439 " src="/images/2018/img_5b82ecb8c98c6.png" alt="" /></p>
+<p>Dále zadáme cestu k Azure Container Registry a název, pod kterým bude obraz vyzvedáván.</p>
+<p id="jgKVTZg"><img class="img-fluid wp-image-2440 " src="/images/2018/img_5b82ecc01f395.png" alt="" /></p>
+<p>Pokud se vše podařilo a máte na počítači instlaci .NET Core vytvoří se vám skeleton celé solution včetně jednoho vlastního modulu. Ten zatím nijak měnit nebudeme, to přijde v další kapitolce. My teď budeme chtít tohle prostudovat a poslat do IoT Edge zařízení.</p>
+<p>Zásadní je pro nás deployment šablona. Všimněte si, že obsahuje cestu a login do Azure Container Registry (heslo je ale uloženo v env souboru, který je v .gitignore seznamu) a definici systémových modulů, které nejsou nic jiného, než Docker kontejnery. Kromě systémových tam najdeme dva další moduly. Jeden je simulátor senzoru (ten se nám bude hodit) a tím druhým je náš nový modul configModule, který zatím nic nedělá.</p>
+<p id="wgZTPCb"><img class="img-fluid wp-image-2441 " src="/images/2018/img_5b82edbcd275f.png" alt="" /></p>
+<p>Dole pak najdeme routing:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">"routes": {
+          "configModuleToIoTHub": "FROM /messages/modules/configModule/outputs/* INTO $upstream",
+          "sensorToconfigModule": "FROM /messages/modules/tempSensor/outputs/temperatureOutput INTO BrokeredEndpoint(\"/modules/configModule/inputs/input1\")"
+        },</pre>
+<p>Zprávy ze simulovaného senzoru posíláme do configModulu a výstup configModulu jde do IoT Hubu v Azure. To se mi teď nehodí, protože s configModulem nemám v plánu zprácovávat zprávy, to uvidíme až později. Změním tedy routing takhle - nechám zprávy posílat do configModulu (byť je to teď celkem zbytečné, ale za chvilku se mi ten záznam bude hodit pro úpravu) a ještě napřímo do upstream, což je Azure IoT Hub.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">"routes": {
+  "sensorToIoTHub": "FROM /messages/modules/tempSensor/outputs/temperatureOutput INTO $upstream",
+  "sensorToconfigModule": "FROM /messages/modules/tempSensor/outputs/temperatureOutput INTO BrokeredEndpoint(\"/modules/configModule/inputs/input1\")"
+},
+</pre>
+<p>Provedeme tedy build a push configModule. Tento příkaz vezme vytvořený Dockerfile a protože mám na svém Windows PC nainstalovaný Docker for Windows s podporou Linux kontejnerů, provede se build, vytvoření kontejnerového obrazu a jeho odeslání do ACR (pokud nebudete přihlášeni, zadejte v terminálu Visual Studio Code příkaz az acr login).</p>
+<p>Abychom mohli řešení nasadit musíme udělat jeho build, což v zásadě vezme náš soubor deployment.template.json a vytvoří z něj plný deployment soubor, který už obsahuje konkrétní údaje jako jsou verze kontejnerového obrazu nebo hesla pro login do registru (proto je adresář /config také v .gitignore).</p>
+<p id="fZvKeiz"><img class="img-fluid wp-image-2443 " src="/images/2018/img_5b82f22a4c0ec.png" alt="" /></p>
+<p>Protože dnes jen testujeme, stačí nám deployment poslat do jednoho konkrétního zařízení.</p>
+<p id="HMftZAw"><img class="img-fluid wp-image-2444 " src="/images/2018/img_5b82f259a3666.png" alt="" /></p>
+<p id="xDBhnEj"><img class="img-fluid wp-image-2445 " src="/images/2018/img_5b82f278b8276.png" alt="" /></p>
+<p>Připojíme se do samotného zařízení a tam najdeme naše moduly krásně běžící.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge list
+NAME             STATUS           DESCRIPTION      CONFIG
+configModule     running          Up a minute      iotedgemojemoduly.azurecr.io/configmodule:0.0.1-amd64
+edgeHub          running          Up 2 minutes     mcr.microsoft.com/azureiotedge-hub:1.0
+tempSensor       running          Up 2 minutes     mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0
+edgeAgent        running          Up 37 minutes    mcr.microsoft.com/azureiotedge-agent:1.0</pre>
+<p>Jde v podstatě o stejný příkaz, jako přímo z dockeru:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo docker ps
+CONTAINER ID        IMAGE                                                             COMMAND                   CREATED              STATUS              PORTS
+                                                      NAMES
+432c7785d42e        iotedgemojemoduly.azurecr.io/configmodule:0.0.1-amd64             "dotnet configModule…"    About a minute ago   Up About a minute
+                                                      configModule
+99d2499d37a1        mcr.microsoft.com/azureiotedge-hub:1.0                            "/bin/sh -c 'echo \"$…"   2 minutes ago        Up About a minute   0.0.0.0:443-&gt;443/tcp, 0.0.0.0:5671-&gt;5671/tcp, 0.0.0.0:8883-&gt;8883/tcp   edgeHub
+bc469d62444c        mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0   "/bin/sh -c 'echo \"$…"   2 minutes ago        Up 2 minutes
+                                                      tempSensor
+9241629762a5        mcr.microsoft.com/azureiotedge-agent:1.0                          "/bin/sh -c 'echo \"$…"   37 minutes ago       Up 37 minutes
+                                                      edgeAgent</pre>
+<p>Totéž uvidíme v IoT Hub extension pro Visual Studio Code.</p>
+<p id="BHNadzw"><img class="img-fluid wp-image-2446 " src="/images/2018/img_5b82f34d82945.png" alt="" /></p>
+<p>A také v Azure portálu.</p>
+<p id="QMUlQoG"><img class="img-fluid wp-image-2447 " src="/images/2018/img_5b82f38553f30.png" alt="" /></p>
+<p>Co píše tempSensor modul do logů? To si mohu prohlédnout přímo v zařízení. Jsou to klasické Docker logy a dostanu se k nim jak přes docker logs tak iotedge logs.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge logs tempSensor --tail 5
+        08/26/2018 18:39:02&gt; Sending message: 42, Body: [{"machine":{"temperature":40.50488028768676,"pressure":3.2220749694833017},"ambient":{"temperature":20.682128805286311,"humidity":24},"timeCreated":"2018-08-26T18:39:02.4643474Z"}]
+        08/26/2018 18:39:07&gt; Sending message: 43, Body: [{"machine":{"temperature":41.52165692754631,"pressure":3.3379102828850225},"ambient":{"temperature":20.612556701578459,"humidity":24},"timeCreated":"2018-08-26T18:39:07.4844849Z"}]
+        08/26/2018 18:39:12&gt; Sending message: 44, Body: [{"machine":{"temperature":41.535087533777137,"pressure":3.3394403519492939},"ambient":{"temperature":20.5304835983694,"humidity":26},"timeCreated":"2018-08-26T18:39:12.5069744Z"}]
+        08/26/2018 18:39:17&gt; Sending message: 45, Body: [{"machine":{"temperature":42.222475937554819,"pressure":3.4177504232657387},"ambient":{"temperature":21.32000797373243,"humidity":26},"timeCreated":"2018-08-26T18:39:17.529278Z"}]
+        08/26/2018 18:39:22&gt; Sending message: 46, Body: [{"machine":{"temperature":42.941102311453349,"pressure":3.4996192506719006},"ambient":{"temperature":20.838227400248044,"humidity":24},"timeCreated":"2018-08-26T18:39:22.5516129Z"}]</pre>
+<p>A přichází mi něco do IoT Hubu v Azure? Využiji IoT Hub extension pro Visual Studio Code a začnu monitorovat Device-to-Cloud zprávy.</p>
+<p id="WhluRAG"><img class="img-fluid wp-image-2448 " src="/images/2018/img_5b82f42fe3683.png" alt="" /></p>
+<p id="eCWYHBW"><img class="img-fluid wp-image-2449 " src="/images/2018/img_5b82f45adccd1.png" alt="" /></p>
+<h1>Konfigurační modul čtoucí Device Twin</h1>
+<p>configModule nám nebude pracovat se zprávama, ale ukážeme si na něm konfigurační možnosti přes Twin. Každý device stejně jako každý nasazený modul má své dvojče v cloudu, ve kterém je jeho desired state konfigurace. Pokud se vaše zařízení odpojí a vy mezitím změníte konfiguraci v cloudu, pozná IoT SDK po připojení diskrepanci a vaše zařízení na to může reagovat. Jinak řečeno cloud se stává místem centrální konfigurace vyšich zařízení. Můžete si tam ukládat metainformace o zařízení (lokalita apod.), nastavení snímání (flagy které hodnoty sbírat, rate odečtů, míru agregace), různé limity, jednotky a cokoli dalšího vás napadne v rámci velikostního limitu.</p>
+<p>Náš modul si při startu načte desired konfiguraci ze svého dvojčete.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">Twin twin = await ioTHubModuleClient.GetTwinAsync().ConfigureAwait(false);</pre>
+<p>Kromě toho si zaregistruje Task, který se spustí pokaždé, když Azure IoT Hub aktivně informuje zařízení o tom, že v jeho dvojčeti došlo ke změně.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, null).ConfigureAwait(false);</pre>
+<p>Celý kód si prohlédněte na mém GitHubu: <a href="https://github.com/tkubica12/iot-edge-demo/tree/master/ubuntuSolution/modules/configModule">https://github.com/tkubica12/iot-edge-demo/tree/master/ubuntuSolution/modules/configModule</a></p>
+<p>Pojďme provést build, nový kontejnerový obraz a nový deployment. Protože se jedná o novou verzi modulu, potřebujeme jej uložit pod jiným označením v kontejnerovém registru (jméno necháme, ale změníme tag) a to reflektovat v deployment.json.</p>
+<p>Půjdeme tedy do module.json v adresáři modulu a povýšíme číslo verze.</p>
+<p id="ULTmTeq"><img class="img-fluid wp-image-2451 " src="/images/2018/img_5b82f70a06e20.png" alt="" /></p>
+<p>Teď provedeme Build and Push Edge Solution a následně deployment do zařízení. V něm si potom všimněte jiného tagu Docker image.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge list
+NAME             STATUS           DESCRIPTION      CONFIG
+configModule     running          Up 2 seconds     iotedgemojemoduly.azurecr.io/configmodule:0.0.2-amd64
+edgeHub          running          Up 21 minutes    mcr.microsoft.com/azureiotedge-hub:1.0
+tempSensor       running          Up 21 minutes    mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0
+edgeAgent        running          Up an hour       mcr.microsoft.com/azureiotedge-agent:1.0</pre>
+<p>Podívejme se na log z configModule.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge logs configModule
+IoT Hub module client initialized.
+Initial twin value received:
+{"deviceId":null,"etag":null,"version":null,"properties":{"desired":{"$version":1},"reported":{"$version":1}}}</pre>
+<p>Možná tam uvidíte i další zprávy (protože do modulu posíláme zprávy ze senzoru, což hned v další části změníme). Můžeme teď buď v Azure portálu nebo přes Visual Studio Code jít do modulu configModule a do jeho bratříčka přidat nějakou konfiguraci.</p>
+<p id="MEYCenV"><img class="img-fluid wp-image-2452 " src="/images/2018/img_5b82f8553bd5a.png" alt="" /></p>
+<p id="juJnNvi"><img class="img-fluid wp-image-2453 " src="/images/2018/img_5b82f889d5a16.png" alt="" /></p>
+<p>Náš configModule o změně dostane zprávu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Desired property changed:
+{"mojekonfigurace":"mojehodnota","$version":2}</pre>
+<p>A kdyby byl náhodou zrovna odpojen, nevadí. Dozví se to při nejbližší možné příležitosti, protože údaje jsou verzované.</p>
+<h1>Převod jednotek nebo filtrování s Azure Function</h1>
+<p>Senzor nám dává tlak v barech, ale dejme tomu, že já ho potřebuji v atmosférách. Jak lokálně přímo v IoT Edge zařízení něco takového udělat, aniž bych musel složitě programovat a udržel jednoduchost, čistotu a modulárnost? Na nasazení kódu je ideální Azure Function. Je to samozřejmě opět Docker kontejner, ale díky Azure Function runtime v něm nemusím řešit napojení na IoT SDK a podobné věci, soustředím se pouze na svůj kód. Při příjmu zprávy bude moje funkce zavolána a na výstupu vrátí zpracovanou zprávu. Jednoduché a účinné.</p>
+<p>Vytvořme tedy další modul.</p>
+<p id="FZVwZgL"><img class="img-fluid wp-image-2455 " src="/images/2018/img_5b82f9987ad9e.png" alt="" /></p>
+<p>Tentokrát chceme Azure Function.</p>
+<p id="IztoRsS"><img class="img-fluid wp-image-2456 " src="/images/2018/img_5b82f9ce7853d.png" alt="" /></p>
+<p>Podívejte se ná kód run.csx v GitHubu: <a href="https://github.com/tkubica12/iot-edge-demo/blob/master/ubuntuSolution/modules/transformModule/EdgeHubTrigger-Csharp/run.csx">https://github.com/tkubica12/iot-edge-demo/blob/master/ubuntuSolution/modules/transformModule/EdgeHubTrigger-Csharp/run.csx</a></p>
+<p>V zásadě jednoduše přijímám zprávu, deserializuji jí a s hodnou tlaku provádím přepočet z barů na atmosféry. Následně to zase smotnuju zpět do zprávy a ze své funkce vracím (a průběžně si pro demo účely loguji). To je všechno.</p>
+<p>Před nasazením ale potřebuji změnit routování zpráv. Potřebuji to udělat tak, že zprávy z tempSensor půjdou do transformModule a odtud do cloudu (Azure IoT Hub). To změním v deployment.template.json:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">"routes": {
+  "sensorTotransformModule": "FROM /messages/modules/tempSensor/outputs/temperatureOutput INTO BrokeredEndpoint(\"/modules/transformModule/inputs/input1\")",
+  "transformModuleToIoTHub": "FROM /messages/modules/transformModule/outputs/* INTO $upstream"
+},
+</pre>
+<p>Provedeme build, push a nasazení do zařízení.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge list
+NAME             STATUS           DESCRIPTION      CONFIG
+transformModule  running          Up 13 seconds    iotedgemojemoduly.azurecr.io/transformmodule:0.0.1-amd64
+configModule     running          Up 23 minutes    iotedgemojemoduly.azurecr.io/configmodule:0.0.2-amd64
+edgeHub          running          Up an hour       mcr.microsoft.com/azureiotedge-hub:1.0
+tempSensor       running          Up an hour       mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0
+edgeAgent        running          Up an hour       mcr.microsoft.com/azureiotedge-agent:1.0</pre>
+<p>Podívejme se do logů. Všimněte si, že transformModule dostává surová data ze senzoru a hodnotu pressure převádí z bar na atm (číslo je jiné):</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge logs transformModule --tail 10
+      Executing 'Functions.EdgeHubTrigger-Csharp' (Reason='EdgeHub trigger fired at 2018-08-26T19:20:46.7389601+00:00', Id=d662b4da-e2b8-4c1e-943b-bc124237e516)
+info: Function.EdgeHubTrigger-Csharp.User[0]
+      =&gt; System.Collections.Generic.Dictionary`2[System.String,System.Object]
+      Info: Received message: {"machine":{"temperature":101.68487164712734,"pressure":10.191947402837291},"ambient":{"temperature":20.790689416365087,"humidity":25},"timeCreated":"2018-08-26T19:20:46.7372456Z"}
+info: Function.EdgeHubTrigger-Csharp.User[0]
+      =&gt; System.Collections.Generic.Dictionary`2[System.String,System.Object]
+      Info: Sending message {"machine":{"temperature":101.68487164712734,"pressure":10.058670025005934},"ambient":{"temperature":20.790689416365087,"humidity":25},"timeCreated":"2018-08-26T19:20:46.7372456Z"}</pre>
+<p>Právě jsme tedy použili Azure Function pro transformaci nebo filtrování dat přímo v IoT Edge zařízení.</p>
+<h1>Agregace na minutové průměry</h1>
+<p>Vteřinová granularita je možná důležitá pro detekci anomálií a vytvoření alertů, ale pro dlouhodobější hlubokou analýzu v cloudu mi možná stačí jen minutové průměry a dramaticky bych ušetřil přenosové pásmo. Když potřebuji v Azure zpracovávat proudová data v reálném čase, je tu výborná PaaS služba Azure Stream Analytics. Ta mi umožňuje psát agregační a detekční pravidla jazykem, který je velmi podobný klasickému SQL, akorát tentokrát nekouká do statické tabulky, ale do proudu dat. Umožňuje to provádět agregace nad plovoucím oknem, transformovat hodnoty (ano, převod z bar na atm jsem mohl klidně dělat v tom) a má i zabudované základní Machine Learning funkce (jako je detekce anomálie v číselné řadě) a umí odskakovat do pokročilých Azure ML. Je to vymakané, jednoduché a skvěle funkční. Kdybych tak něco takového mohl dělat přímo v IoT Edge ...</p>
+<p>No a já právě můžu. Nejprve jsem si zachytil pár zpráv (přes extension do Visual Studio Code) tak, jak mi teď přicházejí do IoT Hub (tedy z výstupu transformModule) a uložil si je do souboru. Následně jsem si vytvořil Stream Analytics v Azure, ale při zakládání jsem zvolil IoT Edge.</p>
+<p id="SpnfpmV"><img class="img-fluid wp-image-2458 " src="/images/2018/img_5b82ff29bec1e.png" alt="" /></p>
+<p id="uLNEXOO"><img class="img-fluid wp-image-2459 " src="/images/2018/img_5b82ff60b6e91.png" alt="" /></p>
+<p>Ve vytvořeném Stream Analytics založím input a output, což budou názvy, které pak použijeme při routování zpráv v IoT Edge.</p>
+<p id="ENiGVbF"><img class="img-fluid wp-image-2460 " src="/images/2018/img_5b8371f6521dd.png" alt="" /></p>
+<p id="jJIWfql"><img class="img-fluid wp-image-2461 " src="/images/2018/img_5b83721e10db8.png" alt="" /></p>
+<p>Můžeme se pustit do vytvoření query. Abychom si mohli vyzkoušet, jestli to dělá co potřebujeme, nahrajeme si vzorek dat do input.</p>
+<p id="ZXQNwgw"><img class="img-fluid wp-image-2462 " src="/images/2018/img_5b83726409e41.png" alt="" /></p>
+<p>Použiji následující query, které vezme data ze vstupu a spočítá průměry na minutová okna. Tím je krásně vidět síla Stream Analytics. Vytvářím dotaz podobně, jako kdybych montoval SQL dotaz do statické tabulky, ale ve skutečnosti se jedná o průtokový dotaz nad přicházejícími daty.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">SELECT
+    avg(machine.temperature) AS machine_temperature,
+    avg(machine.pressure) AS machine_pressure,
+    avg(ambient.temperature) AS ambient_temperature,
+    avg(ambient.humidity) AS abmient_humidity
+INTO
+    [output]
+FROM
+    [input]
+TIMESTAMP BY 
+    timeCreated
+GROUP BY 
+    TumblingWindow( second , 60 )</pre>
+<p>Abychom vyzkoušeli, že query dělá co má, využijeme nahraných sample dat a stiskneme talačítko Test.</p>
+<p id="tVcbgoC"><img class="img-fluid wp-image-2463 " src="/images/2018/img_5b837392e4de0.png" alt="" /></p>
+<p>Vypadá to dobře, přidejme modul do našeho IoT Edge zařízení. Můžeme to udělat z Azure portálu, já ale využiji extension ve Visual Studio Code, ať to máme všechno pohromadě a můžeme deployment.json opakovatelně používat třeba na tisíce či miliony zařízení.</p>
+<p id="tQtjEEt"><img class="img-fluid wp-image-2464 " src="/images/2018/img_5b8373e53ef7c.png" alt="" /></p>
+<p id="tCBnDHA"><img class="img-fluid wp-image-2465 " src="/images/2018/img_5b8374203990d.png" alt="" /></p>
+<p id="amjNxdg"><img class="img-fluid wp-image-2466 " src="/images/2018/img_5b83744340368.png" alt="" /></p>
+<p id="JLpMUHW"><img class="img-fluid wp-image-2467 " src="/images/2018/img_5b83747738274.png" alt="" /></p>
+<p>Do deployment template se mi přidá nový modul.</p>
+<p id="szIDvMJ"><img class="img-fluid wp-image-2468 " src="/images/2018/img_5b8374f76a147.png" alt="" /></p>
+<p>Také tam najdeme konfiguraci obsahující informace o mém Stream Analytics jobu.</p>
+<p id="HsifDnA"><img class="img-fluid wp-image-2469 " src="/images/2018/img_5b83754272f93.png" alt="" /></p>
+<p>Poslední co potřebujeme udělat je pozměnit routing informací, který chceme takhle:</p>
+<p>tempSensor -&gt; transformModule -&gt; aggregateModule -&gt; IoT Hub</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">"routes": {
+  "sensorTotransformModule": "FROM /messages/modules/tempSensor/outputs/temperatureOutput INTO BrokeredEndpoint(\"/modules/transformModule/inputs/input1\")",
+  "transformModuleToaggregateModule": "FROM /messages/modules/transformModule/outputs/* INTO BrokeredEndpoint(\"/modules/aggregateModule/inputs/input\")",
+  "aggregateModuleToIoTHub": "FROM /messages/modules/aggregateModule/outputs/output INTO $upstream"
+},</pre>
+<p>Výborně. Poskládáme a pošleme deployment do zařízení. Moduly by měly být nahoře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge list
+NAME             STATUS           DESCRIPTION      CONFIG
+aggregateModule  running          Up 2 minutes     microsoft/azureiotedge-azure-stream-analytics:1.0.0-preview010
+transformModule  running          Up 2 minutes     iotedgemojemoduly.azurecr.io/transformmodule:0.0.1-amd64
+configModule     running          Up 2 minutes     iotedgemojemoduly.azurecr.io/configmodule:0.0.2-amd64
+edgeHub          running          Up 2 minutes     mcr.microsoft.com/azureiotedge-hub:1.0
+tempSensor       running          Up 12 seconds    mcr.microsoft.com/azureiotedge-simulated-temperature-sensor:1.0
+edgeAgent        running          Up 2 minutes     mcr.microsoft.com/azureiotedge-agent:1.0</pre>
+<p>Podívejme se na logy ze Stream Analytics. Měli bychom vidět přijímané zprávy a každou minutu také agregovanou informaci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@edgedevice:~$ sudo iotedge logs aggregateModule
+...
+08/27/2018 03:59:36 - ASA module registered message endpoint : [input]
+        08/27/2018 04:00:56&gt; Received message: [{"machine":{"temperature":22.191332403310263,"pressure":1.1208698870321669},"ambient":{"temperature":21.181929299925422,"humidity":24},"timeCreated":"2018-08-27T04:00:56.2599801Z"}]
+        08/27/2018 04:01:01&gt; Received message: [{"machine":{"temperature":23.24579347774656,"pressure":1.239427475815305},"ambient":{"temperature":21.138817007485226,"humidity":25},"timeCreated":"2018-08-27T04:01:01.5126033Z"}]
+        08/27/2018 04:01:01&gt; Output generated: output, Content: {"machine_temperature":22.191332403310263,"machine_pressure":1.1208698870321669,"ambient_temperature":21.181929299925422,"abmient_humidity":24.0}</pre>
+<p>Pojďme si ověřit, že dostáváme do Azure pouze agregované informace po minutách.</p>
+<p id="AjWBFlk"><img class="img-fluid wp-image-2470 " src="/images/2018/img_5b8378222400e.png" alt="" /></p>
+<p>Výborně! Děla to co potřebujeme.</p>
+<p>&nbsp;</p>
+<p><em>Co se nám dnes podařilo? Ukázali jsme si jak vyvíjet a používat moduly distribuované do IoT Edge zařízení pro lokální zpracování. Použili jsme demo modul se simulací senzorů, který by v praxi obsahoval kód pro odečty z reálných senzorů (na to se podíváme někdy příště - například pro Raspberry, kde modulu spustíme v privilegovaném režimu, aby měl přístup k hardware) a také příklad konfiguračního modulu, který je schopen získávat konfigurační data z Twin v Azure. Následně jsme se rozhodli data před odesláním do Azure lokálně zpracovávat. Vytvořili jsme Azure Function modul, díky kterému můžeme jednoduše filtrovat nebo provádět konverzi zpráv (v našem případě převod z barů na atmosféry) a také použili Stream Analytics pro agregaci údajů po minutě před jejich odesláním do Azure IoT Hub. Zprávy mezi moduly jsme provázali tak, že ze senzoru jdeme do Azure Function pro transformaci, odtud do agregačního modulu a následně do cloudu.</em></p>
+<p><em>IoT Edge umožňuje distribuovat logiku do krajních zařízení velmi efektivním a perfektně škálovatelným způsobem. Vyzkoušejte si to.</em></p>

@@ -1,0 +1,63 @@
+---
+layout: post
+status: publish
+published: true
+title: Přihlašujte se do Linux VM v Azure s AAD a třeba i vícefaktorově
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2152
+wordpress_url: http://tomaskubica.cz/?p=2152
+date: '2018-05-21 05:27:14 +0000'
+date_gmt: '2018-05-21 04:27:14 +0000'
+categories:
+tags:
+- Compute
+- Security
+---
+<p>Při vytváření VM v Azure specifikujete přihlašovací údaje administrátora. Tímto účtem se připojíte a řešíte to dál. Možná přidáte účty pro vaše kolegy, ale pokud máte takových VM sto a jeden z účtů je kompromitovaný (nebo ten člověk u vás už nepracuje), je dost práce to změnit. Linux s tím počítá a přes PAM (Pluggable Authentication Module) může OS napojit na centrální repozitář, typicky LDAP nebo standardní AD. Proč ale nevyužít úžasných vlastností Azure Active Directory včetně vícefaktoru, kontroly klienstkého zařízení, analýzy rizika nebo řízení eskalace oprávnění?<!--more--></p>
+<h1>Proč AAD i pro správu Linuxu</h1>
+<p>Azure Active Directory je srdcem celého Microsoft ekosystému a tvoří identitní perimetr. Přes něj se řeší Office 365, Dynamics, Intune, Azure portál a vlastně prakticky všechno. AAD kromě obyčejného jména a hesla nabízí spoustu pokročilejších věcí, které při zabezpečení Linuxové mašiny mohou mít velký přínos.</p>
+<ul>
+<li>Jednotná identita pro cloud a moderní aplikace (AAD - OAuth 2.0 apod.) tak i klasické on-premises prostředí (AD - Kerberos apod.) díky těsné integraci</li>
+<li>Podpora vícefaktorového ověřování (heslo + SMS, auth appka, telefonát apod.)</li>
+<li>Rozhodování podle stavu koncového zařízení, z kterého se někdo připojuje (Intune)</li>
+<li>Vysoká míra zabezpečení díky sofistikovanému AI (AIP)</li>
+<li>Systém pro vytváření schvalovacího kolečka pro eskalaci práv, například získání admin přístupu (PIM)</li>
+<li>Podmíněné přístupy podle lokality, stavu stanice, míry ryzika apod.</li>
+</ul>
+<p>Něco takhle robustního běžně při přihlášení do Linux OS k dispozici není.</p>
+<h1>Jak funguje Linux napojení na AAD</h1>
+<p>Linux kromě lokálního ověřování podporuje napojení na centrální systém identity díky PAM. Je tedy možné vytvořit implementaci PAM pro AAD, nastavit a používat.</p>
+<p>Je tu ale ještě jeden problém. Pokročilé přihlašování vyžaduje nějaké zpracování na klienstké straně (v prohlížeči), aby mohlo fungovat všechno to zajímavé. Textové logování typické pro SSH žadný kód ve vašem Putty vyvolat samozřejmě neumí. Jaké je řešení? Stejně jako u přihlašování do Azure CLI 2.0 to funguje tak, že textový systém vygeneruje nějakou challenge a informuje AAD o vašem požadavku na přihlášení. Textový systém vám poskytne odkaz (https://microsoft.com/devicelogin), který musíte otevřít v prohlížeči a kód, který do něj zkopírujete. Žádné heslo tam nezadáváte (to je dobře, protože pokud správně neautorizujete public klíče vašich serverů vůči pracovní stanici, jste náchylní na man-in-the-middle). Samotné skutečné přihlášení tedy probíhá v browseru a díky tomu tam zafunguje úplně všechno, co můžete mít pro logování do Office365 nebo Azure. Na konci procesu je v AAD k této challenge zapsáno (na omezenou dobu), že došlo k úspěšnému přihlášení. Textový systém se tam podívá a přesvědčí se o tom. Ve skutečnosti je komunikace textového systému s AAD daleko bezpečnější, než jsem poslal - díky vzájemnému ověřování certifikátů nelze Linuxu podstrčit "černé" AAD a naopak.</p>
+<h1>Implementace v Azure</h1>
+<p>Při vytváření VM přímo v portálu se mi v průvodci objevilo nové tlačítko.</p>
+<p id="heBpJfY"><img class="img-fluid wp-image-2154 " src="/images/2018/img_5aff1d0539952.png" alt="" /></p>
+<p>To co se stane je, že se tak automaticky přidá VM Extension, která všechno potřebné nakonfiguruje. Úžasně snadné. Když VM naběhne vezmeme si její IP adresu a zkusíme se připojit AAD účtem. V první řadě tento bude obsahovat i doménu (za zavináčem), takže místo obvyklého ssh username@ip použijeme přepínač -l:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">ssh -l tomas.kubica@outlook.com 23.97.217.41
+Warning: Permanently added '23.97.217.41' (ECDSA) to the list of known hosts.
+To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code CHLJPJDDJ to authenticate. Press ENTER when ready.
+</pre>
+<p>Ha. PAM modul to pochopil a posílá mě zalogovat se na web.</p>
+<p id="itTIkHN"><img class="img-fluid wp-image-2155 " src="/images/2018/img_5aff1e1acb242.png" alt="" /></p>
+<p>Kód jsem nakopíroval a přihlásil se.</p>
+<p id="XYhHyNa"><img class="img-fluid wp-image-2156 " src="/images/2018/img_5aff1e352e524.png" alt="" /></p>
+<p>Vracím se do SSH a nacházím chybu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Access denied: to sign in you must be assigned a role with action 'Microsoft.Compute/virtualMachines/login/action', for example 'Virtual Machine User Login'
+</pre>
+<p>Přestože jsem u stroje Owner, nemohu rovnou skákat do VM. Azure speciálně na tohle vytvořil dvě nové role, které nejsou pod Ownerem zahrnuty. Jedna opravňuje uživatele k připojení a druhá k administrátorskému přístupu. U VM v portálu tedy půjdeme do Access Control a přiřadíme účet například jako Virtual Machine User Login role.</p>
+<p id="vQmtfkK"><img class="img-fluid wp-image-2157 " src="/images/2018/img_5aff1f15e1db7.png" alt="" /></p>
+<p>Zkusíme znova a tentokrát se nalogování podařilo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">tomas.kubica@outlook.com@linux2:~$ pwd
+/home/tomas.kubica</pre>
+<p>A co když zkusíme eskalaci oprávnění přes sudo?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">tomas.kubica@outlook.com@linux2:~$ sudo true
+To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code CUBE5GLN6 to authenticate.</pre>
+<p>Musíme se znovu ověřit a moje oprávnění na to stačit nebude. Jakmile ale budu mít roli Virtual User Administrator Login, tak už to projde.</p>
+<p>Ještě musím zmínit, že u svého pracovního emailu jsem narazil na některé potíže dané tím, že jde interně o kombinaci AAD a ADFS a především různé aliasy. Zdá se, že na mém pracovním účtu je hlavní jméno, ale dvoufaktorové ověření vrací delší alias a to systém zatím zdá se mate. Ale u jiných účtů mi to frčí krásně.</p>
+<p>&nbsp;</p>
+<p><em>Je pro vás bezpečnost zásadní a chcete ji řídit jedním systémem a se všemi moderními vychytávkami typu podmíněné přísupy nebo vícefaktorové ověření? Kombinace Linux VM v Azure a AAD je skvělá volba. A to všechno díky jeddomu jedinému novému zaškrtávátku v průvodci vytvoření mašiny.</em></p>

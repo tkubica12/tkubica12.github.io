@@ -1,0 +1,42 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Stack: compute'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2422
+wordpress_url: http://tomaskubica.cz/?p=2422
+date: '2018-09-03 05:51:44 +0000'
+date_gmt: '2018-09-03 04:51:44 +0000'
+categories:
+tags:
+- AzureStack
+- Compute
+---
+<p>Proč máte servery? Potřebujete na nich běžet aplikace, takže klíčovou složkou je compute - výpočetní výkon. Jak to funguje v Azure Stack a jaké jsou rozdíly oproti velkému Azure nebo naopak v porovnání s klasickou virtualizací?<!--more--></p>
+<h1>Sizing Azure Stacku a scheduling VM z pohledu CPU a RAM</h1>
+<p>Ve velkém Azure máte k dispozici obrovské množství zdrojů a je tu prevence hlučného souseda. Každý core, který si v Azure koupíte, je plně dedikovaný pro vás (kromě B-series, což jsou burstovatelné VM, kde máte pouze určitou část a je velmi exaktně definované jak to funguje, jak můžete sbírat kredity a burstovat). Navíc každá řada VM používá jiný hardware, takže i kvalita CPU se od toho odvíjí. Tak například A-series nemá definovaný konkrétní typ CPU, ale existuje jeho ACU (výkonnostní index), který je zhruba na polovině ACU například D-series. Pokud zvolíte Dv3, poběžíte na E5-2673 v4. Pokud zvolíte výpočetně orientované řady, dostanete ještě rychlejší CPU, například brutální Platinum 8168 u Fv2 nebo fantastický a drahý E5-2667 V3 u H-series. Pokud půjdete do M-series zaměřené na náročné scale-up systémy typu SAP HANA poběžíte na E7-8890 v3.</p>
+<p>Azure Stack logicky díky menší škále funguje trochu jinak. V tuto chvíli můžete mít jen jeden typ CPU a Azure Stack dělá overcommit na CPU, ale ne na RAM. Celkový počet VM, které budete moci spustit je tedy definovaný RAMkou, ne počty core vašich CPU. Nicméně samozřejmě čím více máte jader a čím větší mají výkon, tím větší bude celková výpočetní kapacitu Azure Stacku. Navíc v případě RAM bude docházet k N:1 rezervaci pro failover. Jinak řečeno každé VM, které do Azure Stack nasadíte, bude mít přidělen nějaký node, ale musí pro něj existovat RAM místo na jiném nodu, kam se přestěhuje v případě nutnosti fail over. Je tedy zajištěno, že při selhání nodu bude v infrastruktuře dostatek RAM pro spuštění serverů jinde a to je Azure Stackem řešeno. Znamená to tedy, že zjednodušeně řečeno RAM jednoho nodu není použitelná a je rezervována pro redundanci (samozřejmě scheduler nenechá jeden node prázdný, rezervovaná kapacita je rovněž rozprostřena v infrastruktuře). Čím víc máte nodů v Azure Stack Scaling Unit, tím menší procento tahle rezervace zabírá z celkové RAM kapacity.</p>
+<p>Co si z toho vzít pro sizing Azure Stacku? Pokud chcete řešení podobné tomu, jak se běžně využívá klasická virtualizace, soustřeďte se na velkou RAM a ušetřete na CPU. Budete mít možnost spustit hodně VM, ale počítejte s tím, že u CPU bude overcommit a nebude tak mít VM core jen pro sebe. Druhý extrém je, že půjdete po maximálním výpočetním výkonu. Pak zvolte drahá CPU s hodně core a ušetřete na paměti. Do Azure Stacku se VM vejde méně, ale budou mít větší CPU výkon.</p>
+<h1>Hypervisor v Azure Stack vs. Azure</h1>
+<p>Azure je prostředí s extrémní škálou a vše je plně pod kontrolou. Cílem je tedy maximální efektivita a co nejmenší kernel a virtualizační vrstva. Stále to jsou Windows, stále je to Hyper-V a takřka stejný kód, jenže je to upraveno pro Azure. Ve Windows najdete hodně různých driverů a funkcí, které velký Azure nepotřebuje, ale normální Windows je mít musí, protože je na celé planetě ohromné množství dependencí na nějaké z těch komponent. Azure je tedy má vykostěné a jde po maximální efektivitě. Tak například kernel v Azure umožňuje aktualizovat hypervisor bez nutnosti restartovat fyzický node nebo VMko. Stačí VM na pár sekund zapauzovat a pod rukama provést upgrade. Dokonce je čím dál víc situací, kdy je zapauzování i kratší, než jednu vteřinu a provede se live patch. I tyto funkce jsou do značné míry ve vašem běžném Windows kernelu, ale nejsou v něm zapnuté. Naprostá většina standardního vybavení a driverů se s něčím takovým prostě vypořádat nedokáže a nabídnout něco takového pro generické Windows je nereálné.</p>
+<p>Azure Stack je postaven na standardních Windows Server 2016 Datacenter. Jde na to tedy trochu klasičtěji. Díky tomu některé vychytávky spodku Azure v něm udělat nejdou (např. hot patching), na druhou stranu díky výrazně menší škále Azure Stacku může používat jiné techniky, které Azure nedělá - například Live Migration při rolling upgrade nodů (k tomu se dostaneme).</p>
+<h1>Azure Stack, Compute Resource Provider a velikosti VM</h1>
+<p>V Azure Stacku ale samozřejmě s žádným Hyper-V nikdy mluvit nebudete. Váš interface je ARM (například portál), který potažmo používá Compute Resource Provider a Compute Controller. Ten má na starost cloudové chování a je z pohledu kódu skoro stejný jako v Azure. Tento složitý systém pro vás provede scheduling VM na nějaký node (ani nevíte a nepotřebujete vědět kde se objeví) a komunikuje s ostatními resource providery, aby zajistil pro server storage a síť.</p>
+<p>Stejně jako v Azure tady nepracujete s definicí VM velikostí vlastní, ale vybíráte si ze seznamu, který je podmnožinou Azure. V době psaní článku máte k dispozici D, Dv2, A, Av2 a F. Jejich parametry jsou konzistentní s Azure (počet core, RAM, maximální podporované disky, síťové QoS, storage výkon apod.), takže vám vaše ARM šablony a deployment procesy budou fungovat v Azure i Azure Stack.</p>
+<p id="hRFfwvo"><img class="img-fluid wp-image-2424 " src="/images/2018/img_5b7a4964cc64c.png" alt="" /></p>
+<h1>VM Extensions</h1>
+<p>Stejně jako v Azure nabízí Azure Stack věci jako jsou VM Extensions. Jde o to, že díky agentům ve VM je možné automatizovat některé úkony v rámci deploymentu. Lze například spustit skript v Linux či Windows, automaticky zařadit VM do domény či nasadit diagnostického agenta apod. Na neroutovatelné IP adrese máte zevnitř VM možnost přistupovat na metadata službu.</p>
+<h1>VM Scale Set</h1>
+<p>Pokud nasazujete webovou farmu a potřebujete třeba 5 identických VM rovnou zařazených do Azure LB pro balancing můžete v Azure i Azure Stack použít VMSS. Funguje to tak, že projdete průvodce velmi podobného běžné VM, ale řeknete, že to celé chcete 5x. Systém pro vás připraví 5 těchto VM (kód to dělá tak, že pokud chcete třeba 10 VM spustí deployment rovnou 12, aby v případě nějakých pomalejších situací pro vás dostal alespoň 10 v co nejkratším čase a ty dvě později okamžitě odmaže, proto se vám někdy ve VMSS může zdát, že číslování je nějaké "divné" a třeba se nějaké číslo "přeskočí").</p>
+<p>V Azure máte možnost na VMSS navázat autoscaling, takže v závislosti třeba na zatížení CPU vám bude systém automaticky přidávat nebo ubírat VMka. Tato funkcionalita zatím v Azure Stack k dispozici není, nicméně můžete škálování provést ručně. Jednoduše vlezete do VMSS v portálu a změníte číslo třeba z 5 na 7 a VMSS vám samo dodělá další dvě mašiny.</p>
+<h1>Rolling upgrade Azure Stacku</h1>
+<p>Při upgradování hypervisoru v Azure dojde většinou pouze ke krátkému zapauzovaní VM. Tato technologie ale není pro Azure Stack k dispozici, ale na druhou stranu díky menší škále je tady možné využít Live Migration. Azure Stack tedy aplikuje upgrady tak, že jde node po nodu, jeho VM přesune jinam, upgraduje a takhle postupuje tak dlouho, až je všechno na nové verzi. Trvá to tedy samozřejmě podstatně déle než v Azure (třeba několik hodin), ale pro škálu Azure Stack je to takhle naprosto v pořádku. Pro upgrade Azure Stacku se doporučuje mít naplánované odstávkové okno. Přestože je vše designované tak, aby nedocházelo k výpadkům VM, je určitě dobré z preventivních důvodů takovou operaci provádět v okamžik, kdy vám zrovna neběží klíčová marketingová kampaň za bílého všedního dne.</p>
+<p>&nbsp;</p>
+<p><em>Sečteno podtrženo. Azure Stack přináší chování co nejpodobnější velkému Azure a je konzistentní z pohledu ovládání i ARM šablon. Pod kapotou to funguje z důvodu menší škály a standardních Windows trošku jinak, ale to je důležité vědět spíš pro sizing Azure Stacku. Interní detaily vás pro běžnou práci trápit nemusí a můžete si užívat konzistence s Azure. Azure Stack je pro ty, co chtějí používat cloud, ne ty, co si užívají jeho budování. Přijde vám hotová bedna a během maximálně pár dní máte skutečný cloud konzistentní s Azure.</em></p>

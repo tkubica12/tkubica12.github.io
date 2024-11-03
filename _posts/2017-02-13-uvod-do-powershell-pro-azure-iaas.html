@@ -1,0 +1,100 @@
+---
+layout: post
+status: publish
+published: true
+title: Úvod do PowerShell pro Azure IaaS
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 45
+wordpress_url: http://beta.tomaskubica.cz/?p=45
+date: '2017-02-13 06:04:38 +0000'
+date_gmt: '2017-02-13 05:04:38 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Proč řešit něco jiného, když má Azure tak pěkné GUI? Když něco dělám poprvé, dělám to v Azure portálu. Když chci něco sledovat, monitorovat, prohlédnout si možnosti, použiji portál. Co když ale chcete kolegovi předat návod na vytvoření nějakého prostředí a ono to skončí jako padesátistránkový dokument se screenshoty? Jak pravděpodobné je, že se uklepne? Jak zajistit opakovatelnost? Proč to klikání trvá tak dlouho? Proč musím u počítače sedět a čekat, až skončí jeden krok, abych udělal další?<!--more--></p>
+<p>Dříve či později začnete hledat něco rychlejšího, automatizovanějšího, opakovatelnějšího. Může to být interaktivní nebo skriptované použití PowerShell nebo Azure CLI. Možná máte blíže k programování a napíšete si to s využitím SDK třeba v Pythonu, Ruby nebo Javascriptu (což jsou varianty, ve kterých mám osobně preference), případně v Javě, .NET či PHP. Nebo použijete desired state ARM šablony (to je perfektní varianta, za mne nejlepší!) nebo nějaký nadstavbový nástroj (moje nejoblíbenější jsou Terraform a Ansible). Dnes zůstaneme u PowerShell.</p>
+<p>Začátek má být jednoduchý, aby se to člověku hned podařilo a motivovalo k další práci. Pojďme dnes tedy začít s PowerShell pro Azure IaaS tak, že si vytvoříme jednu virtuální mašinu. Na závěr udělejme skript, který jich vytvoří na jedno volání kolik chceme, třeba deset.</p>
+<h1>PowerShell a Azure</h1>
+<p>Linux uživatelé vždy měli k dispozici velmi mocná textová prostředí jako je bash. Svět Windows byl hodně klikací a zkušenost v “cmd” ... řekněme neohromující. Nicméně Microsoft před deseti lety začal pracovat na PowerShell, který se ve verzi 2.0 stal integrální součástí Windows 7 a Windows 2008 R2. Povedl se a práce s ním je intuitivní a velmi příjemná. Nabídne interaktivní režim, kde se příkazy rovnou vykonávají i možnost vytvářet skripty nebo pracovat v prostředí, kde skript píšete, máte okamžitou nápovědu a pak ho můžete vykonat v dávce (PowerShell ISE). PowerShell je řekl bych někde mezi příkazovou řádkou a programovacím jazykem. Nedosahuje flexibility a programátorských konceptů jako třeba Python, ale má zabudované pokročilé a velmi užitečné konstrukty jako je ForEach. Před nějakým časem dokonce Microsoft oznámil práci na PowerShell i pro Linux.</p>
+<p>PowerShell ekosystém umí instalovat rozšíření pro další funkce, které nejsou přímo jeho součástí. Azure výbava patří do této kategorie. Instalace je snadná – spusťte PowerShell okno jako správce a zadejte:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS C:\ Install-Module AzureRM</pre>
+<h1>Vytváříme VM v PowerShell</h1>
+<p>Nejprve se zalogujeme do Azure naším účtem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Login-AzureRmAccount</pre>
+<p>Dále vytvoříme novou skupinu zdrojů s názvem “test”.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmResourceGroup -Name test -Location westeurope</pre>
+<p>V této skupině si vytvoříme storage account, tedy prostor pro ukládání dat a také samozřejmě disků našich VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmStorageAccount -ResourceGroupName test -Name tomastore -Location westeurope -SkuName Standard_LRS -Kind "Storage"</pre>
+<p>Pusťme se do síťařiny. Vytvoříme si nejprve nový subnet s nějakými interními adresami a tento objekt uložíme do proměnné (abychom se na něj mohli odkazovat). Následně vytvoříme novou privátní síť, která bude právě tento subnet obsahovat a objekt sítě si uložíme do proměnné. Ve třetím kroku získáme veřejnou IP adresu a na závěr necháme vzniknout virtuální síťovou kartu v našem subnetu a k této kartě přiřadíme naší veřejnou adresu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$sub1= New-AzureRmVirtualNetworkSubnetConfig -Name sub1 -AddressPrefix "10.1.1.0/24"
+$net1= New-AzureRmVirtualNetwork -Name net1 -ResourceGroupName test -Location westeurope -AddressPrefix "10.1.1.0/24" -Subnet $sub1
+$pip= New-AzureRmPublicIpAddress -Name pip1 -ResourceGroupName test -Location westeurope -AllocationMethod Static
+$nic1= New-AzureRmNetworkInterface -Name nic1 -ResourceGroupName test -Location westeurope -SubnetId $net1.Subnets[0].Id -PublicIpAddressId $pip.Id</pre>
+<p>Začneme si budovat konfiguraci VM a určíme její velikost.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vm1 = New-AzureRmVMConfig -VMName vm1 -VMSize "Standard_DS1_v2"</pre>
+<p>Určíme si způsob přihlášení do této VM. Nejprve vytvoříme objekt $cred (credentials), kam bychom dali jméno a heslo, ale v mém případě to heslo bude prázdné (chci totiž použít login SSH klíčem). Tyto přiřadíme k našemu objektu $vm1, kam postupně přidáváme všechna potřebná nastavení VM. Na konec do ní ještě přidáme náš veřejný SSH klíč.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$creds = New-Object System.Management.Automation.PSCredential ("tomas", (new-object System.Security.SecureString))
+$vm1 = Set-AzureRmVMOperatingSystem -VM $vm1 -Linux -ComputerName vm1 -Credential $creds -DisablePasswordAuthentication
+$vm1= Add-AzureRmVMSshPublicKey -VM $vm1 -Path “/home/tomas/.ssh/authorized_keys” -KeyData "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex"</pre>
+<p>Přidejte k objektu $vm image. Potřebné údaje (Offer, SKU, …) jsem si opsal v portálovém GUI, ale existují příkazy, kterými můžete vyhledávat přímo v PowerShellu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vm1 = Set-AzureRmVMSourceImage -VM $vm1 -PublisherName Canonical -Offer UbuntuServer -Skus 16.04.0-LTS -Version "latest"</pre>
+<p>Přiřadíme si virtuální síťovou kartu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vm1 = Add-AzureRmVMNetworkInterface -VM $vm1 -Id $nic1.Id</pre>
+<p>Teď musíme zajistit disk. V prvním kroku načteme náš storage account a vybudujeme URI našeho disku s tím, že název určíme jako vm1.vhd. Toto URI k objektu $vm přiřadíme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$storageAcc = Get-AzureRmStorageAccount -ResourceGroupName test -AccountName tomastore
+$osDiskUri = $storageAcc.PrimaryEndpoints.Blob.ToString() + "vhds/vm1.vhd"
+$vm1 = Set-AzureRmVMOSDisk -VM $vm1 -Name vm1 -VhdUri $osDiskUri -CreateOption fromImage</pre>
+<p>Jdeme na to, vytvoříme VM !</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmVM -ResourceGroupName test -Location westeurope -VM $vm1</pre>
+<p>Po nějaké době se budeme moci připojit, veřejnou IP si vypíšeme takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Write-Host "VM public IP: " $pip.IpAddress</pre>
+<p>Podívejte se na výsledek také v portálu – to všechno se nám podařilo vytvořit skriptem. Když budete takových VM potřebovat 20 s drobnými rozdíly v image či velikosti, snadno uděláte skript, který spustíte, odejdete na kafe a mezitím se vše připraví.</p>
+<p><img src="http://www.cloudsvet.cz/wp-content/uploads/2016/09/img_57e6cf789fdb7.png" /></p>
+<p>Pokud chceme, můžeme všechny zdroje vymazat tak, že zlikvidujeme celou resource group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Remove-AzureRmResourceGroup -Name test</pre>
+<h1>Skriptování</h1>
+<p>Pokud dostanete příkazy do hlavy, můžete je používat v interaktivním režimu a budete rychlejší, než v portálu. To ale chce dost cviku. Pro začátek bude lepší připravit třeba skript, který bude vykonávat činnost, kterou v IT děláte často. Budete ho parametrizovat na vstupu a budou ho moci využívat i kolegové bez nutnosti znát jeho detaily.</p>
+<p>Zkusme něco jednoduchého, tedy v zásadě přesně to, co jsme dělali v tomto článku. Jen umožníme do skriptu vložit jedno nebo několik jmen VM a necháme skript vytvořit všechny. Zadáme skript a jako parametr mu dáme třeba pět jmen VM a odejdeme na kávu.</p>
+<p>Skript by mohl vypadat nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">param([String[]] $VMs, $resourceGroupName)
+
+$storageName = (Get-Random -Maximum 9999).ToString()
+
+# Create resource group
+New-AzureRmResourceGroup -Name $resourceGroupName -Location westeurope
+
+# Create storage account
+$storageAcc = New-AzureRmStorageAccount -ResourceGroupName $resourceGroupName -Name $storageName -Location westeurope -SkuName Standard_LRS -Kind "Storage"
+
+# Common resources and variables
+$sub1= New-AzureRmVirtualNetworkSubnetConfig -Name sub1 -AddressPrefix "10.1.1.0/24"
+$net1= New-AzureRmVirtualNetwork -Name net1 -ResourceGroupName $resourceGroupName -Location westeurope -AddressPrefix "10.1.1.0/24" -Subnet $sub1
+$creds = New-Object System.Management.Automation.PSCredential ("tomas", (new-object System.Security.SecureString))
+
+foreach ($VM in $VMs) {
+    $pipname = $VM + "pip"
+    $nicname= $VM + "nic"
+    $osDiskUri = $storageAcc.PrimaryEndpoints.Blob.ToString() + "vhds/" + $VM + ".vhd"
+    $pip= New-AzureRmPublicIpAddress -Name $pipname -ResourceGroupName $resourceGroupName -Location westeurope -AllocationMethod Static
+    $nic= New-AzureRmNetworkInterface -Name $nicname -ResourceGroupName $resourceGroupName -Location westeurope -SubnetId $net1.Subnets[0].Id -PublicIpAddressId $pip.Id
+    $myvm = New-AzureRmVMConfig -VMName $VM -VMSize "Standard_DS1_v2"
+    $myvm = Set-AzureRmVMOperatingSystem -VM $myvm -Linux -ComputerName $VM -Credential $creds -DisablePasswordAuthentication
+    $myvm= Add-AzureRmVMSshPublicKey -VM $myvm -Path "/home/tomas/.ssh/authorized_keys" -KeyData "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex"
+    $myvm = Set-AzureRmVMSourceImage -VM $myvm -PublisherName Canonical -Offer UbuntuServer -Skus 16.04.0-LTS -Version "latest"
+    $myvm = Add-AzureRmVMNetworkInterface -VM $myvm -Id $nic.Id
+    $myvm = Set-AzureRmVMOSDisk -VM $myvm -Name $VM -VhdUri $osDiskUri -CreateOption fromImage
+    New-AzureRmVM -ResourceGroupName $resourceGroupName -Location westeurope -VM $myvm
+    Write-Host $VM " public IP: " $pip.IpAddress
+}</pre>
+<p>Otevřeme si PowerShell session, nalogujeme se do Azure a spustíme skript:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">skript.ps1 -VMs vm1,vm2,vm3 -resourceGroupName test</pre>
+<p>Pak už jen čekáme.</p>
+<p>&nbsp;</p>
+<p><em>Azure portál je velmi  příjemný, ale pro některé úlohy je rychlejší textový systém a skriptování. Pokud jste doma ve světě Windows, proč neskusit PowerShell?</em></p>

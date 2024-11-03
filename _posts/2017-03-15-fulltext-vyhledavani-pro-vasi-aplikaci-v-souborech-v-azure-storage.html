@@ -1,0 +1,47 @@
+---
+layout: post
+status: publish
+published: true
+title: Fulltext vyhledávání pro vaši aplikaci v souborech v Azure Storage
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 255
+wordpress_url: http://tomaskubica.cz/?p=255
+date: '2017-03-15 06:15:43 +0000'
+date_gmt: '2017-03-15 05:15:43 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Azure Blob Storage nabízí pro vaše aplikace a uživatele robustní, vysoce dostupný způsob uložení objektů, například PDF, Word či textových dokumentů. To všechno je dostupné přes jednoduché příjemné API, takže ať už pro uživatele děláte webovou stránku nebo mobilní aplikaci, je to snadné. Kolik práce by bylo nabídnout uživatelům možnost fulltextového vyhledávání obsahu v dokumentech s podporou češtiny? Málo! Použijeme Azure Search a je to, podívejte se jak.</p>
+<h1><!--more-->Azure Search</h1>
+<p>Služba Azure Search je určena programátorům aplikací, kteří chtějí do svých produktů rychle a jednoduše dostat robustní funkce inteligentního vyhledávání. Podporuje 56 jazyků včetně češtiny a kromě jednoduchých dotazů můžete využí fuzzy logiku, proximity search, RegEx nebo term boosting. Výsledky můžete dále filtrovat, řadit a existuje i API pro automatické dokončování. Indexovat můžeme obsah blob storage, ale i Table Storage, Azure SQL či Azure DocumentDB. Na Azure Search se podívám někdy podrobněji, dnes si vyzkoušíme něco jednoduchého.</p>
+<h1>Fulltextové vyhledávání v souborech v Azure Blob Storage</h1>
+<p>Začal jsem tím, že jsem si vytvořil storage account a kontejner v blob storage a do něj nahrál následující textové soubory:</p>
+<p id="xqojiuo"><img class="img-fluid wp-image-259 " src="/images/2017/img_58970d9077d9b.png" alt="" /></p>
+<p>Pojďme si teď založit Azure Search</p>
+<p id="YCttiAW"><img class="img-fluid wp-image-261 " src="/images/2017/img_589711ff978a8.png" alt="" /></p>
+<p id="CkfoEJt"><img class="img-fluid wp-image-262 " src="/images/2017/img_5897122de4e12.png" alt="" /></p>
+<p>Pro naší jednoduchou ukázku nám postačí tato služba ve variantě zdarma.</p>
+<p id="htDPAzy"><img class="img-fluid wp-image-263 " src="/images/2017/img_58971279598ce.png" alt="" /></p>
+<p>Nejprve do Azure Search naimportujeme data.</p>
+<p id="qqxYNUz"><img class="img-fluid wp-image-264 " src="/images/2017/img_589712e892f7d.png" alt="" /></p>
+<p>Jako zdroj použijeme blob storage (namíříme na náš kontejner s dokumenty).</p>
+<p id="jFcMrfd"><img class="img-fluid wp-image-265 " src="/images/2017/img_58971323bb810.png" alt="" /></p>
+<p>Zaškrtneme indexování obsahu dokumentů. Pro dnešek nechme stranou vysvětlení všech ostatních možností.</p>
+<p id="vQjFpSK"><img class="img-fluid wp-image-266 " src="/images/2017/img_589713c7cf79d.png" alt="" /></p>
+<p>Protože vím, že jsou dokumenty v češtině, analyzátoru napovím (ale není to nutné, o tom někdy jindy).</p>
+<p id="eFBGSEb"><img class="img-fluid wp-image-267 " src="/images/2017/img_589714231df42.png" alt="" /></p>
+<p>Pak jen řekneme, jestli chceme data importovat jen jednou nebo pravidelně.</p>
+<p id="RRxwaFs"><img class="img-fluid wp-image-268 " src="/images/2017/img_5897144d2a2e3.png" alt="" /></p>
+<p>To je všechno! Vývojáři teď ve své aplikaci použijí vyhledávací API, .NET knihovnu nebo třeba hotový facelet. Pro naše vyzkoušení postačí query přímo z GUI, ať víme, co nám Azure Search vrací.</p>
+<p id="cypsXZB"><img class="img-fluid wp-image-269 " src="/images/2017/img_5897150a5192c.png" alt="" /></p>
+<p>Zadejme něco jednoduchého (samozřejmě mohli bychom použít Lucene syntaxi a dělat dost mocné a složité vyhledávání) - slovo "psi". Všimněte si množného čísla v dotazu, ale jednotného v samotném textu - Azure Search se o takové jazykové záležitosti postará a porozumí. Ve výstupu má vývojář nejen nalezenou část textu, ale také metadata, podle kterých například najde příslušný soubor (a umožní třeba uživatelům ho stáhnout).</p>
+<p id="avPsGIb"><img class="img-fluid wp-image-270 " src="/images/2017/img_589715b5db80b.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Objektová storage (Azure Blob Storage) je velmi příjemná, levná, vysoce škálovatelná a spolehlivá (včetně možnosti georeplikace). Ideální místo pro vaše dokumenty. Azure Search vám pak nad tím dokáže zajistit fulltextové vyhledávání obsahu těchto souborů. Výborná kombinace.</em></p>

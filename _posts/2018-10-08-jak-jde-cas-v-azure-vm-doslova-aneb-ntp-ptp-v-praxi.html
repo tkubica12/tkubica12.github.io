@@ -1,0 +1,111 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak jde čas v Azure VM (doslova aneb NTP/PTP v praxi)
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2529
+wordpress_url: http://tomaskubica.cz/?p=2529
+date: '2018-10-08 05:24:18 +0000'
+date_gmt: '2018-10-08 04:24:18 +0000'
+categories:
+tags:
+- Compute
+---
+<p>Hodiny ve vašem VM v Azure jsou často velmi důležité. Ať už je to jednotný čas pro analýzu logů z mnoha zdrojů nebo ještě náchylnější záležitosti týkající se šifrovacích operací (certifikáty, tokeny, autentizace). Jak vlastně funguje synchronizace času v Azure? A co když máte VM, která nesmí mít přístup na NTP servery v Internetu? A jak se VM vypořádá s tím, když ji Azure z důvodu maitenance na hostiteli na pár vteřin zapauzuje? Pojďme na to dnes mrknout.<!--more--></p>
+<h1>Čas v Azure</h1>
+<p>Azure je vybaven velmi přesnými hodinami s vlastními GPS anténami a je v kvalitě Stratum-1. K těmto serverům nemáte z VM přímý přístup, ale hostitelské servery (Hyper-V) jsou s tímto časovým serverem velmi přesně synchronizovány. Tato informace se dostává do VM. Většina klasických guest OS ale na tyto hodiny koukne jen jednou při startu a pak už ne. Co s tím? Image v marketplace jsou vybaveny agentem (integration runtime), který jim umožňuje tyto informace načítat častěji. Navíc pokud z důvodu patchování hostitele dojde ke krátkému zapauzování vašeho stroje, hostitel o tom ví a hned po odpauzování dá agentům vědět, že je ihned potřeba čas aktualizovat. Kromě toho můžete samozřejmě používat NTP servery v Internetu jako je ntp.ubuntu.com nebo time.windows.com, které jsou z důvodu běžného nastavení, na které jsou lidi zvyklí, nastaveny jako primární (větší priorita). Jak to funguje detailně na jednotlivých operačních systémech?</p>
+<h1>Red Hat VM</h1>
+<p>Výchozí nastavení imagů v Azure je uděláno tak, že primárně bere čas z NTP serveru. Tohle nastavení ale můžeme změnit. Nejprve se podívejme, zda na mém Red Hat VM je potřebný integrační runtime do hostitele.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ lsmod | grep hv_utils
+hv_utils               25808  0
+ptp                    19231  1 hv_utils
+hv_vmbus               49764  7 hv_balloon,hyperv_keyboard,hv_netvsc,hid_hyperv,hv_utils,hyperv_fb,hv_storvsc</pre>
+<p>Red Hat v novějších verzích podporuje protokol PTP, který je ještě přesnější, než standardní NTP. Časová synchronizace tedy neběží v ntpd, ale chronyd. Hostitel může nabízet čas nejen protokolem NTP, ale právě i ještě přesnějším PTP. V image v Azure marketplace je příslušné virtuální zařízení už vytvořeno a připraveno k použití.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ ls /sys/class/ptp
+ptp0
+
+[tomas@ntp-rh ~]$ cat /sys/class/ptp/ptp0/clock_name
+hyperv</pre>
+<p>Přesvěčme se, že mi běží chronyd.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ systemctl status chronyd
+● chronyd.service - NTP client/server
+   Loaded: loaded (/usr/lib/systemd/system/chronyd.service; enabled; vendor preset: enabled)
+   Active: active (running) since Wed 2018-10-03 03:47:56 UTC; 24min ago
+     Docs: man:chronyd(8)
+           man:chrony.conf(5)
+  Process: 547 ExecStartPost=/usr/libexec/chrony-helper update-daemon (code=exited, status=0/SUCCESS)
+  Process: 513 ExecStart=/usr/sbin/chronyd $OPTIONS (code=exited, status=0/SUCCESS)
+ Main PID: 537 (chronyd)
+   CGroup: /system.slice/chronyd.service
+           └─537 /usr/sbin/chronyd</pre>
+<p>Podívejme se, jaké má nastavené zdroje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ chronyc sources
+210 Number of sources = 4
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+^* 95.211.160.148                2   8   377    24   +134us[ +221us] +/-   51ms
+^+ bandersnatch.rondie.cyso&gt;     2   7   377    24   -576us[ -489us] +/-   35ms
+^+ 213.132.210.101               2   8   377    85   +868us[ +955us] +/-   38ms
+^+ y.ns.gin.ntt.net              2   8   377    86   +497us[ +585us] +/-   72ms</pre>
+<p>Jsou to NTP servery dodávané ve výchozí Red Hat konfiguraci a jsou poměrně přesné, pohybují se v desítkách milisekund. Víc to nedá, protože servery jsou v Internetu a latence a jitter neumožňuje vyladit synchronizaci ještě přesněji. Nicméně pro běžné účely to určitě stačí. Co když ale vaše VM potřebujete mít z bezpečnostích důvodů víc izolované a nechcete jim dát přístup na Internet?</p>
+<p>Pojďme do chronyd konfigurace přidat připravené PTP zařízení synchronizované s hostitelem (ten, jak už víme, používá extrémně přesnou synchronizaci se Stratum-1 GPS zdrojem v Azure).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ echo "refclock PHC /dev/ptp0 poll 3 dpoll -2 offset 0" | sudo tee -a /etc/chrony.conf
+[tomas@ntp-rh ~]$ sudo systemctl restart chronyd</pre>
+<p>Podívejme se teď na zdroje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ chronyc sources
+210 Number of sources = 5
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+#* PHC0                          0   3    17    11  +4031ns[  -12us] +/- 2079ns
+^- server01.colocenter.nl        3   6    17    33   -166us[ +949us] +/-   84ms
+^? debmirror.tuxis.net           2   7     1    25   +356us[+1444us] +/-   35ms
+^- dns02.wsrs.net                2   6    17    33   -253ms[ -252ms] +/- 1019ms
+^- alta.fancube.com              2   6    17    33  -1336us[ -221us] +/-   36ms</pre>
+<p>Přesnost synchronizace s časem hostitele je uváděna v nanosekundách, je tedy o několik řádů přesnější a daleko vyrovnanější.</p>
+<p>Následně jsem modifikoval NSG a zákazal tomuto VM přístup na Internet a VM zrestartoval. Výsledkem bude, že NTP servery nebudou dostupné, ale čas budeme mít přesto správný.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[tomas@ntp-rh ~]$ chronyc sources
+210 Number of sources = 4
+MS Name/IP address         Stratum Poll Reach LastRx Last sample
+===============================================================================
+#* PHC0                          0   3    37     3    -16us[  +16us] +/- 1946ns
+^? dns02.wsrs.net                0   7     0     -     +0ns[   +0ns] +/-    0ns
+^? debmirror.tuxis.net           0   7     0     -     +0ns[   +0ns] +/-    0ns
+^? web01.whst.nl                 0   7     0     -     +0ns[   +0ns] +/-    0ns</pre>
+<h1>Windows VM</h1>
+<p>Neznám příliš dobře některé detaily Windows, ale základní nastavení je stejné jako u Linuxu v Azure - preferovaný je NTP server time.windows.com.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS C:\Users\tomas&gt; w32tm /dumpreg /subkey:Parameters | findstr /i "type"
+Value Name                 Value Type          Value Data
+Type                       REG_SZ              NTP
+
+PS C:\Users\tomas&gt; w32tm /dumpreg /subkey:Parameters | findstr /i "ntpserver"
+NtpServer                  REG_SZ              time.windows.com,0x8</pre>
+<p>Nicméně speciální časový provider (hostitel) je rovněž zapnutý, i když ne preferovaný.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS C:\Users\tomas&gt; reg query HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\w32time\TimeProviders\VMICTimeProvider
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\w32time\TimeProviders\VMICTimeProvider
+    DllName    REG_EXPAND_SZ    %SystemRoot%\System32\vmictimeprovider.dll
+    Enabled    REG_DWORD    0x1
+    InputProvider    REG_DWORD    0x1</pre>
+<p>Pokud tomu správně rozumím, můžeme NTP zakázat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS C:\Users\tomas&gt; reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\w32time\TimeProviders\NtpClient /v Enabled /t REG_DWORD /d 0 /f
+The operation completed successfully.
+
+PS C:\Users\tomas&gt; w32tm /config /update
+The command completed successfully.
+
+PS C:\Users\tomas&gt; net stop w32time
+The Windows Time service is stopping.
+The Windows Time service was stopped successfully.
+
+PS C:\Users\tomas&gt; net start w32time
+The Windows Time service is starting.
+The Windows Time service was started successfully.</pre>
+<p>Provedl jsem stejný pokus jako u Red Hatu. VM jsem vypnul, zakázal jí přístup na Internet a pak nastartoval. Dle očekávání je čas zcela v pořádku.</p>
+<p>&nbsp;</p>
+<p><em>Proč přejít na časového providera z hostitele? Ten má velmi přesný čas a celý Azure je synchronizovaný na Stratum-1 časový zdroj s GPS. Navíc v případě zapauzování VM z důvodu maintenance je Hyper-V integrační modul ve VM schopen velmi rychle reagovat a čas opravit (u NTP to trvá podstatně déle), takže vaše logy budou dávat smysl. Přesný čas as a service a zdarma? V Azure k dispozici.</em></p>

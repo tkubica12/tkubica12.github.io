@@ -1,0 +1,161 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Networking v cloudu: DNS balancer s Azure Traffic Manager'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1041
+wordpress_url: http://tomaskubica.cz/?p=1041
+date: '2017-07-24 05:37:48 +0000'
+date_gmt: '2017-07-24 04:37:48 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Azure nabízí tři prostředky balancování. Univerzální L4 balancer (ten je zdarma), pokročilejší L7 balancer (webová proxy) a také globální DNS balancing pro překlápění celých datových center. Podívejme se dnes na Azure Traffic Manager, DNS balancer, který můžete použít s Azure i bez, a je zásadní pro celou řadu scénářů jako je migrace, disaster recovery, geo-redundance i geo-distribuované aplikace.<!--more--></p>
+<h1>Azure Traffic Manager vs. ostatní metody balancingu</h1>
+<p>Když to vezmeme "odspodu", čili od serverů, ty obvykle postavíme v nějakém HA režimu. Jsou tedy blízko u sebe a pro ostatní mají vystupovat pod jednou IP adresou, která balancuje provoz na členy. Potřebujeme jednoduché a univerzální řešení nezávislé na protokolu, tedy fungující na L4 a podporující jak HTTP, tak třeba databázové protokoly a cokoli dalšího. To pro nás zajístí Azure Load Balancer.</p>
+<p>Občas ale můžeme chtít větší vhled do samotného protokolu, typicky HTTP. Rádi bychom použili cookie session persistence, SSL akceleraci nebo URL routing (tedy i přes stejné doménové jméno se v závislosti na URL můžete dostat na jiné servery - například /images půjde jinam než /web). Tento chytřejší L7 balancer může ve výsledku nasměrovat provoz na L4 balancer. V Azure světě můžete kromě řešení třetích stran (F5, KEMP, A10) použít i nativní a cenově výhodnou Azure Application Gateway.</p>
+<p>Nad tím vším může stát Azure Traffic Manager. Jeho zásadní výhodou je, že funguje na úrovni DNS, takže je jednak naprosto transparentní k použitým protokolům a hlavně není v dráze paketu. Veškerá aplikační komunikace, třeba web nebo databáze, jde mimo balancer. Ten hraje roli pouze v okamžiku resolvování DNS jména a pak už jde vše napřímo (dle nastavení TTL si to DNS systémy zapamatují po nějakou dobu, výchozí stav je 300 vteřin, ale můžete jít až na 30). Díky těmto vlastnostem je ideální pro globální balancing (do nejbližšího datového centra),  automatický fail-over (DR) mezi dvěma vašimi DC, mezi několika Azure regiony nebo z on-prem do Azure apod. a dá se také použít pro migrace či green/blue deployment.</p>
+<h1>Jak Traffic Manager funguje</h1>
+<p>DNS je globální adresář Internetu, obrovská eventuálně konzistentní distribuovaná databáze obsahující překlad z hezkého jména na (pro uživatele) ošklivou IP adresu. Do prohlížeče zadáte třeba www.tomaskubica.cz a váš DNS server ve spolupráci s autoritativními servery poskytne překlad na konkrétní veřejnou IP adresu (to je tzv. A záznam). Kromě toho ale DNS protokol umí dost dalších věcí a jedna z nich je CNAME, tedy řekněme alias. To říká, že určité jméno nemá konkrétní IP adresu (nemá A záznam), ale je "přezdívkou" pro jméno jiné. Klient pak sám pokračuje a zeptá se na to vrácené jméno a to dělá tak dlouho, až mu někdo konečně vrátí A záznam, čímž to celé končí (a uloží se do cache). A v tom je to kouzlo. Vaše hlavní jméno aplikace nevrací A záznam, ale pouze CNAME a to ne vždy stejný, ale podle toho co dává smysl - třeba každému jiný podle geografické lokality, balancovaný nebo první v pořadí apod. Traffic Manager tedy bude mít jedno jméno, ale pod ním nastaveno několik endpoinů (DNS jmen), na které bude uživatele posílat podle nějakého klíče.</p>
+<p>Samotný DNS server často používá jen statické záznamy (to se nám nehodí) a především neumí sledovat dostupnost endpointů a automaticky je vyřadit/zařadit pokud přestanou odpovídat nebo naopak znovu začnou. Traffic Manager je tedy kombinace health monitoringu, několika balancovacích algoritmů a DNS serveru (jde v zásadě na pozadí o robustní Azure DNS, kterou ovšem Traffic Manager ovládá).</p>
+<p>Musím ale upozornit na jedno omezení vycházející z vlastností DNS protokolu. DNS balancing nefunguje s "holou" doménou, typicky například root doménou. Důvodem je, že DNS standard nedovoluje, aby pro jedno jméno existoval CNAME záznam současně s jinými a minimálně root doména musí obsahovat i SOA a NS záznamy (tedy delegaci). V mém případě nemohu pro aplikaci použít tomaskubica.cz, leda www.tomaskubica.cz, protože k prvně jmenované nemohu zadat CNAME na Traffic Manager a ten na konečný region atd. Řešení je buď holé domény nepoužívat nebo v případě web serverů zařídit přesměrování ne na úrovni DNS (přes CNAME) ale až na HTTP protokolu (HTTP redirect). To Traffic Manager v tuto chvíli sám neudělá (je to DNS řešení, ne web server), takže si můžete pomoci jednoduchým web serverem, kde budete tyto redirectly řešit (tzn. tomaskubica.cz po DNS dotazu vrátí A záznam a vede na web server, který udělá redirect na www.tomaskubica.cz, což vyvolá příslušný DNS dotaz, ten vrací CNAME Traffic Manageru a ten už balancuje dle potřeby).</p>
+<h1>Nastavíme Azure Traffic Manager</h1>
+<p>Vytvořte nový Traffic Manager profil.</p>
+<p id="uiakMrV"><img class="img-fluid wp-image-1043 " src="/images/2017/img_595e5bbde74bb.png" alt="" /></p>
+<p>Vyberte si doménové jméno pro vaši aplikaci. To musí být unikátní v doméně trafficmanager.net (jak tam nasměrovat vaši doménu si řekneme později).</p>
+<p id="VjXmJoH"><img class="img-fluid wp-image-1044 " src="/images/2017/img_595e5c2af116d.png" alt="" /></p>
+<p>Dál si vyberte metodu balancování. Na výběr máte tyto možnosti:</p>
+<ul>
+<li><strong>Performance</strong> - Azure se podívá na zdrojovou IP adresu dotazu (to není adresa klienta, ale jeho primárního DNS serveru, což je ale obvykle velmi blízko k němu, třeba ve stejné firmě či u regionálního poskytovatele) a srovná to s tabulkou latencí, kterou si průběžně udržuje vzhledem k Azure regionům. Ideální pro globálně distribuované aplikace.</li>
+<li><strong>Weighted</strong> - pokud dáte na všechny endpointy stejnou váhu bude výsledkem round-robin, tedy Traffic Manager to bude po jednom střídat. Můžete ale některé endpointy upřednostnit (dát jim větší váhu), což se velmi dobře použije pro postupné migrace či blue/green deployment (například novou verzi aplikaci nebo endpoint zmigrovaný do cloudu nastavíte jen na třeba 5% provozu a na malém počtu uživatelů pozvolna přitáčíte).</li>
+<li><strong>Priority</strong> - endpointy můžete také jednoduše seřadit a Traffic Manager pošle uživatele na první živý systém v rámci pořadí. Je to tedy naprosto ideální pro automatický disaster recovery, fail-over scénáře apod.</li>
+<li><strong>Geographic </strong>- Traffic Manager pošle uživatele do příbuzné geografie na základě zdrojové IP adresy DNS dotazu (tzn. na základě jeho DNS serveru). Smyslem je zařídit, aby uživatel v Evropě přistupoval jen na Evropské zdroje.</li>
+</ul>
+<p id="TjFSwvt"><img class="img-fluid wp-image-1045 " src="/images/2017/img_595e5d1846f86.png" alt="" /></p>
+<p>Dokončete úvodní dialog. Všimněte si, že vybíráte region, ale služba je v principu globální a přestojí i havárii celého regionu (geo-redundance je součástí služby).</p>
+<p id="VqENDfK"><img class="img-fluid wp-image-1046 " src="/images/2017/img_595e5e8b835db.png" alt="" /></p>
+<p>Podívejme se na konfigurační stránku. V první řadě můžeme změnit výchozí time-to-live z původních 300 vteřin. Pro účely tohoto článku zvolím extrémní variantu, tedy 0. To znamená žádné cachování v DNS serverech i klientech. Tím dosáhneme velmi krátké doby překlopení, ale budeme se muset ptát celou cestou při každém požadavku na sestavení spojení (to nemusí vůbec vadit, zejména pokud aplikace navazuje dlouhodobou TCP session, je to úplně jedno). Myslete na to, že tím zvedáte náklady služby (platíte za počet requestů) - pro běžné situace nechte 300 vteřin, je to ideální kompromis.</p>
+<p id="SYGTmYc"><img class="img-fluid wp-image-1048 " src="/images/2017/img_595e6adf39cdc.png" alt="" /></p>
+<p>Traffic Manager bude monitorovat dostupnost aplikace, aby dokázal vyřadit endpointy, které přestaly odpovídat. Na výběr máte test HTTP a HTTPS případně generické sestavení TCP spojení (pro newebové aplikace).</p>
+<p id="PTCIDbR"><img class="img-fluid wp-image-1049 " src="/images/2017/img_595e6b388bf4e.png" alt="" /></p>
+<p>Zvolím HTTP a standardní port a root cestu.</p>
+<p id="KKnRfnC"><img class="img-fluid wp-image-1050 " src="/images/2017/img_595e6b56b63a6.png" alt="" /></p>
+<p>Dole ještě najdete nastavení jak často má Traffic Manager zjišťovat dostupnost aplikace a při kolika selháních má vyhlásit endpoint za mrtvý. Kromě samotných DNS dotazů platíte za počet monitorovaných endpointů (ty v Azure jsou o něco levnější, než externí) a právě za četnost testů (buď 10 nebo 30 vteřin).</p>
+<p id="JZDffDo"><img class="img-fluid wp-image-1051 " src="/images/2017/img_595e6c056de43.png" alt="" /></p>
+<p>Uložíme nastavení a půjdeme přidat nějaké endpointy.</p>
+<p id="prvdaNs"><img class="img-fluid wp-image-1052 " src="/images/2017/img_595e6c312382c.png" alt="" /></p>
+<p>Nejprve zvolíme typ endpointu. Buď to může být Azure endpoint - v takovém případě můžeme pohodlně odkázat přímo na příslušný zdroj a monitoring dostupnosti je o něco levnější (protože health check nejde přes Internet). Druhou možností je externí endpoint, tedy jakékoli doménové jméno. Třetí varianta je určena pro vnořené DNS balancování, tedy situaci, kdy chcete hierarchicky nasadit dvě metody rozdělené zátěže. Například na první úrovni má jít a Performance rozbalancování na světadíly a potom v rámci světadílu chcete Priority režim do primární a záložního regionu.</p>
+<p id="KIzLCKl"><img class="img-fluid wp-image-1053 " src="/images/2017/img_595e6d1c9ef10.png" alt="" /></p>
+<p>V rámci Azure mohu jednoduše vybrat Cloud Service, App Service případně konkrétní deployment slot a také Public IP (ta může být přiřazena u konkrétní VM a nebo třeba na Azure Load Balancer). Já si vyberu jednu App Service.</p>
+<p id="IWNTkcy"><img class="img-fluid wp-image-1055 " src="/images/2017/img_595e74ca3eb0d.png" alt="" /></p>
+<p>Použijme teď dig, nslookup či jinou utilitku a podívejme se na DNS odpovědi (zaměřte se na ANSWER SECTION).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ dig mojeappka.trafficmanager.net
+
+; &lt;&lt;&gt;&gt; DiG 9.10.3-P4-Ubuntu &lt;&lt;&gt;&gt; mojeappka.trafficmanager.net
+;; global options: +cmd
+;; Got answer:
+;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 45389
+;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4000
+;; QUESTION SECTION:
+;mojeappka.trafficmanager.net.  IN      A
+
+;; ANSWER SECTION:
+mojeappka.trafficmanager.net. 0 IN      CNAME   mojewebaplikace.azurewebsites.net.
+mojewebaplikace.azurewebsites.net. 1690 IN CNAME waws-prod-am2-093.vip.azurewebsites.windows.net.
+waws-prod-am2-093.vip.azurewebsites.windows.net. 188 IN CNAME waws-prod-am2-093.cloudapp.net.
+waws-prod-am2-093.cloudapp.net. 60 IN   A       52.174.150.25
+
+;; Query time: 300 msec
+;; SERVER: 65.53.63.74#53(65.53.63.74)
+;; WHEN: Thu Jul 06 19:32:29 DST 2017
+;; MSG SIZE  rcvd: 216</pre>
+<p>Traffic Manager nám vrací CNAME na mojewebaplikace.azurewebsites.net, tedy na mojí App Services aplikaci (odtamtud to pokračuje dál v režii této služby než se dostaneme k IP adrese).</p>
+<p>Přidáme teď "on-premises" verzi aplikace (ve skutečnosti je také provozuji v Azure, ale to je teď jedno - zadáme je ručně jako externí zdroj), ale s horší prioritou.</p>
+<p id="ypTiSow"><img class="img-fluid wp-image-1057 " src="/images/2017/img_595e7710346a8.png" alt="" /></p>
+<p>Podívejme se na monitoring a zjistíme, že obě varianty aplikace jsou online. Protože balancujeme režimem Priority, odkazuje stále hlavní jméno aplikace mojeappka.trafficmanager.net na první applu v pořadí. Pojďme teď vypnout ten první endpoint. Traffic Manager by měl sám přijít na to, že už nefunguje. V případě některých Azure zdrojů to zjistí ještě rychleji (chápe, že aplikace byla vypnuta v Azure), nicméně u všech zafunguje nejpozději selhání Health checku.</p>
+<p id="nOpoexB"><img class="img-fluid wp-image-1058 " src="/images/2017/img_595e7839945d9.png" alt="" /></p>
+<p>Podívejme se teď co adresa mojeappka.trafficmanager.net vrací.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ dig mojeappka.trafficmanager.net
+
+; &lt;&lt;&gt;&gt; DiG 9.10.3-P4-Ubuntu &lt;&lt;&gt;&gt; mojeappka.trafficmanager.net
+;; global options: +cmd
+;; Got answer:
+;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 47832
+;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4000
+;; QUESTION SECTION:
+;mojeappka.trafficmanager.net.  IN      A
+
+;; ANSWER SECTION:
+mojeappka.trafficmanager.net. 0 IN      CNAME   mapadoazure.tomaskubica.cz.
+mapadoazure.tomaskubica.cz. 724 IN      CNAME   mapadoazure.azurewebsites.net.
+mapadoazure.azurewebsites.net. 724 IN   CNAME   waws-prod-am2-119.vip.azurewebsites.windows.net.
+waws-prod-am2-119.vip.azurewebsites.windows.net. 175 IN CNAME waws-prod-am2-119.cloudapp.net.
+waws-prod-am2-119.cloudapp.net. 59 IN   A       13.94.143.57
+
+;; Query time: 291 msec
+;; SERVER: 65.53.63.74#53(65.53.63.74)
+;; WHEN: Thu Jul 06 19:46:44 DST 2017
+;; MSG SIZE  rcvd: 252</pre>
+<p>Výborně, překlopila se na mapadoazure.tomaskubica.cz.</p>
+<p>Než se podíváme na některé scénáře vyřešme ještě jednu věc - co když nechcete uživatelům dát svoje vlastní doménové jméno. Pak stačí do vašeho DNS serveru na vámi vybrané jméno zadat CNAME na mapadoazure.trafficmanager.com. Já používám Azure DNS, tak to vyplním tam, ale stejně to funguje u všech dalších DNS serverů.</p>
+<p id="FTtVwqE"><img class="img-fluid wp-image-1059 " src="/images/2017/img_595e78f27a6f1.png" alt="" /></p>
+<p>Teď už můžeme rovnou na mojí vlastní doménu mojeappka.azure.tomaskubica.cz:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ dig mojeappka.azure.tomaskubica.cz
+
+; &lt;&lt;&gt;&gt; DiG 9.10.3-P4-Ubuntu &lt;&lt;&gt;&gt; mojeappka.azure.tomaskubica.cz
+;; global options: +cmd
+;; Got answer:
+;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 10967
+;; flags: qr rd ra; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4000
+;; QUESTION SECTION:
+;mojeappka.azure.tomaskubica.cz.        IN      A
+
+;; ANSWER SECTION:
+mojeappka.azure.tomaskubica.cz. 3600 IN CNAME   mojeappka.trafficmanager.net.
+mojeappka.trafficmanager.net. 0 IN      CNAME   mapadoazure.tomaskubica.cz.
+mapadoazure.tomaskubica.cz. 200 IN      CNAME   mapadoazure.azurewebsites.net.
+mapadoazure.azurewebsites.net. 200 IN   CNAME   waws-prod-am2-119.vip.azurewebsites.windows.net.
+waws-prod-am2-119.vip.azurewebsites.windows.net. 300 IN CNAME waws-prod-am2-119.cloudapp.net.
+waws-prod-am2-119.cloudapp.net. 60 IN   A       13.94.143.57
+
+;; Query time: 894 msec
+;; SERVER: 65.53.63.74#53(65.53.63.74)
+;; WHEN: Thu Jul 06 19:55:29 DST 2017
+;; MSG SIZE  rcvd: 282</pre>
+<h1>Scénáře nasazení</h1>
+<p>Podívejme se na pár scénářů trochu podrobněji.</p>
+<h3>Geo-distribuovaná aplikace</h3>
+<p>První možnost představují aplikace běžící v Active/Active režimu v různých regionech (ať už těch v Azure nebo u vás). To je typické pro globální aplikace - herní servery, Uber, Office365, ale i malé aplikace či hry na mobilu. Například vytvoříte App Services v několika Azure regionech a datovou perzistenci vyřešíte s Cosmos DB, která umí být globálně replikovaná. Nad tím nasadíte Traffic Manager v nastavení Performance, takže uživatel bude směrován na region s pro něj nejnižší latencí a současně se tím řeší směrování na druhý nejbližší region v případě nějaké havárie.</p>
+<h3>Disaster recovery</h3>
+<p>Druhý velmi typický scénář je fail-over datového centra či regionu. Například s Azure Site Recovery můžete zajistit pravidelnou replikaci storage vašich VM tak, aby v druhém regionu mohly být rychle obnoveny. Nebo děláte transakční replikaci databáze do druhého regionu a tam jste schopni z GitHubu rychle vystavit front end v App Services. Nebo používáte Azure jako DR lokalitu pro své datové centrum. U některých těchto scénářů je technicky možné přenést i IP adresy, ale to s sebou nese řadu nepříjemností. Z pohledu externího uživatele (zbytek je na jiný článek) je zásadní DNS jméno. To může být navázáno na Traffic Manager s tím, že použijete režim Priority a na prvním místě je vaše datové centrum a na druhém připravená Public IP v Azure (na tu překlopíte VM v případě havárie). Podstatné je, že Traffic Manager sám ví co žije a co ne a uživatele pošle na to správné místo. DNS jména rozvrhnete třeba takto:</p>
+<ul>
+<li>mojeappka.domena.cz - na tu se připojují uživatelé a v DNS je CNAME na mojeappka.trafficmanager.net</li>
+<li>mojeappka.trafficmanager.net je váš Traffic Manager profil</li>
+<li>mojeappka.internal.domena.cz - tohle nechť je doménové jméno vaší aplikace v on-premises verzi</li>
+<li>mojeappka.westeurope.azure.domena.cz - to ať směřuje na aplikaci v Azure v regionu West Europe</li>
+</ul>
+<p>Mohli bychom se ještě pobavit co dát do vašeho DNS a co přesunout do Azure DNS nebo jestli při disaster recovery přenést i celé DNSko atd. - to je na delší diskusi a jiný článek.</p>
+<h3>Migrace</h3>
+<p>Přechod z něčeho na něco jiného je ideální pro Traffic Manager, který umožní celý proces udělat velmi nenásilně. Původní stav stále jede a bokem budujete stav nový. V určitý okamžik můžete využít Weighted DNS směrování a na nový stav posílat jen velmi malý počet requestů a pomaličku tak zkoušet to nové. postupně přidáváte až nakonec váhy úplně obrátíte a původní stav odeberete.</p>
+<p>Co může být ten "stav"? Například lokalita, lze tak migrovat z on-premises do cloudu nebo naopak. Mohou to být také odlišné release v green/blue deploymentu. Velké změny tak můžete nasadit ne do existující infrastruktury, ale do zcela nové (někdy se tomu také říká phoenix servery) a v Traffic Manageru uživatele postupně přesouvat tam.  U běžných releasů bych to řešil na úrovni L7 balanceru (ostatně tato vlastnost v podobě deployment slotů a testing in production je přímo součástí App Service, takže to využijete už pěkně hotové), globální (DNS) varianta přichází v úvahu při masivních změnách.</p>
+<p>&nbsp;</p>
+<p><em>Přemýšlíte jak vyřešit geo-redundanci, geo-distribuované aplikace, automatizovat disaster recovery či zjednodušit migrační scénáře? Vyzkoušejte Azure Traffic Manager - je Azure nativní (přímo umí Azure aplikace v PaaS i IaaS), cenově velmi dostupný (platíte dle reálného použití, žádné licence) a jednoduchý na nasazení.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

@@ -1,0 +1,38 @@
+---
+layout: post
+title: Vyřešte přístup ke klasickým aplikacím s Windows Virtual Desktop jako službě v Azure
+tags:
+- Compute
+---
+Jak uživatelům nabízet aplikace? Moje preferovaná metoda nemusí být zrovna nejrychlejší na realizaci zejména pokud potřebujete rychlé řešení pro stovky aplikací. Azure Windows Virtual Desktop si poradí prakticky se vším - i tlustým klientem a Windows 7, pro které nabídne i výrazně prodlouženou security podporu až do ledna 2023.
+
+# Čtyři cesty k řešení moderního přístupu k aplikacím
+Podívejme se nejprve jak vidím čtyři řešení modernizace aplikace. Ty první vyžadují nějaký čas na refactoring a nasazení není vždy triviální, ale otevírají maximální možnosti to dál rozvíjet. Pokud chcete aplikaci nejen rozumněji nabízet, ale odemknout si agilní vývoj a růst, je to ideální volba. Druhé dvě možnosti naopak nevyžadují žádné nebo jen malé změny do aplikace samotné a jsou tak rychlým řešením, zvládnete tak klidně stovky aplikací najednou. Technický dluh, který v nich ale máte, vám zůstane - nebude vás sice tolik brzdit v modernějším nasazení, ale asi vám neotevře agilitu vývoje a nasazování, automatické škálování či další krásné vlastnosti cloud-native světa.
+
+## Ideální varianta - API a různé obličeje (vlastně dnes i hlasy)
+Za mne nejlepší je, aby aplikace měla veškerou svou logiku ve formě API. V zásadě úplně všechno co aplikace dělá, je dostupné přes rozhranní, které je vlastně produktem. Samotná logika je implementována jako několik mikroslužeb a pro jednoduchost ověřování a zabezpečení je před nimi fasáda z API Managementu. K tomuto API jako základu pak existují obličeje (HTML 5 webová stránka, mobilní aplikace, Windows 10 appka, kiosek, chatbot) ale dnes už klidně i hlasy (interface pro hlasového asistenta). Řešení poběží v cloudu, bude využívat moderních metod ověřování (Open ID Connect s AAD) a je to.
+
+## Výborná varianta - přesunutí webové appky do platformy v Azure
+Dobře, rozsekat si aplikaci na mikroslužby a postavit všechno na API může znamenat nějakou práci. Možná máte webovou aplikaci, která je poměrně monolitická, ale je schopná rozumného provozu, protože má nějakou backend část (.NET, Node.JS, Java, PHP) a v lepším případě HTML 5 klienta nebo serverem generovaný obsah. Něco takového se dá obvykle poměrně jednoduše hodit do PaaS řešení jako je Azure Application Services (WebApp) a platforma vám může pomoci elegantně vyřešit některé nedostatky stávající aplikace s poměrně malým zásahem do kódu (TLS zabezpečení, Open ID Connect autentizace, integrace na komunitní identitu typu Google či Facebook, aplikační monitoring, auto-škálování výkonu, jednoduchost nasazování).
+
+## Ale co když na webovou aplikaci nechci nebo nemůžu sáhnout ani ji dát do cloudu? Použijeme AAD App Proxy.
+Tak máte zakázáno na aplikaci jakkoli sáhnout, ale je to webové? Jak ji bezpečně vystavit pro vzdálený přístup odkudkoli, nasadit TLS a ověřování vůči firemnímu AAD včetně podpory věcí typu více-faktorové ověřování? VM s aplikací můžeme vzít a s pomocí Azure Migrate přestěhovat do Azure tak jak je nebo ji i dokonce nechat běžet v on-premises. Stačí k ní nainstalovat kousek software a využít AAD App Proxy. Ta z vašeho VM vytočí šifrovaný tunel do brány v Azure (takže dovnitř do VM nemusíte žádný port otevírat), která ji vystaví v Internetu a zařídí její zabezpečení jako je šifrování, DDoS ochrany a ověření přes AAD včetně toho více-faktorového.
+
+## No jo, ale ta aplikace je tlustý klient. Pak Windows Virtual Desktop jako služba v Azure.
+Máte "tlusťocha", tedy tlustou aplikaci ("exáč") a řešíte co s ní? Je obtížné zajistit její distribuci a správnou konfiguraci na klientech? Možná potřebujete, aby ji uživatel mohl používat i doma nebo na cestách, ale ona potřebuje přímý přístup do databáze, kterou nechcete vystavit do Internetu. Nebo máte uživatele, kteří k aplikaci potřebují chodit z Linuxu, Androidu, Mac, iPadu nebo Chromebooku? A co když potřebujete přistupovat k aplikaci z počítače, který nemáte ve správě (domácí zařízení, sdílený počítač ve škole)? Nebo je vaše aplikace sice webová, ale funguje jen s nějakým velmi starým prohlížečem? Na tyto scénáře je tady Windows Virtual Desktop v Azure.
+
+# Windows Virtual Desktop - o co jde
+Microsoft v preview přichází s platformní službou v Azure, díky které můžete provozovat buď celé desktopové prostředí ("vzdálenou plochu") nebo přenášet konkrétní tlustou aplikaci (Remote App). V čem je to jiné oproti tomu co znáte, jako je například RDS gateway a tradiční řešení Microsoftu?
+
+* Všechny potřebné vychytávky okolo (brána, ověřovací systém, broker, diagnostika) jsou pro vás řešeny jako služba - nic z toho neinstalujete, nic nespravujete a to nejlepší - nic z toho neplatíte
+* Přihlašování uživatelů k celému řešení je přes Azure Active Directory, moderní identitě v cloudu, stejné, kterou máte pro Office365 nebo Azure. S tím souvisí všechny další vychytávky jako je více-faktorové ověřování pro kritické aplikace, identity protection a tak podobně. Po přihlášení do brány se pak ještě hlásíte do desktopu samotného, ale pokud máte federaci přes ADFS, tak to proběhne automaticky (v opačném případě se do Windows normálně zalogujete jako v kanceláři).
+* Všechno je krásně bezpečné, protože podobně jako u AAD App Proxy se do VM s Windows neleze nijak zvenku, ale naopak ona si vytváří šifrované spojení do brány. Jinak řečeno do VM nemusíte mít povoleno ani RDP! VM sama se po startu přihlásí bezpečně do služby.
+* Můžete si připojit jak celý desktop, tak jen konkrétní aplikaci. Například ve Windows na vašem počítači se vám aplikace spustí vzdáleně (ze stroje v Azure) a z pohledu uživatele to bude vypadat prakticky stejně, jako když by běžela lokálně - ale přitom je spuštěna na serveru a ten má třeba bezpečný přístup do databáze jen ve vnitřní síti. Kromě nativní podpory Windows je tu i verze HTML 5 fungující i z tabletů a všech OS a pokud vím, pracuje se i na dalších nativních klientech třeba pro Android nebo iOS.
+* Jaké OS mohou být na serveru? Windows Server od 2012, ale největším lákadlem budou jistě Windows 10 a to (pozor) včetně multi-user (tedy uživatelům dáte familiérní prostředí Windows 10 a přesto může víc uživatelů souběžně sdílet jedno VMko, což má pozitivní dopad na cenu). Použít můžete i Windows 7, kde je zajímavostí rozšířená security podpora až do ledna 2023.
+* Z pohledu Azure platíte jen za stroje, které spustíte - tedy klasická Azure VM sazba podle vybrané konfigurace. A dokonce můžete využít i rezervovaných instancí.
+* Roaming profily a podobné techniky v klasickém řešení RDS trpí určitými nedostatky. Microsoft proto provedl akvizici technologie FSLogix, která na to jde jinak. Umožňuje ukládání uživatelských věcí do VHD, které se k VM připojí a zajistí perzistentní řešení a to velmi rychle.
+* Řešení má v sobě přístupové politiky k aplikacím. Pokud máte různé appky, ale ne všechny mají vidět všichni uživatelé, nemusíte kvůli tomu mít několik verzí image. Stačí jeden kde to všechno bude a v systému si řešit práva kdo co vidí.
+* A co licence? To není téma, kterému bych dobře rozuměl, tak vás odkážu na web. Každopádně podle všecho majitelé Windows E3 a vyšších to mají v ceně (tzn. licence jsou OK, platí jen za VM v Azure) a platí i pro M365 apod. Pokud provozujete klasické řešení a máte RDS CALy se Software Assurance, můžete je využít i pro Windows Virtual Desktop v Azure.
+
+
+Vypadá to dobře. V příštím díle si vyzkoušíme celé řešení prakticky.

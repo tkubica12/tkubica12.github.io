@@ -1,0 +1,51 @@
+---
+layout: post
+status: publish
+published: true
+title: Veeam - zálohujte do cloudu přes StorSimple
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 496
+wordpress_url: http://tomaskubica.cz/?p=496
+date: '2017-05-25 04:57:37 +0000'
+date_gmt: '2017-05-25 03:57:37 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Chcete využít výhod zálohování do Azure, ale používat svůj oblíbený Veeam zálohovací software? Proč do cloudu? Odvezete data mimo ohnisko rizika, uloží se vám velmi spolehlivě 3x nebo 6x, platíte jen za to, co skutečně potřebujete. Veeam s Azure nabízí tři zajímavé varianty nasazení. Použití StorSimple (lokální storage, která je tierovaná do cloudu) jako targetu pro Veeam, spojení Veeam s Cloud Connect v Azure VM a Recovery to Azure umožňuje Veeamu obnovit on-premise VM přímo do Azure. Dnes se podívám na variantu se StorSimple.<!--more--></p>
+<h1>StorSimple jako target pro Veeam</h1>
+<p>StorSimple, jak se dočtete třeba <a href="https://tomaskubica.cz/tag/storsimple/">zde</a>, je lokální storage, která ovšem tieruje do cloudu, navíc se celá do Azure zazálohuje, podporuje disaster recovery, šifruje, deduplikuje a ukládá do cenově atraktivní Azure Blob Storage včetně varianty Cool, která je ideální pro zálohování. Váš Veeam tak můžete namířit na StorSimple jako na primární či sekundární target. Záloha se z jeho pohledu provádí lokálně, ale StorSimple na pozadí tieruje nejstarší nejméně používaná data do cloudu a do něj provádí i kompletní zálohu (s možností obnovy na jiný StorSimple), takže odvážíte vaše zálohy mimo ohnisko rizika vašeho datového centra. Azure Blob je uložen minimálně 3x nebo pokud si připlatíte, tak jsou všechny zálohy v šesti kopiích přes dva regiony.</p>
+<p>Pokud máte StorSimple o dobré kapacitě a objem záloh je normální, pošlete Veeam rovnou na StorSimple jako primární target. V případě, že zálohujete gigantické množství dat a máte malou kapacitu StorSimple, takže se záloha nevejde do lokálního prostoru (což nevadí funkčnosti, ale upload vás zbrzdí a prodlouží zálohovací okno), pak můžete použít jinou storage jako primární a nechat Veeam už asynchronně mimo zálohovací okno přesouvat data na StorSimple (a potažmo automaticky do cloudu).</p>
+<h1>Vyzkoušejme si to</h1>
+<p>Nejprve je vhodné StorSimple přepnout do "zálohovacího režimu". V zásadě jde o změnu jeho algoritmu, kterým vybírá co odvést do cloudu a co držet lokálně (v klasickém případě chcete nejčastěji přistupovaná data držet lokálně a nechat si jen určitou rezervu, zatímco v backup scénáři budeme chtít odeslat data skoro všechna, aby byla lokální kapacita připravena pro další zálohovací okno). Připojte se do StorSimple seriovým kabelem (fyzicky) nebo přes vzdálenou PowerShell session a zadejte tenhle příkaz:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Set-HCSBackupApplianceMode -enable</pre>
+<p>Připravte si StorSimple v blokovém nasazení, vytvořte Volume a zálohovací server (tam kde máte Veeam) přes iSCSI připojte a inicializujte. Popis takového postupu najdete v jednom z předchozích článků <a href="https://tomaskubica.cz/jak-pracovat-se-storsimple-storage-ktera-je-jednou-nohou-u-vas-jednou-v-cloudu/">zde</a>.</p>
+<p id="PnLBWKW"><img class="img-fluid wp-image-500 " src="/images/2017/img_58c59d829aebe.png" alt="" /></p>
+<p>Ve Veeamu přidejte nový zálohovací repozitář.</p>
+<p id="dHzrpvk"><img class="img-fluid wp-image-501 " src="/images/2017/img_58c59d978d96e.png" alt="" /></p>
+<p>Já ho pojmenoval StorSimple.</p>
+<p id="CfnTYki"><img class="img-fluid wp-image-502 " src="/images/2017/img_58c59dab981a2.png" alt="" /></p>
+<p>Jako typ zvolíme Windows Server, tedy v našem případě to bude disk, který vidíme přímo ze zálohovacího serveru.</p>
+<p id="zhiJlZO"><img class="img-fluid wp-image-503 " src="/images/2017/img_58c59dd4cb71b.png" alt="" /></p>
+<p>Vybereme si iSCSI na StorSimple.</p>
+<p id="shniFNC"><img class="img-fluid wp-image-504 " src="/images/2017/img_58c59de713a00.png" alt="" /></p>
+<p>Pošleme třeba do adresáře a využijeme tvorbu souborů per-VM (umožňuje nám proces paralelizovat a urychlit).</p>
+<p id="qtuubGq"><img class="img-fluid wp-image-505 " src="/images/2017/img_58c59e1054155.png" alt="" /></p>
+<p>Až bude vše připraveno, uvidíme něco takového:</p>
+<p id="wXhZcMB"><img class="img-fluid wp-image-506 " src="/images/2017/img_58c59e28d9271.png" alt="" /></p>
+<p>Vytvořme si teď backup job pro jednu z mých chráněných on-premise VM.</p>
+<p id="tmpoFIh"><img class="img-fluid wp-image-507 " src="/images/2017/img_58c59e431c975.png" alt="" /></p>
+<p>Vybereme backup repozitář, který jsme spolu před chvilkou založili.</p>
+<p id="ADGTDlr"><img class="img-fluid wp-image-508 " src="/images/2017/img_58c59e5ccbb7c.png" alt="" /></p>
+<p>... a pak už jen čekáme.</p>
+<p id="IYdykIB"><img class="img-fluid wp-image-509 " src="/images/2017/img_58c59e6ca1051.png" alt="" /></p>
+<p>To je všechno. Veeam jsme namířili na disk v StorSimple, který pro nás bez práce udělá potřebnou práci přesunu do cloudu, redundantního uložení a tak podobně.</p>
+<p>&nbsp;</p>
+<p><em>Oblíbili jste si Veeam a chcete ho využít pro zálohování on-premise VM do cloudu? Zkuste si to.</em></p>
+<p>&nbsp;</p>

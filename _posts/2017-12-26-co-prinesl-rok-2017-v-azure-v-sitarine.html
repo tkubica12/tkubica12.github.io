@@ -1,0 +1,50 @@
+---
+layout: post
+status: publish
+published: true
+title: Co přinesl rok 2017 v Azure v síťařině
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1806
+wordpress_url: http://tomaskubica.cz/?p=1806
+date: '2017-12-26 09:56:03 +0000'
+date_gmt: '2017-12-26 08:56:03 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Rok je v cloudu dlouhá doba. V této sérii zpětných pohledů se pokouším ohlédnout za největšími novinkami, které rok 2017 přinesl. Tentokrát o tom, co je základem pro naprosto všechno. Něco, bez čeho jsou dokonalé servery, storage, databáze i aplikace k ničemu - networking. Ten fyzický vám je skryt (ale věřte že je také extrémně zajímavý - ostatně vygooglete si SONiC, open source systém pro routery a switche), ale ten softwarově definovaný je pro administrátory dost důležitý. Jak se změnil networking v Azure v roce 2017?<!--more--></p>
+<h1>Topologie, možnosti připojení, virtuální datové centrum, spojení IaaS a PaaS</h1>
+<p>Podívejme se na nejdůležitější pokroky, které přišly v roce 2017.</p>
+<h3>Globální VNET peering</h3>
+<p>V roce 2016 se poprvé objevil VNET peering v rámci regionu. Řešení umožňující bez rychlostní penalizace propojit dva nezávislé VNETy (VNET je izolovaná L3 síť, něco jako VRF v síťařině, tedy soustava subnetů a směrování). To umožnilo nastartovat varianty enterprise síťařiny jako je hub and spoke topologie, propojení sítě napříč několika subscription či sdílené a odděleně spravované centrální prostředky typu připojení, firewall či enterprise balancer. V roce 2017 se k tomu přidalo preview globálního peeringu, tedy schopnost takto propojit sítě mezi odlišnými regiony. To přináší možnosti skutečně globálních privátních sítí jednoduše a s vysokým výkonem.</p>
+<h3>Microsoft peering v rámci Express Route</h3>
+<p>Vyhrazená přímá linka, tedy Express Route, původně obsahovala tři samostatné BGP peery - privátní peering (pro privátní adresy uvnitř VNETu), public peering (pro veřejné adresy PaaS služeb) a Microsoft peering (SaaS služby jako je Office365). V průběhu 2017 došlo k vylepšení a zjednodušení a to přineslo private peering a Microsoft peering zahrnující všechno ostatní. To umožnilo rozšířit možnosti šifrování uvnitř Express Route tak, že nově kromě třetích stran můžete použít i nativní Azure VPN.</p>
+<h3>Nové nativní VPNky</h3>
+<p>V roce 2017 došlo k upgrade SKU Azure VPN tak, že za stejnou cenu dostanete až šestinásobný výkon (Standard byl 100 Mbps, stejně naceněná VpnGw1 nabízí 650 Mbps). Kromě vyšší rychlosti je nově také možné jít do hloubky co do konfiguračních možností a vyladit si parametry první i druhé fáze IPSec dle potřeby.</p>
+<h3>Servisní endpointy</h3>
+<p>Přestože je tato služba v roce 2017 teprve v preview, jde o zásadní přírůstek pro enterprise zákazníky. PaaS služby jsou nativně na public endpointech (u některých existuje možnost jejich deploymentu do VNETu, ale přicházíte o výnosy z rozsahu, tedy je to dražší nebo chybí nějaké funkce - App Service Isolated, SQL Managed Instances apod.). IaaS služby máte v VNETu, tedy v privátních sítích. Pokud například PaaS služba App Service (Web App) potřebuje mluvit do databáze běžící ve VM v IaaS, musí se protunelovat (v zásadě si Web App vytočí P2S tunel do VNETu). Ale co obráceně? Jak zajistit, že moje VM v IaaS může přistupovat do třeba Azure SQL aniž bych musel dát VM veřejnou adresu? Klasické řešení by totiž bylo dát VM statickou veřejnou IP a tu nastavit na firewallu Azure SQL, ale to se některým bezpečákům moc nelíbilo. Nová funkce servisních endpointů dokáže tohle vyřešit - IaaS služba se dostane k PaaS službě s tím, že její firewall nepustí dovnitř nic jiného. Pozor - tohle ještě neřeší přístup do PaaS služeb přes S2S VPN, ale velké množství scénářů aplikací v IaaS, které chtějí využít blob storage nebo Azure SQL je tak pokryto.</p>
+<h1>Filtrace, firewalling a další bezpečnost</h1>
+<p>V Azure je už dlouho základní stavový L3/L4 firewall. V roce 2017 se ale tato funkce příjemně rozrostla.</p>
+<h3>Servisní tagy</h3>
+<p>PaaS služby běží na veřejných endpointech a IP adresa se může měnit. Jak pak třeba nastavit firewall pravidla pro VM, která má přistupovat jen na Blob Storage ve West Europe ale nesmí na žádné jiné veřejné IP - ani jiné služby v Azure, ani public adresy pro jiné zákazníky, ani adresy mimo Azure? Bylo by potřeba získat aktuální seznam IP adres, které tato služba v daném regionu používá, a ty na firewallu povolit. Servisní tagy (v preview) dělají právě to - je to dynamicky se měnící seznam IP adres patřících jednotlivým PaaS službám.</p>
+<h3>Aplikační skupiny (ASG)</h3>
+<p>V Azure dlouho chyběla možnost vytvořit si objekt, který by zahrnoval dynamickým způsobem příslušné síťové karty (nebo IP adresy). Například pokud mám sadu VM jejichž počet se průběžně mění nebo provádím jejich upgrade metodou blue/green deploymentu (vytvořím nové a staré smažu), špatně se pak udržují pravidla u těch VM, které služby této skupiny využívají. ASG (v preview) umožňuje VM seskupit do aplikačního celku a s takovým objektem pak pracovat v definici firewall pravidel (NSG). Řeknete tedy Web může k Databázi a nemusíte explicitně vyjmenovávat IP adresy na každé straně ani je měnit když potřebujete sáhnout na VM či jejich počet.</p>
+<h3>DDoS ochrana</h3>
+<p>Celý Azure je chráněn masivní DDoS ochranou a Microsoft scrubbingem, nicméně jde o globální ochranu. Jinak řečeno pokud vaše aplikace ustojí třeba 10Gbps provozu, Azure sám ji spolehlivě ochrání v ceně služby. Možná ale vaše aplikace není cloud native a nedokáže škálovat a pak potřebujete ochranu na daleko jemnější úrovni. To přináší preview DDoS ochrany - vyladěnost na vaše konkrétní aplikace a finanční závazek ochrany (pokud kvůli útoku budeme muset automaticky zvýšit počet nodů třeba ve VM scale setu, budou vám náklady uhrazeny, pokud se ukáže, že šlo o DDoS).</p>
+<h3>WAF as a Service v Azure Security Center</h3>
+<p>V roce 2017 velmi akcelerovalo bezpečnostní centrum v Azure a ochrana aplikací na úrovni inspekce protokolů a chování. Na začátku 2017 přišla Azure Application Gateway ve variantě s Web Application Firewallem. kromě toho v průběhu roku řada předních dodavatelů integrovala své WAFky do Azure Security Center. To umožňuje jednoduše WAF v Azure nasadit (doslova na pár kliknutí ochráníte svou aplikaci) a korelovat hlášení z nich. Dnes máte k dispozici F5, Imperva, Barracuda a Fortinet.</p>
+<h1>Další novinky roku 2017</h1>
+<p>To ale není všechno. Zmiňme další střípky roku 2017.</p>
+<h3>HA porty pro virtuální appliance</h3>
+<p>Pro Azure dnes nabízí svoje síťová řešení velké množství firem včetně Cisco, Checkpoint, Fortinet, F5, A10, KEMP, Barracuda, Palo Alto, Imperva a ještě několik dalších. Protože cloudové SDN sítě nepodporují broadcastový provoz nelze pro HA scénáře použít klasické L2 postupy jako je VRRP apod. Tradiční režim více virtuálních appliance byl tedy řešen na úrovni statické routy v Azure, tedy active/standby. Pro vylepšení těchto možností byla do SDN v Azure v roce 2017 přidána možnost tzv. HA portů.</p>
+<h3>Accelerated Networking (SR-IOV a FPGA offload)</h3>
+<p>V průběhu roku se postupně z preview přešlo do produkčního nasazení technologie, která vám u větších VM nabídne až 25 Gbps mezi dvěma VM. Aby bylo možné dosáhnout takových rychlostí využívá Azure FPGA čipů, které poslední tři roky montuje do serverů a propojuje jak s CPU tak síťovou kartou. To umožnilo přenést většinu SDN funkcí (machinace s hlavičkami, směrování, enkapsulace apod.) do tohoto FPGA (místo virtuálního switche v CPU) a pakety ze serveru poslat rovnou do NIC a potažmo připojeného FPGA s využitím SR-IOV. Pokud je Ethernet vaší volbou pro komunikaci, dostanete díky tomu větší propustnost a řádově nižší latenci. Pokud chcete jít co do latence do extrémních poloh pro High Performance Computing, Azure zůstává stále jediným cloudem z velké trojky, který nabízí u některých VM skutečný InfiniBand.</p>
+<p>&nbsp;</p>
+<p><em>Networking je základním stavemním blokem a v roce 2017 přišlo mnoho důležitých novinek zejména s ohledem na zvýšení kontroly nad provozem a filtrováním. A jak je to se compute, storage, kontejnery,  správou, datovými službami nebo aplikačními platformami? Čtěte další články na tomto blogu a vyzkoušejte Azure ještě dnes!</em></p>
+<p>&nbsp;</p>

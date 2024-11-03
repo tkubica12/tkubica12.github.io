@@ -1,0 +1,122 @@
+---
+layout: post
+status: publish
+published: true
+title: Hybridní file share jako služba aneb replikujte se do cloudu s Azure File Sync
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 274
+wordpress_url: http://tomaskubica.cz/?p=274
+date: '2017-10-18 06:19:59 +0000'
+date_gmt: '2017-10-18 05:19:59 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Jsem velký příznivce objektového ukládání jako je Blob storage. Nabízí fantastickou škálovatelnost, metadata, perfektní dostupnost včetně georeplikace a přístup přes REST API, které místo složitých protokolů redukuje práce na zavolání správné URL a čtyři operace - dej, vytvoř, uprav, smaž. Nicméně ne každá aplikace je na tuto výzvu připravena a očekává klasický sdílený souborový prostor. Jak takovou aplikaci dostat do cloudu? A jak do cloudu dostat váš lokální share? A co takhle aby se cloud choval jako tier k vašemu lokálnímu share? A nedalo by se i zálohovat a vytvářet snapshoty v cloudu? Jasně že dalo! Podívejme se na Azure File Storage a Azure File Sync.<!--more--></p>
+<h1>Azure Files</h1>
+<p>Začněme v cloudu, kde si vytvoříme file share postavený na klasickém SMB portokolu. Nejprve si založíme storage account a v něm se podíváme do části Files. Přidejte nový share.</p>
+<p id="icCWbpH"><img class="img-fluid wp-image-276 " src="/images/2017/img_58977528d3ccd.png" alt="" /></p>
+<p>Zadáme název a případné omezení prostoru pro konkrétní share (například pro kontrolu nákladů). Maximální velikost celého Azure Files accountu je dnes omezena na 5TB (ale můžete mít accountů víc), nicméně v public roadmapě je plán limit navýšit.</p>
+<p id="dkshJXs"><img class="img-fluid wp-image-277 " src="/images/2017/img_589775642b735.png" alt="" /></p>
+<p>Nahrajeme z GUI nějaký soubor.</p>
+<p id="dGYOzrd"><img class="img-fluid wp-image-278 " src="/images/2017/img_589775ae837e5.png" alt="" /></p>
+<p id="qHGPZUv"><img class="img-fluid wp-image-279 " src="/images/2017/img_589775e810bac.png" alt="" /></p>
+<p>K sharu se budeme chtít připojit z Windows i Linux. Klikněte na Connect a dostaneme rovnou potřebné příkazy a URL - to si uložte někam bokem.</p>
+<p id="LNmDssv"><img class="img-fluid wp-image-1509 " src="/images/2017/img_59e6d73e4a02a.png" alt="" /></p>
+<p>Při použití SMB 3.0 je podporováno šifrování v letu, tedy není bezpečnostní problém si klidně Azure Files namapovat na on-premises zařízení. Dále je také podporováno šifrování dat v klidu, tedy těch uložených v Azure za použití Microsoft-managed klíčů (zacházení s nimi je dle souladu s různými certifikacemi ISO a GDPR požadavky). Všechny nově vytvářené storage účty to mají automaticky povoleno. Můžeme s to ověřit.</p>
+<p id="YjWYBKU"><img class="img-fluid wp-image-1510 " src="/images/2017/img_59e6d7c8d692b.png" alt="" /></p>
+<p>Vše připraveno, připojíme se.</p>
+<h2>Připojení z Windows</h2>
+<p>Vytvořte si v Azure nebo jinde VM s Windows a připojte se do ní vzdálenou plochou. Vezměme návod, který nám portál sám dal, doplníme požadované písmeno disku a přístupový klíč a ve Windows spustíme. Výsledkem bude přístup na náš cloudový share.</p>
+<p>V mém případě nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">net use Z:  \mojesoubory.file.core.windows.net\mujshare /u:mojesoubory ...tadyklic...</pre>
+<p>Výsledkem je sdílený disk.</p>
+<p id="BEOLsyP"><img class="img-fluid wp-image-282 " src="/images/2017/img_58977b1e1fe89.png" alt="" /></p>
+<h2>Připojení z Linux</h2>
+<p>Spustíme si Linux VM, já zvolil Ubuntu 16.04. V Ubuntu 16.04 v Azure už všechny potřebné balíčky jsou, ale pro případ, že použijete třeba nějaký svůj vlastní Linux, nainstalujte tento balíček.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo apt-get install cifs-utils</pre>
+<p>Vytvoříme si mountovací místo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo mkdir /mnt/files</pre>
+<p>A teď už toto místo připojíme na náš Azure Files share.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo mount -t cifs //mojesoubory.file.core.windows.net/mujshare /mnt/files -o vers=3.0,username=mojesoubory,password=...kliczde...,dir_mode=0777,file_mode=0777</pre>
+<p>Pokud vše dobře dopadlo, uvidíme naše sdílené soubory.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@linux:~$ ls /mnt/files/
+mujsoubor.txt</pre>
+<h2>Přístup přes API</h2>
+<p>Ke sdílenému prostoru můžete také přistupovat přes REST API. Azure Files tak můžete použít bez změn aplikace (s využitím share) a postupně je měnit a připravovat na REST API. Nebo můžete jednu část aplikace nechat používat share a druhou, novější, naučit rovnou REST API. Kromě přímého využití API můžete sáhnout po hotových knihovnách třeba do Python, .NET, C++ nebo Java.</p>
+<h1>Synchronizace hybridních sharů s Azure File Sync</h1>
+<p>V Preview je nyní dostupná nová velmi zajímavá služba a to synchronizační nástroj pro vaše on-premises file share. V zásadě jde o kousek software, který nainstalujete na váš server s file share. Tento software zajistí synchronizaci s file share v cloudu. Můžete to vnímat jako zálohu do cloudu, orchestrační nástroj pro synchronizaci dat v různých místech (ano - do synchronizační skupiny můžete zapojit hned několik serverů) nebo také jako cache pro cloud. Soubory jsou dostupné rychle lokálně, jejich stažení i nahrání je svižné a na pozadí je server synchronizuje do cloudu, z kterého se tak jednak stává vaše záloha (Azure File Storage je vysoce redundantní - všechno je ve třech kopiích) a také způsob, jak replikovat data do cloudu pro ty aplikace, které běží tam. To přináší skutečně hybridní scénáře.</p>
+<h2>Instalace agenta na on-premises server</h2>
+<p>Potřebnou instalačku si stáhneme v portálu.</p>
+<p id="WpXfidt"><img class="img-fluid wp-image-1476 " src="/images/2017/img_59e44b5bd66c8.png" alt="" /></p>
+<p>Před instalací agenta na serveru si nainstalujte AzureRM PowerShell moduly.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Install-Module AzureRM</pre>
+<p>Pro registraci serveru do Azure File Sync musíme dočasně vypnout IE Enhanced Security (hned po dokončení registrace to můžeme zase zapnout).</p>
+<p><img class="img-fluid wp-image-1478 " style="font-size: 1rem;" src="/images/2017/img_59e44db4cb2cd.png" alt="" /></p>
+<p><img class="img-fluid wp-image-1479 " style="font-size: 1rem;" src="/images/2017/img_59e44dd25503d.png" alt="" /></p>
+<p>Z<span style="font-size: 1rem;">ačneme insta</span><span style="font-size: 1rem;">lovat agenta na lokálním serveru.</span></p>
+<p id="wETOdsK"><img class="img-fluid wp-image-1477 " src="/images/2017/img_59e44d18e1d5b.png" alt="" /></p>
+<p>Po dokončení nám naskočí průvodce registrací serveru.</p>
+<p id="RihkjgD"><img class="img-fluid wp-image-1480 " src="/images/2017/img_59e4559cdaf72.png" alt="" /></p>
+<p>Vyberme si správnou subscription, resource group a Azure File Sync.</p>
+<p id="IVYtgRS"><img class="img-fluid wp-image-1482 " src="/images/2017/img_59e45633c339f.png" alt="" /></p>
+<p>Pokud všechno dobře dopadlo, je naše registrace hotová.</p>
+<p id="KFfyvEH"><img class="img-fluid wp-image-1483 " src="/images/2017/img_59e4567a7be6a.png" alt="" /></p>
+<p id="haeHxap"><img class="img-fluid wp-image-1484 " src="/images/2017/img_59e456993f9f9.png" alt="" /></p>
+<h2>Synchronizační skupina</h2>
+<p>Vytvoříme si novou synchronizační skupinu a dáme do ní náš cloudový share.</p>
+<p id="gsGhmYB"><img class="img-fluid wp-image-1486 " src="/images/2017/img_59e457dfa81e9.png" alt="" /></p>
+<p id="wnFFtvz"><img class="img-fluid wp-image-1487 " src="/images/2017/img_59e45817c511e.png" alt="" /></p>
+<p>Po chvilce v této synchronizační skupině uvidíme cloud endpoint.</p>
+<p id="AOchOSL"><img class="img-fluid wp-image-1488 " src="/images/2017/img_59e45a5e09d5e.png" alt="" /></p>
+<p>Přidejme si on-premises server do synchronizační skupiny.</p>
+<p id="tYJzovP"><img class="img-fluid wp-image-1489 " src="/images/2017/img_59e45a8084b1c.png" alt="" /></p>
+<p>Zadáme lokální cestu a také si vybereme, zda chceme plnou kopii nebo cloud tiering. Ve druhém případě budou vždy všechna data k dispozici v cloud share, ale lokálně bude pouze jejich část - agent automaticky vybere nejčastěji používané soubory a ty ponechá dostupné i lokálně pro větší rychlost. Nastavíme procento kolik procent místa chceme ponechávat na lokálním počítači volné (1% znamená skoro žádný tiering, 99% znamená nemít lokálně skoro nic).</p>
+<p id="MkhDjYY"><img class="img-fluid wp-image-1491 " src="/images/2017/img_59e45ca845418.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Nahrajeme něco do lokální složky.</p>
+<p id="uBVboZq"><img class="img-fluid wp-image-1493 " src="/images/2017/img_59e58f6f9bb97.png" alt="" /></p>
+<p>Po nějaké době budou soubory synchronizované do cloudu.</p>
+<p id="LnRAzPR"><img class="img-fluid wp-image-1494 " src="/images/2017/img_59e58f93843fc.png" alt="" /></p>
+<p>Pojďme teď do našeho serveru a přidejme si zobrazení atributů.</p>
+<p id="FRhgizx"><img class="img-fluid wp-image-1503 " src="/images/2017/img_59e6d08924aab.png" alt="" /></p>
+<p>Tím se můžeme podívat, co máme lokálně a co je jen vzdálené.</p>
+<p id="BDgCyoL"><img class="img-fluid wp-image-1515 " src="/images/2017/img_59e6e3a123b77.png" alt="" /></p>
+<p>Zkuste se podívat na to kolik místa zabírají soubory na disku.</p>
+<p id="HaVPBwx"><img class="img-fluid wp-image-1516 " src="/images/2017/img_59e6e3d277937.png" alt="" /></p>
+<p>Tak to je cloud tiering v praxi! Z pohledu aplikace nebo uživatele se ale nic nemění, stále vidíme soubor jako dostupný. Pokud ho otevřu, projde to v pořádku - jen se to aplikaci bude zdát jako pomalejší disk, ale jinak rozdíl nepozná.</p>
+<p id="oLOQskd"><img class="img-fluid wp-image-1517 " src="/images/2017/img_59e6e44cacfa8.png" alt="" /></p>
+<p>Výborný způsob, jak využít kapacitu cloudu a přitom nemuset vlastně nic měnit.</p>
+<h1>Zálohování souborů s Azure Files Snapshot</h1>
+<p>V Preview je aktuálně dostupná možnost provádění snapshotů vašich Azure Files. Pojďme jeden vytvořit.</p>
+<p id="SNfIVbK"><img class="img-fluid wp-image-1495 " src="/images/2017/img_59e5903202bc4.png" alt="" /></p>
+<p>Po vytvoření snapshotu pojďme jeden soubor přímo v portálu editovat.</p>
+<p id="nXRLfZs"><img class="img-fluid wp-image-1496 " src="/images/2017/img_59e590965ebcc.png" alt="" /></p>
+<p>Vymažeme jeho obsah a zadáme nový.</p>
+<p id="tkJggSS"><img class="img-fluid wp-image-1497 " src="/images/2017/img_59e590b8cbc32.png" alt="" /></p>
+<p>Azure používá copy on write, tedy snapshot nejprve nazabírá žádné místo, ale po změně souboru se tento musí uložit nově.</p>
+<p>Moje aktuální data tedy obsahují zmenšený soubor Application.evtx</p>
+<p id="SguzcvB"><img class="img-fluid wp-image-1498 " src="/images/2017/img_59e5913a42dbc.png" alt="" /></p>
+<p>Podívejme se na snapshoty.</p>
+<p id="fEFFdvp"><img class="img-fluid wp-image-1499 " src="/images/2017/img_59e591544c02e.png" alt="" /></p>
+<p>Všimněte si, že v snapshotu vidím svoje data nezměněná!</p>
+<p id="UbIszAz"><img class="img-fluid wp-image-1500 " src="/images/2017/img_59e5917b76949.png" alt="" /></p>
+<p>A ještě jedna zajímavá věc - všimli jste si u snapshotu nahoře tlačítka connect?</p>
+<p id="nrLEBOn"><img class="img-fluid wp-image-1506 " src="/images/2017/img_59e6d4165d3da.png" alt="" /></p>
+<p id="BZRVPYF"><img class="img-fluid wp-image-1508 " src="/images/2017/img_59e6d481c4f5e.png" alt="" /></p>
+<p>Přesně tak. Konkrétní snapshot si můžete namapovat jako síťový disk.</p>
+<p>Pokud bych modifikaci souboru neprováděl z portálu, ale přímo ze serveru, kde mám Azure File share namapovaný, bude to ještě lepší. Provedeme snapshot a následně upravíme soubor ale tentokrát z Windows. Pak můžeme kliknout pravým tlačítkem a dostaneme se k předchozí verzi.</p>
+<p id="BHeVEjg"><img class="img-fluid wp-image-1504 " src="/images/2017/img_59e6d33c55edf.png" alt="" /></p>
+<p>Jednoduše můžeme obnovit soubor ze snapshotu a o Azure nemusíme ani vědět!</p>
+<p id="sOQifBi"><img class="img-fluid wp-image-1505 " src="/images/2017/img_59e6d3c53913a.png" alt="" /></p>
+<h1>A jak se to platí?</h1>
+<p>Azure File Storage platíte podle skutečně obsazeného prostoru. Konkrétně 0,051 EUR za 1GB obsazeného prostoru měsíčně (+ k tomu drobné poplatky transakce). Služba Azure File Sync (samotná synchronizační služba) funguje pro první přidaný server zdarma a pro další asi 4,2 EUR měsíčně za server.</p>
+<p>&nbsp;</p>
+<p><em>Hybridní práce se soubory je skvělý způsob, jak vám Azure umožní využít výhody cloudu bez nutnosti přepisovat aplikace či měnit zvyklosti. Nabídněte svým aplikací v cloudu file share jako službu. Chcete aplikaci v on-premises, ale soubory s kterými pracuje mít v cloudu a lokální storage použít jako cache pro často přistupované soubory a přitom aplikace může na lokálním share najít úplně všechno, protože se to transparentně dotáhne? Nebo potřebujete synchronizovat file share na vašich pobočkách do centrální cloudu či distribuovat změny mezi pobočkami? A chcete to všechno zálohovat, aby vám někdo nepoškodil soubor nebo nějaký nevymazal?</em></p>
+<p><em>To přesně umí Azure Files a Azure File Sync. Vyzkoušejte!</em></p>

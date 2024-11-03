@@ -1,0 +1,41 @@
+---
+layout: post
+status: publish
+published: true
+title: Co přinesl rok 2017 v Azure v kontejnerech
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1810
+wordpress_url: http://tomaskubica.cz/?p=1810
+date: '2017-12-29 07:37:21 +0000'
+date_gmt: '2017-12-29 06:37:21 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<blockquote>Rok je v cloudu dlouhá doba. V této sérii zpětných pohledů se pokouším ohlédnout za největšími novinkami, které rok 2017 přinesl. Co se stalo v mé snad nejoblíbenější oblasti: ve světě kontejnerů?<!--more--></p></blockquote>
+<h1>Kontejnery na začátku roku 2017</h1>
+<p>Jak vstoupil Azure do roku 2017 z pohledu kontejnerů?</p>
+<p>V roce 2016 šla do plné dostupnosti služba Azure Container Service, řešení pro automatizovaný provisioning kontejnerových orchestrátorů "na kliknutí". V té době vůbec nebylo jasné na koho z velké trojky orchestrátorů vsadit a zákazníci sami tím byli docela zmatení. DC/OS byl relativně tradiční, velmi robustní a zajímavý tam, kde se kontejnery kombinují s Big Data. Docker Swarm byl nejmladší, funkčně trochu pozadu, ale nabízel API téměř shodné s klasickým single-host Docker API. A pak tu byl Kubernetes, který od začátku udělal spoustu věcí správně a byl nejslibnější, ale pro zákazníky trochu nový a složitější na uchopení. ACS tedy podporovala (a dodnes podporuje) všechny tři.</p>
+<p>Na konci 2016 také přišel Azure Container Registry, tedy váš privátní repozitář kontejnerových obrazů.</p>
+<p>Možná to nejdůležitější - do Microsoftu nastoupil Brendan Burns, jeden ze tří zakladatelů (tenkrát samozřejmě v Google) Kubernetes (ti další dva, Joe Beda a Craig McLuckie založili po odchodu z Googlu Heptio, firmu specializující se na Kubernetes). Brendan se stává hlavním strůjcem kontejnerové strategie Azure a to bylo v roce 2017 vidět.</p>
+<h1>Kontejnerová jízda roku 2017</h1>
+<h3>Akvizice Deis a příklon ke Kubernetes</h3>
+<p>V dubnu 2017 došlo k akvizici open source firmy Deis. Ta se specializovala na vývoj open source nástrojů nad Kubernetes včetně dnes již defacto standardu pro tvorbu aplikačních šablon Helm (z jejich dílny pochází ale i další nástroje, například Draft a také mají prsty v service brokeringu). Microsoft tím jasně ukazuje, že s Kubernetes to myslí velmi vážně a zaměstnanci Deis se stávájí chloubou firmy.</p>
+<h3>Azure Container Instances - kontejnery bez serverů</h3>
+<p>Ve všech hlavních cloudech bylo nutné vždy nejprvet alokovat VM a uvnitř nich potom pracovat s kontejnery. Nebylo možné pustit kontejner přímo v cloudu samotném - bez alokovaných zdrojů. Pustit kontejner a platit jen za něj, ne za podpůrnou infrastrukturu. To se změnilo v červnu 2017 kdy Microsoft jako první uvedl tento koncept - více jak 6 měsíců před AWS (Fargate).</p>
+<h3>Docker kontejnery pro Service Fabric</h3>
+<p>Open source orchestrátory jsou samozřejmě velmi populární, ale Microsoft pro své vnitřní potřeby několik let vyvíjel a ve velké škále používá svůj orchestrátor, který se původně soustředil primárně na .NET svět - Service Fabric. Tato technologie ma oproti ostatním orchestrátorům jednu zásadní výhodu - je zaměřena na vývojáře a nabízí jim zajímavé programovací modely. Jinak řečeno některé funkce clusteru zejména v oblasti stateful aplikací lze jednoduše a efektivně využívat přímo aplikačním kódem. V květnu 2017 se přidala podpora pro Service Fabric v Linux a spouštění Docker kontejnerů. O pár měsíců později Microsoft demonstroval světový rekord - spuštění včetně kompletního nastartování 1 000 000 kontejnerů v 2 000 nodovém clusteru pod 3 minuty. Škáluje to opravdu neuvěřitelně.</p>
+<h3>Web Apps for Containers</h3>
+<p>Kontejnery jsou samozřejmě vhodné pro mikroslužby, jejich orchestraci ale i custom monolitické aplikace. Slouží ale také jako jednotka deploymentu. Jinak řečeno - může vám dávat obrovský smysl zabalit vaší webovou aplikaci do kontejneru, ale učit se kvůli tomu složitý šelmostroj jako je Kubernetes možná nedává smysl. Třeba chcete jednoduchost a ucelenost hotové platformní služby (jako jsou klasické Web Apps v Azure), ale deployment provádět Linux kontejnery. Přesně takhle je koncipována Web Apps for Linux, která přišla do preview v květnu a plná dostupnost je od září. Další tvář Azure pro kontejnery - jednoduše ovladatelné a robustní řešení, do kterého vložíte váš kontejner.</p>
+<h3>Managed Kubernetes - AKS</h3>
+<p>Azure strategie soustředit se na Kubernetes se projevila i v uvedení plně spravované Kubernetes služby a to dokonce tak, že za control plane nic neplatíte - jen za VM, kde běží vaše aplikace. Stalo se to v říjnu, více jak o měsíc dříve, než podobné preview spustil Amazon (EKS). Potvrzuje se tak, že co se týče kontejnerů je Azure opravdu na špici vývoje co do zavádění nových služeb i co do šíře nabídky. Kubernetes je pro open source projekty dnes preferované řešení a ve všech top cloudech ho najdete - AKS v Azure, EKS v AWS a GKE v Google.</p>
+<p>&nbsp;</p>
+<p><em>Kontejnery jsou klíčovou součástí strategie Microsoft a rok 2017 byl v tomto ohledu neuvěřitelně plodný. Kontejnery v Azure najdete ve všech podobách - v tradičním Windows zaměřeném světě, v platformních službách, kde se nemusíte učit složité orchestrátory i v open source orchestrátorech díky managed Kubernetes. Inovace jako je Azure Container Instances jsou dnes jako první ze všech cloudů dostupné v Azure, který se stává hrotem vývoje celého trhu kontejnerů. A jak je to se síťařinou, infrastrukturou,  správou, datovými službami nebo aplikačními platformami? Čtěte další články na tomto blogu a vyzkoušejte Azure ještě dnes.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

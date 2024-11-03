@@ -1,0 +1,96 @@
+---
+layout: post
+status: publish
+published: true
+title: Síťařina v Kubernetes v Azure Container Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 235
+wordpress_url: http://beta.tomaskubica.cz/?p=235
+date: '2017-03-08 05:47:22 +0000'
+date_gmt: '2017-03-08 04:47:22 +0000'
+categories:
+tags:
+- Kubernetes
+- Networking
+---
+<p>V síťařině jsem působil mnoho let a vždycky to bylo docela složité. Virtualizace a cloud situaci díky nástupu overlay sítí a mikrosegmentaci zrovna nezjednodušují a dnes se pak musí řešit otázka síťařiny v kontejnerech běžících nad virtualizací. Azure Container Service odladila a připravila robustní řešení pro open source orchestrátor dle vaší volby - Docker Swarm, Kubernetes, DC/OS.</p>
+<p>Dnes se společně podíváme na síťování v Kubernetes v Azure.<!--more--></p>
+<h1>Koncept síťařiny v Kubernetes</h1>
+<h2>IP per pod</h2>
+<p>Kubernetes přichází s konceptem podů, tedy shluků kontejnerů (ale velmi často lidé používají jediný kontejner v podu), které sdílejí IP adresu. Nicméně každý pod pak má adresu svou a s ostatními pody komunikuje napřímo a bez NAT místo sdílení IP adresy hostitele a pekla překládání portů (tak původně fungoval Mesos, interní Google Borg i Docker, ale v zásadě všichni zmínění začínají nabízet i koncept IP per kontejner).</p>
+<p>Aby bylo možné toho dosáhnout existuje řada síťových řešení postavených na standardu CNI. Některé přidávají koncept overlay sítí (VXLAN) podobně, jako je tomu u DC/OS implementace. Zmínit můžeme Contiv, Weave, Flannel, Nuage nebo OVN. Jiné implementace využívají přímé L3 adresovatelnosti (tedy bez overlay) jako je případ Calico,  jistých nastavení Contiv apod.</p>
+<p>Azure Container Service v tomto ohledu využívá přímou adresaci a směrování (tedy L3 řešení), takže na úrovni kontejnerů nejsou overlay sítě potřeba (samozřejmě samotný Azure na úrovni VM je používá, ale to je interní záležitost, kterou nemusíte ani znát - pro vás je to možnost vytvořit objekt VNet a v něm subnety, jak si to Azure zařídí, je vám jedno). Azure přidělí každému hostiteli (VM s Kubernetes) samostanou /24 síť:</p>
+<p id="HkmPDZd"><img class="img-fluid wp-image-238 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588f6a18d3e74.png" alt="" /></p>
+<p>Vlastní hostitelé mají /16 subnet, ale pro účely kontejnerů dostal každý hostitel jinou /24 síť a mezi nimi je zajištěno směrování.</p>
+<p>Zkusme si nastartovat dva deploymenty (v našem testovacím případě s jedním podem, potažmo jedním kontejnerem) tak, aby se v nich reálně nic nedělo, ale zůstaly běžet.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl run c1 --image busybox --command -- tail -f /dev/null
+kubectl run c2 --image busybox --command -- tail -f /dev/null</pre>
+<p>Najdeme si jména podů.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null"># kubectl get pods
+NAME                 READY     STATUS    RESTARTS   AGE
+c1-240622296-djsx2   1/1       Running   0          &lt;invalid&gt;
+c2-411540186-n3tbn   1/1       Running   0          &lt;invalid&gt;</pre>
+<p>Vevnitř kontejeru si vypíšeme adresu - všimněte si, že zapadá do /24 rozsahu svého hostitele.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null"># kubectl exec "c1-240622296-djsx2" -- ip a
+...
+3: eth0@if8: &lt;BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN&gt; mtu 1500 qdisc noqueue
+    link/ether 0a:58:0a:f4:03:05 brd ff:ff:ff:ff:ff:ff
+    inet 10.244.3.5/24 scope global eth0
+       valid_lft forever preferred_lft forever
+...
+# kubectl exec "c2-411540186-n3tbn" -- ip a
+...
+3: eth0@if8: &lt;BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN&gt; mtu 1500 qdisc noqueue
+    link/ether 0a:58:0a:f4:02:05 brd ff:ff:ff:ff:ff:ff
+    inet 10.244.2.5/24 scope global eth0
+       valid_lft forever preferred_lft forever
+...</pre>
+<p>Můžeme si ověřit, že ping funguje - máme tedy přímo dosažitelnost mezi kontejnery.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null"># kubectl exec "c2-411540186-n3tbn" -- ping -c1 10.244.3.5
+PING 10.244.3.5 (10.244.3.5): 56 data bytes
+64 bytes from 10.244.3.5: seq=0 ttl=62 time=2.067 ms
+
+--- 10.244.3.5 ping statistics ---
+1 packets transmitted, 1 packets received, 0% packet loss
+round-trip min/avg/max = 2.067/2.067/2.067 ms</pre>
+<h2>Externí balancer aneb Kuberenes mluví s Azure Load Balancer</h2>
+<p>Jak je patrné z předchozího odstavce, pokud vypnete pod a pustíte ho na jiném hostiteli, nastartujte s jinou IP adresou. Pokud někdo chce na službu přistupovat, musel by se o změně IP dozvědět. Navíc co když chceme pody replikovat, tedy z výkonnostních důvodů jich provozovat několik a balancovat na ně? Kubernetes má koncept service, který našemu podu (nebo několika podům v rámci deploymentu) přiřadí neměnnou IP adresu, na kterou pak balancuje. Nicméně bude to mít jeden háček, podívejme se jaký.</p>
+<p>Představme si, že na našem deploymentu c1 běží nějak služba a vytvořme si konstrukt service.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null"># kubectl get service
+NAME         CLUSTER-IP    EXTERNAL-IP   PORT(S)   AGE
+c1           10.0.127.42   &lt;none&gt;        80/TCP    &lt;invalid&gt;
+kubernetes   10.0.0.1      &lt;none&gt;        443/TCP   5h</pre>
+<p>Co se stalo? Kubernetes vytvořil virtuální IP aresu (CLUSTER-IP) a na portu 80 na ní poslouchá a provoz balancuje na všechny pody v deploymentu c1. Zajišťuje tedy load balancing a neměnnou IP pro naší službu.</p>
+<p>Nicméně jak je patrné, adresa 10.0.127.42 není veřejná (nebo řekněme externí či reálná). Service je výborná pro balancing služeb využívaných uvnitř clusteru, ale nedostaneme se na ni z okolního světa (tedy od uživatelů). Koncept service je ale možné integrovat s externím load balancerem mimo cluster, tedy v infrastruktuře (typicky virtualizované IaaS), v které cluster běží. Tou je v našem případě Azure a Kubernetes dokáže žádat Azure Load Balancer o zajištění tohoto externího balancingu. Ukažme si jak to funguje.</p>
+<p>Spustíme tři deploymenty jednoduché webové aplikace a každý ve třech replikách.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl run web --image yeasy/simple-web --replicas 3
+kubectl run web2 --image yeasy/simple-web --replicas 3
+kubectl run web3 --image yeasy/simple-web --replicas 3</pre>
+<p>Teď tuto službu "vystrčíme" ven jako service, ale nejen interní v rámci clusteru, ale i jako zvenku dostupnou balancovanou service.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl expose deployments web --port=80 --type=LoadBalancer
+kubectl expose deployments web2 --port=80 --type=LoadBalancer
+kubectl expose deployments web3 --port=80 --type=LoadBalancer</pre>
+<p>Nějakou dobu bude trvat, než si Kubernetes a Azure vymění potřebné informace, ale po pár minutách uvidíme na výpisu služeb něco takového:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null"># kubectl get service
+NAME         CLUSTER-IP    EXTERNAL-IP     PORT(S)   AGE
+c1           10.0.127.42   &lt;none&gt;          80/TCP    &lt;invalid&gt;
+kubernetes   10.0.0.1      &lt;none&gt;          443/TCP   5h
+web          10.0.103.19   13.95.8.111     80/TCP    &lt;invalid&gt;
+web2         10.0.25.153   13.95.12.182    80/TCP    &lt;invalid&gt;
+web3         10.0.15.37    52.174.188.30   80/TCP    &lt;invalid&gt;</pre>
+<p>Všimněte si externích IP adres. Podívejme se do Azure portálu. V zdrojích najdeme nový balancer a public IP zdroje.</p>
+<p id="NjMhdbV"><img class="img-fluid wp-image-242 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588f8802bd998.png" alt="" /></p>
+<p>IP adresy jsou front end v balanceru.</p>
+<p id="MyOjSnB"><img class="img-fluid wp-image-243 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588f883d3f4ea.png" alt="" /></p>
+<p>Směřují na IP adresy hostitelů.</p>
+<p id="cugGEUZ"><img class="img-fluid wp-image-244 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588f8861c66df.png" alt="" /></p>
+<p>Když se podíváme na balancovací pravidla a taky health sondy, zjistíme, že Kubernetes vybral pro každou naší službu jiný TCP port a Azure balancer automaticky nastavil tak, že z unikátní IP na portu, který jsme chtěli (v našem případě 80) balancuje na agenty na tento jiný TCP port.</p>
+<p id="VUeAjhy"><img class="img-fluid wp-image-245 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588f890dcde32.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Síťařina v Kubernetes je možná trochu komplikovaná, ale ne pokud používáte Azure Container Service. Nejen, že cluster sestavíte jednoduše a spolehlivě, ale máte perfektní integraci se sítí v Azure, takže napojit vaše uživatele na reálné balancované služby ve vašem clusteru je snadné.</em></p>

@@ -1,0 +1,368 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak navrhnout FW pravidla v Azure s NSG a ASG
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2080
+wordpress_url: http://tomaskubica.cz/?p=2080
+date: '2018-04-20 07:09:34 +0000'
+date_gmt: '2018-04-20 06:09:34 +0000'
+categories:
+tags:
+- Security
+- Networking
+---
+<p>Pokud z nějakého důvodu nemůžete použít platformní službu (PaaS), možná stojíte před úkolem jak nastavit firewall pravidla pro aplikaci ve VM, která má dvojici webových serverů přístupných z venku a dvě databázové VM. Jak to udělat? Mikrosegmentace per VM? Nebo pravidla na subnet? A co aplikační objekty s ASG? Podívejme se dnes na čtyři způsoby jak to navrhnout a výhody či nevýhody každého z nich.<!--more--></p>
+<h1>Možnosti filtrování komunikace v IaaS v Azure</h1>
+<p>Doporučuji maximálně využívat nativních prostředků Azure softwarově definované sítě. Je to totiž distribuované řešení (neřešíte sizing, neomezuje vás rychlostně) a je zdarma. Základním kamenem je Network Security Group, což je stavový L4 firewall implementovaný přímo v SDN fabric (tedy nejde o virtuální krabičku, ale skutečně vlastnost síťového stacku). V pravidelech používáte cílové a zdrojové IP rozsahy případně servisní tagy (o tom jindy - v zásadě objekty představující nějaký výčet IP adres, například public IP svět mimo Azure označovaný jako Internet nebo naopak právě používané public IP pro některé platformní služby, například Azure SQL) a TCP/UDP porty. Tuto NSG můžete aplikovat přímo na jedno konkrétní VM (čistokrevná mikrosegmentace). Neznamená to dovnitř VM (s firewallem vevnitř to nemá nic společného), ale na její virtuální síťvou kartu - implementaci filtrování provádí hostitel. Druhou možností je aplikovat NSG na subnet VNETu a pravidla se pak aplikují na všechny současné i budoucí VM v subnetu.</p>
+<p>Co když chcete víc, třeba L7 pravidla, WAFku, IPS a tak podobně? Azure nabízí například Application Gateway (L7 brána/proxy + WAFka) nebo můžete použít virtuální síťovou appliance třetí strany - Azure podporuje mimo jiné Cisco, Fortinet, Check Point, Palo Alto, F5, Imperva, Barracuda a další. Můžete tak použít systém co znáte, mít jednotnou správu pravidel apod. Na druhou stranu nepřehánějte to. Každá virtuální krabička nese náklady za VM v Azure (nebo poplatek za Application Gateway pokud použijete Microsoft řešení) a ještě víc za licence výrobci zařízení. Filtrovat takhle provoz mezi VM mi nedává sebemenší smysl z pohledu požadovaného výkonu, flexibility a cenovky. Potřebujete enterprise firewall na north-south traffic, tedy vystavení služeb do Internetu? Dobré využití. Potřebujete firewall na oddělení/propojení dvou projektů, které pro vás spravují různé firmy a komunikaci mezi nimi potřebujete hlídat enterprise firewallem? Také dobrý nápad. Chcete oddělit webovou vrstvu od DB? Výrazně doporučuji NSG.</p>
+<h1>Vyzkoušejme čtyři odlišné designy řešení</h1>
+<p>Vytvoříme si následující infrastrukturu. Dva webové servery, které mají do Internetu vystavit port 80 a dva DB servery, které mají mít otevřený port 1433, ale jen pro webové servery, ne pro ostatní VM ve VNETu nebo z Internetu. Napadají mě čtyři scénáře: per-VM pravidla, per-subnet pravidla, kombinace obojího a použití aplikačních objektů (ASG).</p>
+<p>V následujících příkladech nebudu řešit pravidla pro správu (SSH, RDP) ani load balancer. Ty tam pravděpodobně budete mít, ale chceme si to pro pochopení principů co nejvíc zjednodušit.</p>
+<h2>Per-VM pravidla a úplná mikrosegmentace</h2>
+<p>Tohle řešení přiřazuje NSG pro jednotlivé VM. Výhodou je, že pravidla i VM jsou přímo svázané dohromady, což se hodí při různých automatizačních scénářích. Chcete přidat VM? Uděláte to i včetně firewallu místo nasazování do už existujícího čehosi, kde si musíte zjistit kam to VM vlastně dáváte (jaká pravidla už tam jsou). To jsou zajímavé výhody zejména pro DevOps scénáře.</p>
+<p>Na druhou stranu při větším počtu VM to může začít být nepřehledné a možná si budete muset požádat o navýšení povolených počtů NSG v subscription (výchozí stav je 100, ale se supportem můžete požádat až o 5000). Druhou nevýhodou je, že musíme pracovat s IP adresami VM, což může být nepohodlné.</p>
+<p>Tady je příklad v Azure CLI jak na to. Protože používáme per-VM pravidla, stačí nám jediný subnet. Následně vytvoříme NSG a v nich příslušná pravidla. U webu to bude povolení portu 80 z Internetu a u DB to bude povolení portu 1433 z webových serverů. Použil jsem v příkladu vytvoření jednoho NSG platného vždy pro dvojici serverů (tedy jedno NSG přiradím na dva servery). Protože pracujeme s IP adresami potřebuji předvídatelnost v jejich přiřazování, takže privátní IP při sestavování VM budou mnou specifikované.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell"># Per-VM NSG
+export group=nsg-per-vm
+az group create -n $group -l westeurope
+
+az network vnet create -g $group \
+    -n my-net \
+    --address-prefix 10.0.0.0/16 
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-sub1 \
+    --address-prefix 10.0.0.0/24
+
+az network nsg create -n web-fw -g $group
+az network nsg create -n db-fw -g $group
+
+az network nsg rule create -n http-to-web \
+    --description "Komunikace z Internetu na webove servery" \
+    -g $group \
+    --nsg-name web-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --source-address-prefixes Internet \
+    --destination-address-prefixes 10.0.0.10/32 10.0.0.11/32 \
+    --destination-port-ranges 80
+
+az network nsg rule create -n web-to-db \
+    --description "Komunikace webove farmy do databaze" \
+    -g $group \
+    --nsg-name db-fw \
+    --priority 102 \
+    --protocol Tcp \
+    --source-address-prefixes 10.0.0.10/32 10.0.0.11/32 \
+    --destination-address-prefixes 10.0.0.20/32 10.0.0.21/32 \
+    --destination-port-ranges 1433
+
+az vm create -n web-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg web-fw \
+    --private-ip-address 10.0.0.10 \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n web-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg web-fw \
+    --private-ip-address 10.0.0.11 \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg db-fw \
+    --private-ip-address 10.0.0.20 \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg db-fw \
+    --private-ip-address 10.0.0.21 \
+    --size Standard_A1_v2 \
+    --no-wait</pre>
+<h1>Per-subnet pravidla</h1>
+<p>V předchozím příkladě jde ruku v ruce VM a její NSG. To je dobré v DevOps týmu, ale v klasičtějším pojetí bude jeden tým odpovědný za síťařinu a bezpečnost, zatímco jiný nasazuje VM. Druhou nevýhodou předchozího přístupu byl fakt, že jsme museli řešit IP adresy individuálních VM, což není vždy praktické - při přidání další VM třeba do webové farmy jsme museli pravidla upravovat. Klasičtější scénář se nám tady může líbit víc - vytvoříme jeden subnet pro web a druhý pro DB a pravidla pak budeme definovat na úrovni subnetů. Nemusíme tak potom řešit individuální IP adresy VM a stačí pracovat s rozsahy subnetů.</p>
+<p>Tady je příklad a všimněte si rozdílů oproti předchozímu scénáři. Vytvoříme dvě NSG pro subnet, následně subnety s přiřazeným NSG a do nich zasadíme VM. U těch už nemusíme řešit jakou konkrétní IP VM dostane.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell"># Per-subnet NSG
+export group=nsg-per-subnetvm
+az group create -n $group -l westeurope
+
+az network nsg create -n web-fw -g $group
+az network nsg create -n db-fw -g $group
+
+az network nsg rule create -n http-to-web \
+    --description "Komunikace z Internetu na webove servery" \
+    -g $group \
+    --nsg-name web-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --source-address-prefixes Internet \
+    --destination-port-ranges 80
+
+az network nsg rule create -n web-to-db \
+    --description "Komunikace webove farmy do databaze" \
+    -g $group \
+    --nsg-name db-fw \
+    --priority 102 \
+    --protocol Tcp \
+    --source-address-prefixes 10.0.0.0/24 \
+    --destination-port-ranges 1433
+
+az network vnet create -g $group \
+    -n my-net \
+    --address-prefix 10.0.0.0/16 
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-web \
+    --address-prefix 10.0.0.0/24 \
+    --network-security-group web-fw
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-db \
+    --address-prefix 10.0.1.0/24 \
+    --network-security-group db-fw
+
+az vm create -n web-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-web \
+    --nsg "" \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n web-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-web \
+    --nsg "" \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-db \
+    --nsg "" \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-db \
+    --nsg "" \
+    --size Standard_A1_v2 \
+    --no-wait</pre>
+<h1>Kombinace per-subnet a per-VM pravidel</h1>
+<p>Další varianta, jakou lze řešit náš scénář, je použít oba přístupy současně. Na úrovni subnetů chceme jen nejzákladnější hrubá pravidla jako je povolený přístup z Internetu nebo povolený přístup z jednoho subnetu do druhého. Nechceme řešit aplikačně specifické věci, tedy porty. Tohle bude mít na starost třeba síťový tým. Současně ale použijeme NSG na úrovni VM pro aplikačně specifičtější dofiltrování. To tedy bude místo, kde se budeme zabývat porty. To je docela zajímavá kombinace, protože síťaři řeší základní pravidla a ten, kdo nasazuje VM si řeší pravidla na úrovni portů (protože ví co nasazuje, ví lépe jaký port je potřeba).</p>
+<p>Takhle vypadá skript. Vytvoříme si subnet int a ext, u ext použijeme NSG dovolující přístup z Internetu a u int pravidlo dovolující komunikaci z ext do int, ale ne z Internetu. Následně si připravíme NSG pro nasazení na úrovni VM, kde bude definovaný potřebný port.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell"># int/ext subnety a kombinace per-vm a per-subnet NSG
+export group=intext
+az group create -n $group -l westeurope
+
+az network nsg create -n ext-fw -g $group
+az network nsg create -n int-fw -g $group
+
+az network nsg rule create -n internet-to-ext \
+    --description "Komunikace z Internetu do ext subnetu" \
+    -g $group \
+    --nsg-name ext-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --destination-port-ranges "*" \
+    --source-address-prefixes Internet \
+
+az network nsg rule create -n ext-to-int \
+    --description "Komunikace z Internetu do ext subnetu" \
+    -g $group \
+    --nsg-name int-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --destination-port-ranges "*" \
+    --source-address-prefixes 10.0.0.0/24 \
+
+az network vnet create -g $group \
+    -n my-net \
+    --address-prefix 10.0.0.0/16 
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-ext \
+    --address-prefix 10.0.0.0/24 \
+    --network-security-group ext-fw
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-int \
+    --address-prefix 10.0.1.0/24 \
+    --network-security-group int-fw
+
+az network nsg create -n web-fw -g $group
+az network nsg create -n db-fw -g $group
+
+az network nsg rule create -n http \
+    --description "Povoleni http portu" \
+    -g $group \
+    --nsg-name web-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --destination-port-ranges 80
+
+az network nsg rule create -n db \
+    --description "Povoleni db portu" \
+    -g $group \
+    --nsg-name db-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --destination-port-ranges 1433
+
+az vm create -n web-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-ext \
+    --nsg web-fw \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n web-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-ext \
+    --nsg web-fw \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-int \
+    --nsg db-fw \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-int \
+    --nsg db-fw \
+    --size Standard_A1_v2 \
+    --no-wait</pre>
+<h1>Použití Application Security Group</h1>
+<p>ASG jsou sice už v GA, ale není pro ně podpora v portálu. Na rozdíl od všech předchozích scénářů si je tedy zatím nemůžete naklikat, musíte zatím použít CLI, PowerShell nebo ARM šablonu. Proč ASG? Použití subnetů nás sice odstínilo od nutnosti řešit individuální IP VM, ale stále musíme řešit IP rozsahy subnetů a navíc mít subnet pro každou dvojici mašin nemusí být přehledné ani efektivní (spotřeba IP prostoru, moc subnetů). ASG si vyzkoušíme tak, že se vrátíme k používání jediného subnetu s jedním NSG a role VM (aplikace) pořešíme s ASG. V zásadě se jedná o objekt, který sdružuje VMka (respektive jejich virtuální síťové karty) a s tímto objektem pak můžeme pracovat v definici pravidel v NSG. Přidáme pravidlo pro ASG DB a při vytváření VM řekneme, že patří do ASG DB. Když budeme potřebovat přidat další DB, stačí jen toto VM přiřadit do ASG. Nemusíme měnit žádná NSG pravidla, starat se o IP adresy.</p>
+<p>Takhle vypadá CLI skript a všimněte si, že tentokrát v něm vůbec neřešíme jakékoli IP či rozsahy.</p>
+<div>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell"># ALG
+export group=asg
+az group create -n $group -l westeurope
+az network asg create -n web-servers -g $group
+az network asg create -n db-servers -g $group
+az network nsg create -n my-fw -g $group
+
+az network nsg rule create -n http-to-web \
+    --description "Komunikace z Internetu na webove servery" \
+    -g $group \
+    --nsg-name my-fw \
+    --priority 101 \
+    --protocol Tcp \
+    --source-address-prefixes Internet \
+    --destination-asgs web-servers \
+    --destination-port-ranges 80
+
+
+az network nsg rule create -n web-to-db \
+    --description "Komunikace webove farmy do databaze" \
+    -g $group \
+    --nsg-name my-fw \
+    --priority 102 \
+    --protocol Tcp \
+    --source-asgs web-servers \
+    --destination-asgs db-servers \
+    --destination-port-ranges 1433
+
+
+az network vnet create -g $group \
+    -n my-net \
+    --address-prefix 10.0.0.0/16 
+
+az network vnet subnet create -g $group \
+    --vnet-name my-net \
+    -n my-net-sub1 \
+    --address-prefix 10.0.0.0/24 \
+    --network-security-group my-fw
+
+az vm create -n web-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg "" \
+    --asgs web-servers \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n web-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --nsg "" \
+    --asgs web-servers \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-01 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --public-ip-address "" \
+    --nsg "" \
+    --asgs db-servers \
+    --size Standard_A1_v2 \
+    --no-wait
+
+az vm create -n db-vm-02 \
+    -g $group \
+    --image UbuntuLTS \
+    --vnet-name my-net \
+    --subnet my-net-sub1 \
+    --public-ip-address "" \
+    --nsg "" \
+    --asgs db-servers \
+    --size Standard_A1_v2 \
+    --no-wait
+</pre>
+<p>Mimochodem variantu s ASG můžeme i dále kombinovat s NSG. Představme si situaci, kdy máme VNET a v něm chceme 10 aplikací, kdy každá má třeba 5 aplikačních rolí vždy v trojici instancí (web, app, db, fronta, auth server). V čistém per-subnet pohledu to vede na 50 subnetů. V per-VM pohledu na 150 VM s přiřazeným vlastním NSG. Kombinované řešení by bylo 10 subnetů pro aplikace s pravidly pro komunikaci mezi aplikacemi. Dále by v těchto NSG byly použity ASG, které by řešily komunikační pravidla mezi našimi pěti komponentami aplikace.</p>
+</div>
+<p>&nbsp;</p>
+<p><em>Nativní prostředky Azure sítě pro filtrování provozu mají ideální cenovku (zdarma) a ideální výkon (neřešíte ho). Nabízí flexibilitu a zabezpečení, které je myslím dostatečně pro většinu vašich IaaS potřeb a stojí za to je využívat. Pokud to celé chcete přikrýt enterprise firewallem nebo něco takového použít pro provoz mezi obchodními jednotkami či velkými projekty, proč ne - vyberte si z nabídky řešení třetích stran v Azure. A mimochodem řada z nich je integrovaná do Azure Security Center.</em></p>

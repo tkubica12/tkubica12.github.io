@@ -1,0 +1,261 @@
+---
+layout: post
+status: publish
+published: true
+title: Umožněte vývojářům jednoduše pustit aplikaci v Kubernetes clusteru s Draft
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1422
+wordpress_url: http://tomaskubica.cz/?p=1422
+date: '2017-09-08 05:13:36 +0000'
+date_gmt: '2017-09-08 04:13:36 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Kubernetes zejména v rámci Azure Container Service je moje nejoblíbenější platforma pro orchestraci kontejnerů - perfektní pro testování a provoz aplikací. Co kdyby tento cluster umožnil vývojářům jednoduše provést deployment svého kódu tak, aby se mohli podívat jak jim krásně běží? Pokud si vývojář umí sám vyrobit kontejnerový image, tak to není žádný problém. Ale musí to umět? Neměl by se vývojář soustředit na kód a netrápit se zkoumáním co je Docker, jak funguje, jak se v něm dá získat potřebné prostředí a jak do něj dostat můj kód? Tohle přesně řeší Draft - platforma nad Kubernetes specificky zaměřená na vývojáře - dostaňte svůj kód do Kubernetes v cloudu jediným příkazem.<!--more--></p>
+<h1>Získejme Kubernetes cluster v cloudu s Azure Container Service</h1>
+<p>O Azure ACS už jsem psal několikrát. Je to způsob jak jednoduše sestavit orchestrační cluster bez nutnosti manuální instalaci, konfigurace, síťového propojování, výměňování klíčů apod. S použitím Azure CLI udělám cluster rychle a snadno:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group create -n kube -l westeurope
+$ az acs create --orchestrator-type Kubernetes -g kube -n kube --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --agent-count 2 --agent-vm-size Standard_A1_v2
+</pre>
+<p>Nainstalujme si Kubernetes CLI a stáhneme si autentizační informace. Díky tomu můžeme přímo ze své stanice přistupovat do našeho nového Kubernetes clusteru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo az acs kubernetes install-cli
+$ az acs kubernetes get-credentials --resource-group kube --name kube</pre>
+<p>Teď už můžeme vyzkoušet Kubernetes CLI proti našemu clusteru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl get nodes
+
+NAME                    STATUS                     AGE       VERSION
+k8s-agent-8dfdf043-0    Ready                      2d        v1.6.6
+k8s-agent-8dfdf043-1    Ready                      2d        v1.6.6
+k8s-master-8dfdf043-0   Ready,SchedulingDisabled   2d        v1.6.6
+</pre>
+<h1>Přidáme registr obrazů</h1>
+<p>Naši vývojáři pracují na věcech, které by něměla vidět konkurence. Použijme proto privátní registr v Azure, tedy Azure Container Registry. Založíme si nový.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az acr create -g kube -n mujkuberegistr --sku Basic --admin-enabled true -l westeurope
+</pre>
+<p>Až to bude hotové opišme si heslo - buď v GUI nebo ho získáme také z CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az acr credential show -n mujkuberegistr --output tsv --query "passwords[0].value"
+
+3=68E/rXKWlT0+6WlmFs08a7NbpelUPe</pre>
+<h1>Nainstalujeme Helm</h1>
+<p>Draft využívá open source package manageru pro Kubernetes - Helm. O něm už jsem psal zde: <a href="https://tomaskubica.cz/helm-vas-package-manager-pro-kubernetes/">https://tomaskubica.cz/helm-vas-package-manager-pro-kubernetes/</a></p>
+<p>Stáhneme a provedeme inicializaci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ wget https://kubernetes-helm.storage.googleapis.com/helm-v2.5.1-linux-amd64.tar.gz
+$ tar -xvf helm-v2.5.1-linux-amd64.tar.gz
+$ sudo mv linux-amd64/helm /usr/bin/
+
+$ helm init
+$ helm repo update</pre>
+<h1>Nainstalujeme Draft</h1>
+<p>Výborně - Kubernetes cluster i Helm máme připraven, pustíme se do instalace Draft. Nejdřív nainstalujeme vstupní webovou proxy. Jejím smyslem je automaticky registrovat URL pro naše aplikace, která zprovozníme Draftem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ helm install stable/traefik --name ingress</pre>
+<p>Chvilku počkejte. Díky integrace Kubernetes s Azure dojde k deploymentu service a její registraci s externím load balancerem (Azure Load Balancer). Díky tomu dostane naše vstupní proxy externí IP adresu (v méme případě veřejnou, ale může to být i adresa z VNETu), což je přesně to, co potřebujeme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl get service ingress-traefik
+
+NAME              CLUSTER-IP     EXTERNAL-IP      PORT(S)                      AGE
+ingress-traefik   10.0.249.155   52.174.245.148   80:31846/TCP,443:31144/TCP   3m</pre>
+<p>Co potřebujeme dál je pro vývoj získat doménové jméno a založit wildcardový záznam ve vašem DNS serveru. Například zaregistrovat *.draft.mojedomena.cz, což způsobí, že když uživatel zadá mojeaplikace.draft.mojedomena.cz dostane se na externí IP clusteru. Odtamtud to půjde do našeho ingress-traefik, tedy webového proxy. Ta už bude vědět, jaké aplikace Draft rozchodil a pošle nás na příslušný kontejner. Já mám svou doménu hostovanou v Azure DNS, takže použiji CLI pro nastavení příslušného A záznamu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network dns record-set a add-record -n *.draft -a 52.174.245.148 -g shared-services -z azure.tomaskubica.cz
+</pre>
+<p>Stáhneme si Draft.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ wget https://github.com/Azure/draft/releases/download/v0.5.1/draft-v0.5.1-linux-amd64.tar.gz
+$ tar -xvf draft-v0.5.1-linux-amd64.tar.gz
+$ sudo mv linux-amd64/draft /usr/bin/</pre>
+<p>Teď provedeme inicializaci Draftu. V průběhu tohoto procesu dostaneme několik otázek. Zejména půjde login do repozitáře Docker obrazů (to namíříme na Azure Container Repository) a také informace o doménovém jménu pro Draft, které jsme si připravili.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ draft init
+
+Creating /home/tomas/.draft
+Creating /home/tomas/.draft/plugins
+Creating /home/tomas/.draft/packs
+Creating pack node...
+Creating pack python...
+Creating pack php...
+Creating pack ruby...
+Creating pack dotnetcore...
+Creating pack golang...
+Creating pack gradle...
+Creating pack maven...
+$DRAFT_HOME has been configured at /home/tomas/.draft.
+
+In order to install Draft, we need a bit more information...
+
+1. Enter your Docker registry URL (e.g. docker.io, quay.io, myregistry.azurecr.io): mujkuberegistr.azurecr.io
+2. Enter your username: mujkuberegistr
+3. Enter your password:
+4. Enter your org where Draft will push images [mujkuberegistr]:
+5. Enter your top-level domain for ingress (e.g. draft.example.com): draft.azure.tomaskubica.cz
+Draft has been installed into your Kubernetes Cluster.
+Happy Sailing!
+</pre>
+<h1>Pro vývojáře: spusť můj kód v cloudu</h1>
+<p>Teď už se dostáváme k vývojáři, který až dosud vůbec nemusel sledovat. To všechno byla infrastrukturní příprava. Pojďme si stáhnout primitivní Node.js aplikaci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ mkdir nodeapp
+$ cd nodeapp/
+$ wget https://github.com/Azure/draft/raw/master/examples/nodejs/index.js
+$ wget https://github.com/Azure/draft/raw/master/examples/nodejs/package.json
+</pre>
+<p>V souboru index.js je aplikace samotná a v package.json má (klasicky pro Node) popsané dependencies. Abychom takovou aplikaci spustili musíme mít rozchozený node, stáhnout dependencies a aplikaci odstartovat. Teď k tomu přidejte nutnost naplnit kontejner tak, aby se tohle všechno stalo a fungovalo to. Nic z toho aleřešit nemusíte!</p>
+<p>Vytvořme si Draft. Dojde k automatické detekci jazyka. To je důležité, protože draft mu musí rozumět, aby dokázal zajistit správné prostředí, instalaci dependencies a spuštění aplikace. K tomu používá build packy, které jsou velmi podobné těm v Heroku nebo Cloud Foundry.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ draft create -a appka
+--&gt; Node.js app detected
+--&gt; Ready to sail</pre>
+<p>Celé připravení kontejneru, instalace dependencies, nakopírování aplikace, spuštění, odeslání kontejneru do Kubernetes clusteru, zajištění URL a směrování provozu na vaši aplikaci bude teď v režii Draftu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ draft up
+--&gt; Building Dockerfile
+Step 1/4 : FROM node:6-onbuild
+6-onbuild: Pulling from library/node
+ad74af05f5a2: Pulling fs layer
+...
+Step 1/1 : ARG NODE_ENV
+ ---&gt; Running in d4dc6729f376
+Step 1/1 : ENV NODE_ENV $NODE_ENV
+ ---&gt; Running in 147f7208efa6
+Step 1/1 : COPY package.json /usr/src/app/
+Step 1/1 : RUN npm install &amp;&amp; npm cache clean --force
+ ---&gt; Running in 5d021411a264
+npm info it worked if it ends with ok
+npm info using npm@3.10.10
+npm info using node@v6.11.2
+npm info lifecycle example-nodejs@0.0.0~preinstall: example-nodejs@0.0.0
+npm info linkStuff example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~install: example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~postinstall: example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~prepublish: example-nodejs@0.0.0
+npm WARN example-nodejs@0.0.0 No description
+npm WARN example-nodejs@0.0.0 No repository field.
+npm WARN example-nodejs@0.0.0 No license field.
+npm info ok
+npm info it worked if it ends with ok
+npm info using npm@3.10.10
+npm info using node@v6.11.2
+npm WARN using --force I sure hope you know what you are doing.
+npm info ok
+Step 1/1 : COPY . /usr/src/app
+ ---&gt; 7b2881523f91
+Step 2/4 : EXPOSE 8080
+ ---&gt; Running in 6d56246ca0fe
+ ---&gt; 1d9d5f73853f
+Step 3/4 : RUN npm install
+ ---&gt; Running in ebc3dd18e043
+npm info it worked if it ends with ok
+npm info using npm@3.10.10
+npm info using node@v6.11.2
+npm info lifecycle example-nodejs@0.0.0~preinstall: example-nodejs@0.0.0
+npm info linkStuff example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~install: example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~postinstall: example-nodejs@0.0.0
+npm info lifecycle example-nodejs@0.0.0~prepublish: example-nodejs@0.0.0
+npm WARN example-nodejs@0.0.0 No description
+npm WARN example-nodejs@0.0.0 No repository field.
+npm WARN example-nodejs@0.0.0 No license field.
+npm info ok
+ ---&gt; 992aeaa0624e
+Step 4/4 : CMD npm start
+ ---&gt; Running in 0829fe41aa72
+ ---&gt; 63bca1a4c8c6
+Successfully built 63bca1a4c8c6
+Successfully tagged mujkuberegistr.azurecr.io/mujkuberegistr/appka:a8ad0a6bbada49d3d48ef49d7d8bc142a61f8764
+--&gt; Pushing mujkuberegistr.azurecr.io/mujkuberegistr/appka:a8ad0a6bbada49d3d48ef49d7d8bc142a61f8764
+The push refers to a repository [mujkuberegistr.azurecr.io/mujkuberegistr/appka]
+e1c73df9e261: Preparing
+...
+--&gt; Deploying to Kubernetes
+    Release "appka" does not exist. Installing it now.
+--&gt; Status: DEPLOYED
+--&gt; Notes:
+
+  http://appka.draft.azure.tomaskubica.cz to access your application
+
+Watching local files for changes...
+
+</pre>
+<p>Draft nejprve podle detekovaného programovacího jazyka stáhne základní kontejner s frameworkem. Do něj nakopíruje váš kód i package.json. Zajistí instalaci potřebných dependencies. Při těchto krocích vytváří nové vrstvy Docker obrazu. Výsledkem je hotový Docker image s vaší aplikací a vším co potřebuje ke svému běhu. V další fázi tedy Draft pošle tento kontejner do Kubernetes. To udělá s využitím Helm package manageru, takže se zajistí vytvoření potřebných deploymentů, balancování, URL a podobné věci. Na závěr nám píše kde svou aplikaci najdeme. Hotovo - aplikace běží na nové URL a můžeme si ji vyzkoušet v jiném okně nebo prohlížeči.</p>
+<div>
+<div>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl http://appka.draft.azure.tomaskubica.cz
+Hello World, I'm Node.js!</pre>
+<p>Kromě toho Draft čeká na změny zdrojových souborů. Stačí tedy v jiném okně zdroják upravit a Draft automaticky vytvoří nový kontejner image a tím ten běžící v Kubernetes nahradí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Watching local files for changes...
+--&gt; Building Dockerfile
+Step 1/4 : FROM node:6-onbuild
+# Executing 5 build triggers...
+Step 1/1 : ARG NODE_ENV
+ ---&gt; Using cache
+Step 1/1 : ENV NODE_ENV $NODE_ENV
+ ---&gt; Using cache
+Step 1/1 : COPY package.json /usr/src/app/
+ ---&gt; Using cache
+Step 1/1 : RUN npm install &amp;&amp; npm cache clean --force
+ ---&gt; Using cache
+Step 1/1 : COPY . /usr/src/app
+ ---&gt; cf369fccbd20
+Step 2/4 : EXPOSE 8080
+ ---&gt; Running in 477140e5fee0
+ ---&gt; 6d0a4f69943a
+Step 3/4 : RUN npm install
+ ---&gt; Running in f426a7b729b9
+npm info it worked if it ends with ok
+npm info using npm@3.10.10
+...
+Step 4/4 : CMD npm start
+ ---&gt; Running in 07d2c4dbb66d
+ ---&gt; 43d9456e4730
+Successfully built 43d9456e4730
+Successfully tagged mujkuberegistr.azurecr.io/mujkuberegistr/appka:ebc9899d7d3a918168a91d05020219772004407e
+--&gt; Pushing mujkuberegistr.azurecr.io/mujkuberegistr/appka:ebc9899d7d3a918168a91d05020219772004407e
+The push refers to a repository [mujkuberegistr.azurecr.io/mujkuberegistr/appka]
+1fee5dfe7070: Preparing
+...
+--&gt; Deploying to Kubernetes
+--&gt; Status: DEPLOYED
+--&gt; Notes:
+
+  http://appka.draft.azure.tomaskubica.cz to access your application
+
+Watching local files for changes...
+
+</pre>
+<p>Velmi rychle tak vidím výsledky změny svého kódu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">~$ curl http://appka.draft.azure.tomaskubica.cz
+Hello World, zmena je zivot!</pre>
+<p>Pod kapotou je, jak jsme říkali, použit Helm pro samotný deployment a řízení verzí aplikace.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ helm list
+NAME    REVISION        UPDATED                         STATUS          CHART           NAMESPACE
+appka   2               Sat Aug 12 18:43:31 2017        DEPLOYED        appka-0.1.0     default
+draft   1               Sat Aug 12 18:25:56 2017        DEPLOYED        draftd-v0.5.1   kube-system
+ingress 1               Fri Aug 11 18:57:06 2017        DEPLOYED        traefik-1.10.0  default
+
+
+$ helm status appka
+LAST DEPLOYED: Sat Aug 12 18:43:31 2017
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==&gt; v1/Service
+NAME         CLUSTER-IP  EXTERNAL-IP  PORT(S)   AGE
+appka-appka  10.0.51.80  &lt;none&gt;       8080/TCP  8m
+
+==&gt; v1beta1/Deployment
+NAME         DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+appka-appka  2        2        2           2          8m
+
+==&gt; v1beta1/Ingress
+NAME         HOSTS                             ADDRESS  PORTS  AGE
+appka-appka  appka.draft.azure.tomaskubica.cz  80       8m
+
+
+NOTES:
+
+  http://appka.draft.azure.tomaskubica.cz to access your application</pre>
+<p>A to je všechno. Jednoduché, účinné.</p>
+</div>
+<p><em>Použití Docker kontejnerů a Kubernetes v Azure přináší obrovské výhody z hlediska provozování a testování aplikací, ale nabízí i příjemné vlastnosti přímo pro vývojáře. Proč se ale mají učit takové složitosti? Draft umožní vývojářům jednoduše z adresáře se svým kódem říct "draft up" a za malou chviličku na nové URL vidět svůj kód běžet. Nemusí chápat co se pod tím vším vlastně všechno stalo. </em></p>
+<p>Draft je řešení pro vývojáře, který si chce vyzkoušet svůj kód v běhu konzistentním způsobem v cloudu. Jakmile je spokojen, provede Commit. Tím by měl vyvolat spuštění nějaké CI/CD pipeline a i v té může hrát Azure a Kubernetes obrovskou roli ... ale o tom někdy příště.</p>
+</div>

@@ -1,0 +1,51 @@
+---
+layout: post
+status: publish
+published: true
+title: Azure DDoS ochrana pro vaše aplikace
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2586
+wordpress_url: http://tomaskubica.cz/?p=2586
+date: '2018-11-12 05:51:20 +0000'
+date_gmt: '2018-11-12 04:51:20 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Mirai botnet v roce 2016 vedl na DDoS útok o síle 650 Gbps. O dva roky později bylo zneužito protokolu Memcached, který umožnil zesilující faktor 1:50000 a výsledkem byl globální útok kolem 1,3 Tbps. Týká se DDoS i vás? A jak se chránit s využitím Azure? Pomůže Azure i pro zdroje běžící u vás? Jsem v Azure chráněn automaticky nebo musím něco připlatit? <!--more--></p>
+<h1>DDoS</h1>
+<p>Cílem Denial of Service útoku je jak název napovídá především snížení kvality služby pod únosnou hranici ať už je to úplné zastavení nebo tak zoufalý výkon, že služba neplní svou funkci (zákazníci odcházejí). Cílem mohou být finanční ztráty (článek píšu 11. 11. kdy Alibaba má tradiční prodejní akci... loni dokázala během 15 minut udělat obrat, který v e-shopech generuje Česká Republika za celý rok), zejména teď před Vánoci. Druhá typická věc je reputace - když spustíte kontroverzní projekt ve státní správě a hned první den to nefunguje, určitě je to vítr do plachet některým skupinám. Kromě přímého omezení služby může být DDoS součástí infiltrační nebo maskovací strategie. Jednak je možné, že vaše systémy pod záteží odkryjí některé zranitelnosti nebo administrátoři ve snaze zachránit situaci udělají bezpečnostní chyby nebo v rámci svého sofistikovanějšího útoku potřebujete obránce zaměstnat něčím jiným.</p>
+<p>Pro úspěšný DoS může stačit odhalená chyba v aplikaci nebo protokolu. Něco, co jedním dotazem sestřelí proces a tak stačí posílat jeden dotaz za vteřinu a je vystaráno. Pokud tam ale chyba není bude "stačit" zavalit vaši aplikaci například požadavky o sestavení spojení. Na to ale potřebujete velkou sílu. Ideální tedy je ji rozložit do mnoha útočníků a koordinovaným způsobem zátěž generovat, tedy distribuovat DoS (= DDoS).</p>
+<h1>Typy DDoS útoků a ochrana před nimi</h1>
+<h2>Volumetrické útoky</h2>
+<p>První kategorií DDoS útoků jsou prostředky pro zahlcení linky díky využití zranitelnosti zesilujících útoků (DNS, NTP, SNMP, ...), spoofing, TCP/UDP/ICMP flooding apod.</p>
+<p>U těchto útoků je nepříjemné, že mohou být namířeny na vaši linku nebo firewall. Pokud máte do serverovny 1 Gbps připojení k Internetu nebude složité pro útočníka ho zcela zahltit. Pokud vás má před DDoS chránit krabička s nějakou kapacitou, útok bude fungovat na krabičku samotnou.</p>
+<p>Ochrana typicky spočívá ve statistice a strojovém učení. Koukáte na flow informace a identifikujete podezřelé změny nebo strukturu provozu, ale samotná detekce není v cestě paketu (tedy neovlivňuje výkon sítě). V okamžiku, kdy odhalíte něco podezřelého, necháte si pakety směrovat přes DDoS bezpečnostní systém. Ten už vidí kompletní pakety a dokáže od sebe oddělit legitimní provoz od útoku, který zahazuje. Tato DDoS komponenta musí mít velkou kapacitu, aby dokázala chránit před dnešními útoky - tedy v Tbps.</p>
+<p>Tímto se v Azure zabývá právě DDoS Protection.</p>
+<h2>Protokolové útoky</h2>
+<p>Historicky bylo objeveno mnoho zajímavých zranitelností způsobených nečekaným formátem protokolu. Dříve to byly vychytávky typu LAND útok (paket poslaný s podvrženou zdrojovu IP cíle, který začal odpovídat dokola sám sobě), ping smrti (hodně velký paket, s kterým OS nepočítal), ale i modernější věci typu nekorektní TCP/IP hlavičky, podivně fragmentované pakety apod.</p>
+<p>Protokolové útoky zachycue DDoS Protection, ale podobné funkce nabízí i Web Application Firewall jako je Azure Application Gateway nebo WAF třetí strany v Azure (F5, Imperva, FortiWeb, Barracuda, ...). Klíčový je tady objem - řada protokolových útoků je současně masivní (například ACK fragmentace), takže Azure DDoS Protection je obvykle lepší místo pro jejich zachycení.</p>
+<h2>Aplikační útoky</h2>
+<p>Sofistikovanější útoky probíhají až na aplikační vrstvě. Klasiky typu SQL injection nebo cross-site scripting vyžadují od řešení nutnost dívat se do obsahu paketů, tím pádem často také terminovat TLS (jinak šifrovanému provozu nerozumí) a tak podobně. Komunikace je nutné sledovat v nějakém kontextu a srovnávat komplexní vzorce.</p>
+<p>Tomu se Azure DDoS protection nevěnuje - tuto část řeší WAFka typu Azure Application Gateway nebo třetí strana.</p>
+<h1>Zesilující protokoly</h1>
+<p>Jedním ze zásadních prostředků pro volumetrické útoky jsou protokoly, které mají zesilující efekt. Pošlete nějaký dotaz a oni vrátí odpověď, která je větší, než byl původní dotaz. Pak je ale ještě potřeba, aby se systém nechal obalamutit tak, že odpověď pošle ne tazateli, ale na cíl a současně cíl je ochoten paket nějak zpracovávat. Ideální jsou tedy UDP (není sestavená session, takže cíl kouká do každého paketu) a spoofing na protokolech jako je DNS (1:179), NTP (1:556) nebo už zmíněný memcached (1:50000). Pro útočníka je ideální najít tato nezabezpečená zesilující zrcadla.</p>
+<h1>Botnety aneb každý se může stát jednoduše vojákem i generálem</h1>
+<p>Další velmi častou variantou je získání vojáků přes malware. Počítač nebo jakékoli jiné zařízení připojené do Internetu (velmi známá historka byla s  domácími chytrými LED žárovkami) se po nakažení spojí s Command and Control serverem a čeká na instrukce. Tento generál pak ovládá tísíce i statisíce zařízení a v jeden okamžik jim může zadat příkaz k posílání provozu na zvolený cíl. Tyto botnety jsou obchodní artikl - dají se pronajmout.</p>
+<p>Kdokoli se může stát nechtěně vojákem - stačí nakažený počítač či televize. Kdokoli se může stát generálem - stačí si pronajmout botnet, ceny se pohybují v desítkách USD za hodinu.</p>
+<h1>Azure DDoS Protection Basic</h1>
+<p>Používáte Azure DNS? Je to stejná DNS, kterou Microsoft provozuje pro Office365, Dynamics, XBOX apod. Je jasné, že je častým terčem DDoS útoků a Azure ji musí dobře chránit. Totéž platí pro další klíčové služby v oblasti SaaS, ale i Azure portál, ovládání platformních služeb, Power BI. Datová centra Azure jsou chráněna DDoS ochranou. Pro vaši představu vychází to z flow analytiky a odkloněný podezřelý provoz jde do filtračních platforem (právě ty rozeznají útok od užitečného provozu), která mají globálně kapacitu přes 25 Tbps.</p>
+<p>Tato technologie vydržela memcached útok (1,3 Tbps) a dlouhodobě chrání komerční služby Microsoftu, kde každou hodinu likviduje stovky DDoS útoků.</p>
+<p>Pokud bude moje aplikace v Azure je chráněna před DDoS zdarma? Ano a ne. Azure DDoS Basic chrání datové centrum jako takové, klíčové SaaS a platformní služby. Při masivním útoku na Azure bude datové centrum ochráněno a nedojde k degradaci služeb, které jsou pro vaši aplikaci zásadní, jako je například networking. Pokud  ověřujete uživatele přes Azure Active Directory, DNS vedete v Azure DNS a nasazujete přes Azure DevOps (bývalé VSTS), tyto služby jsou chráněny. A když provozujete webovku ve VM nebo v App Services? Pokud na ni bude veden masivní DDoS třeba 10 Gbps, tak ano. Pokud se povede útok ne cíleně na vás, ale na celý Azure (ale vás se dotýká také), tak ano. Pokud se ale někdo zaměří na vaši aplikaci konkrétně, záleží na tom, kolik provozu ustojí. Pokud vaše appka žuchne už při 500 Mbps, Azure DDoS Protection Basic nebude reagovat dostatečně citlivě a neochrání vás. Zejména pro ochranu před cílenými útoky se poohlédněme po Azure DDoS Protection Standard.</p>
+<h1>Azure DDoS Protection Standard</h1>
+<p>Za měsíční paušál + poplatek za ochránený provoz si můžete pořídit Azure DDoS Standard, který je zatím zaměřen na vaše IaaS prostředí (nebo PaaS uvnitř VNETu jako je ASE, AKS, Service Fabric apod.), tedy jeho veřejné IP (PaaS zatím ne, ale je to v plánu). Co vám dává navíc?</p>
+<p>Především je tady strojové učení specificky pro vaše endpointy. DDoS se učí právě vaše aplikace a chrání konkrétně vás, strojové učení se zabývá každou vaší public IP detailně. Pokud se někdo zaměří  na vás, tato úroveň ochrany vám pomůže. Všechno funguje plně automaticky a nemusíte nic nastavovat. K dispozici máte telemetrii a alerty v okamžiku, kdy se stanete terčem útoku. Po mitigaci útoku také dostanete další užitečné údaje o tom, jak útok vypadal včetně vzorků. Velkou výhodou je přísup k DDoS týmu a u velkých útoků vás bude přímo kontaktovat response tým expertů na tuto oblast. V ceně služby je také sleva na Azure Application Gateway WAF, protože tahle kombinace dává velký smysl.</p>
+<p>Kolik to stojí a jaká jsou SLA? Základní paušál stojí asi 2500 EUR měsíčně (ale platba je po hodinách) a nemusíte dělat žádný dlouhodobý závazek. V ceně je 100 chráněných zdrojů, čímž je myšlena veřejná IP adresa (například VM s public IP, Azure Load Balancer s public IP, Azure App Service Environment s public IP, WAFka s public IP apod.), ale dá se přikoupit víc. Dále se platí za objem kontrolovaného provozu, 1 TB vyjde na asi 180 EUR. Služba má SLA 99,99%, ale co je ještě zajímavější, že poskytuje "pojištění" pro dokumentované útoky, které vedly k nárůstu nákladů za přenosové pásmo a scale-out (tzn. pokud vaše aplikace využívá autoškálování a spotřeba zdrojů se v průběhu útoku zvýší, Azure vám u dokumentovaného útoku vrátí tyto peníze navíc, když máte DDoS Protection Standard).</p>
+<p>&nbsp;</p>
+<p><em>Dejte své aplikace do datového centra, které je chráněno před DDoS na nejlepší možné úrovni. Centra, ve kterých běží i Office365, Azure DNS, Azure Active Directory a XBOX, klíčové služby Microsoftu. Útok na datové centrum spolehlivě ochrání a s ním i jeho síť, řídící systémy a všechny další komponenty potřebné pro běh vaší aplikace. Pokud se bojíte, že se někdo zaměří přímo na vaši konkrétní aplikaci, pořiďte si Azure DDoS Protection Standard. Azure se tak bude s ochranou ladit přímo na vaši konkrétní situaci. Zkuste si to, stačí kliknout v nastavení VNETu.</em></p>

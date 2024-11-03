@@ -1,0 +1,290 @@
+---
+layout: post
+status: publish
+published: true
+title: Autentizace aplikací i bez psaní kódu s Azure App Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1285
+wordpress_url: http://tomaskubica.cz/?p=1285
+date: '2017-08-28 05:27:59 +0000'
+date_gmt: '2017-08-28 04:27:59 +0000'
+categories:
+tags:
+- AAD
+- AppService
+---
+<p>Vaše aplikace v Azure platformě můžete zabezpečit s Azure Active Directory včetně vícefaktorového ověřování a synchronizace s on-premise Active Directory bez napsání jediné řádky kódu. Totéž dokážete třeba pro Google, Twitter nebo Microsoft konzumerský účtet. Jak nasadit veřejnou a zabezpečenou část webu? Jak implementovat autorizaci na základě členství uživatele v security group ve vaší aplikaci? A co když chcete využít mocného Microsoft Graph a zjistit třeba jméno nadřízeného přihlášeného uživatele? To všechno si dnes vyzkoušíme.<!--more--></p>
+<h1>Jednoduchá autentizace přes Azure Active Directory</h1>
+<p>Nejjednodušší způsob jak zabezpečit vaši privátní webovou aplikaci v Azure App Service je napojení na Azure Active Directory. Doslova po pár kliknutích bez psaní jakéhokoli kódu získáte robustní ověřování včetně vícefaktorového a díky možnosti synchronizace vašeho Active Directory s Azure Active Directory rovnou s účty a hesly vaší organizace. Pojďme si to vyzkoušet.</p>
+<p>Nejprve k aplikaci - použiji primitivní Node.js aplikaci, ale rovnou uděláme jednu důležitou věc. App Service naší serverové aplikaci dává informaci o zalogovaném uživateli do hlavičky requestu, takže můžeme na našem webu rovnou zobrazit přihlášeného uživatele. Mimochodem pokud tuto informaci potřebujete do klientské části aplikace i to pro vás platforma zajistila - ze zalogované klienstké části aplikace se můžete podívat na URI /.auth/me kde najdete totéž (využijeme později). Ale žádný autentizační kód psát nebudeme, to všechno pro nás zajistí platforma.</p>
+<div></div>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express')
+var app = express()
+
+app.get('/', function (req, res) {
+    res.send('Prihlasen je ' + req.header('x-ms-client-principal-name'));
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Půjdeme do nastavení aplikace a zapneme autentizaci.</p>
+<p id="umYuARn"><img class="img-fluid wp-image-1287 " src="/images/2017/img_59849337246c8.png" alt="" /></p>
+<p>Následuje důležitá volba - co má platforma dělat, pokud se na jakoukoli stránku pokusí přistoupit nepřihlášený uživatel? První volba je nedělat nic (tu si popíšeme až v další kapitolce), tedy platforma to pustí dál. Jinak řečeno vaše aplikace se musí podívat do headeru, kde zjistí jestli je přihlášen nějaký uživatel nebo ne, a rozhodnout se, zda přístup na stránku umožní (veřejná sekce webu) nebo zakáže (privátní sekce webu). Ve druhém případě stačí provést redirect na přihlašovací mechanismus platformy.</p>
+<p>My začneme jednodušší situací - jakýkoli přístup bude podléhat autentizaci. Nemusíme tak napsat vůbec žádný kód a přitom vždy máme jistotu, že pouze přihlášený uživatel uvidí jakoukoli z našich stránek. Použít můžeme integraci s Facebook, Google, konzumerské Microsoft účty, Twitter, ale já půjdu do Azure Active Directory (začneme firemní aplikací, řešení pro zákazníky a jejich registraci přidáme později).</p>
+<p id="zCndlXc"><img class="img-fluid wp-image-1288 " src="/images/2017/img_5984938280e54.png" alt="" /></p>
+<p>Pak klikneme na nastavení AAD autentizační metody.</p>
+<p id="lHDKVls"><img class="img-fluid wp-image-1289 " src="/images/2017/img_5984946ee1554.png" alt="" /></p>
+<p>Nejjednoduší je použít expresní režim. V něm se pro vás automaticky zaregustruje vaše aplikace v AAD a nakonfigurují se potřebné klíče. Velmi jednoduché.</p>
+<p id="bnHlTzG"><img class="img-fluid wp-image-1290 " src="/images/2017/img_598494bc47ed7.png" alt="" /></p>
+<p>Já ve svém příkladě musím zvolit pokročilý režim, protože moje aplikace poběží v jiném tenantu, než vůči kterému chci ověřovat a to expresní režim neumožňuje (například pokud ve svém vlastním tenantu provozujete jako SaaS dodavatel aplikaci pro zákazníka, která se bude ověřovat vůčit jeho AAD). Postup je následující. V AAD přidám registraci aplikace se Sign-in URL odpovídajícím naší Web App.  Pak se jde do konfigurace této aplikace v AAD a do Reply URL se dá URL naší appky s přidaným /.auth/login/aad/callback. Pak si nakopíruji Appliaction ID (použiji jako Client ID v nastavení ověření) a abychom si mohli vytvořit Issuer URL získáme Directory ID v hlavním nastavení AAD (ta bude https://stm.windows.net/DirectoryID). Pokročilé nastavení App Service autentizace pak vypadá takhle:</p>
+<p id="tpAekjN"><img class="img-fluid wp-image-1292 " src="/images/2017/img_5984999d45be3.png" alt="" /></p>
+<p>Uložme všechna nastavení a v anonymním okně otevřeme naší Web App, tedy mojeauthapp.azurewebsites.net. Místo stránky aplikace budeme přesměrování na přihlašovací stránku.</p>
+<p id="IXaMVBK"><img class="img-fluid wp-image-1293 " src="/images/2017/img_59849a149147a.png" alt="" /></p>
+<p>Zaloguji se.</p>
+<p id="rUVOyQN"><img class="img-fluid wp-image-1294 " src="/images/2017/img_59849a3e683d9.png" alt="" /></p>
+<p>Povedlo se! A z headeru jsme si v aplikaci načetli kdo je přihlášený.</p>
+<p id="cjiipGH"><img class="img-fluid wp-image-1295 " src="/images/2017/img_59849ad1d46d2.png" alt="" /></p>
+<p>Žádný kód a při tom velmi bezpečné robustní řešení přihlašování včetně podpory vícefaktorové autentizace a pokročilých řešení zabezpečení jako je Azure Identity Protection. Jednoduché a bez práce. Použití tahle jednoduchá varianta najde i v případě, kdy produkční aplikace používá něco složitějšího a to například v Dev prostředí (vývojář si potřebuje vyzkoušet své změny a tak je pošle do Dev deployment slotu, ale nechce, aby se k aplikaci dostal někdo z veřejnosti) nebo pro beta testery apod.</p>
+<h1>Jednoduchá autentizace přes Google</h1>
+<p>Postup nastavení ověřování přes Google je prakticky stejný, jako u Azure Active Directory v pokročilém režimu, kdy jsme registraci prováděli ručně (stejně technologie funguje i s dalšími možnostmi ověřování). Ve vyhládavači najděte stránky Google APIs a vytvořte nový projekt.</p>
+<p id="hQsNslo"><img class="img-fluid wp-image-1297 " src="/images/2017/img_5984b082c97a4.png" alt="" /></p>
+<p id="RuBFpcf"><img class="img-fluid wp-image-1298 " src="/images/2017/img_5984b0a608e8c.png" alt="" /></p>
+<p>Zapneme Google+ API.</p>
+<p id="rbTPVgQ"><img class="img-fluid wp-image-1299 " src="/images/2017/img_5984b127aabbd.png" alt="" /></p>
+<p>Nastavíme jméno aplikace.</p>
+<p id="BWguDTH"><img class="img-fluid wp-image-1300 " src="/images/2017/img_5984b17cafe16.png" alt="" /></p>
+<p>Dále musíme vytvořit OAuth ID credentials a zadat callback URL.</p>
+<p id="WtcoerC"><img class="img-fluid wp-image-1301 " src="/images/2017/img_5984b1fccb724.png" alt="" /></p>
+<p>Pak si nakopírujeme Client ID.</p>
+<p id="bXTfQKc"><img class="img-fluid wp-image-1302 " src="/images/2017/img_5984b22eda0c0.png" alt="" /></p>
+<p>Tyto údaje zadáme v nastavení autentizace v App Service.</p>
+<p id="GTDZNma"><img class="img-fluid wp-image-1303 " src="/images/2017/img_5984b28e0a78f.png" alt="" /></p>
+<p>Přepneme přihlašování na Google a pojďme vyzkoušet! Otevřeme nové anonymní okno a připojíme se na stránky. Jsme přesměrování na Google login.</p>
+<p id="qmGJcoL"><img class="img-fluid wp-image-1304 " src="/images/2017/img_5984b2e31613a.png" alt="" /></p>
+<p>Po přihlášení nám všechno funguje.</p>
+<p id="INulfQD"><img class="img-fluid wp-image-1305 " src="/images/2017/img_5984b30bdd6e0.png" alt="" /></p>
+<h1>Veřejná a privátní část webu</h1>
+<p>Možná vaše aplikace potřebuje mít veřejně přístupnou část, ale také speciální sekci jen pro přihlášené. To Azure App Service umožňuje, ale musíme zajistit, že se před zobrazením stránky naše aplikace rozhodne co ukázat a co ne. Navíc proces přesměrování na přihlašovací obrazovku je na nás. Například v .NET se to dá řešit poměrně elegantně v rámci web.config.</p>
+<p>Nastavíme povolení přístupu i nepřihlášených uživatelů.</p>
+<p id="HYFLlQP"><img class="img-fluid wp-image-1307 " src="/images/2017/img_5984b7827aadb.png" alt="" /></p>
+<p>Naši aplikaci si teď upravíme. Pokud nebude nikdo přihlášen, zobrazíme stránku umožňující přihlášení pomocí AAD a Google. Půjde o odkazy na .auth/login/provider kde provider v mém případě bude aad nebo google.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express')
+var app = express()
+
+app.get('/', function (req, res) {
+    var aadlogin = 'Prihlaisit se pres &lt;a href="./.auth/login/aad"&gt;AAD&lt;/a&gt;&lt;br&gt;'; 
+    var googlelogin = '\nPrihlasit se pres &lt;a href="./.auth/login/google"&gt;Google&lt;/a&gt;&lt;br&gt;'; 
+    var user = req.header('x-ms-client-principal-name');
+    var stranka = '';
+    if (user == undefined) {
+        stranka = 'Nikdo neni prihlasen&lt;br&gt;' + aadlogin + googlelogin;
+    } else {
+        stranka = 'Prihlasen je ' + user;
+    }
+    res.send(stranka);
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Takhle vypadá stránka u nově otevřeného anonymního okna.</p>
+<p id="FshqwPb"><img class="img-fluid wp-image-1308 " src="/images/2017/img_5984b85d9f24e.png" alt="" /></p>
+<p>Po přihlášení se obsah naší stránky změní.</p>
+<p id="bErdGvB"><img class="img-fluid wp-image-1309 " src="/images/2017/img_5984b8aa8835c.png" alt="" /></p>
+<p>Takto primitivně jsme si tedy ukázali, že můžeme v kódu převzít odpovědnost za to, které stránky vyžadují přihlášení a jaké ne a zajistíme odkazy na zalogování případně odhlášení.</p>
+<h1>Autorizace přes členství ve skupině přečtením claimu</h1>
+<p>Zůstaneme ve scénáři uživatelů ověřovaných přes Azure Active Directory a ukážeme si jednoduchý způsob, jak zjistit členství zalogovaného uživatele v Security Group. Využijeme toho, že AAD může do claimu poslat členství ve skupinách a tento claim si můžeme bez složitého kódu přečíst na adrese /.auth/me. Nemusíme přistupovat do AAD. Nicméně musím upozornit na omezení počtu vrácených skupin - do claim jich AAD dá maximálně 200 (pokud máte hodně složité prostředí, kdy je uživatel ve stovkách skupin, není to řešení pro vás).</p>
+<p>Nejprve zapneme uvádění skupin v claimu. Najděte registrace naší aplikace v AAD (pokud jste použili expresní metodu portál to vytvořil za vás a název bude odpovídat pojmenování aplikace).</p>
+<p id="sWIAIcc"><img class="img-fluid wp-image-1311 " src="/images/2017/img_59856bf92a5f2.png" alt="" /></p>
+<p>Upravíme manifest.</p>
+<p id="rznwnvo"><img class="img-fluid wp-image-1312 " src="/images/2017/img_59856c17bb21f.png" alt="" /></p>
+<p>Změňte zasílání skupin z null na SecurityGroup (můžete také použít All, pakliže vás zajímají i distribuční listy).</p>
+<p id="iBLbUxf"><img class="img-fluid wp-image-1313 " src="/images/2017/img_59856c66d35fd.png" alt="" /></p>
+<p>Já mám dvě skupiny s tím, že můj uživatel je členem jen skupina1.</p>
+<p id="VYuIWsz"><img class="img-fluid wp-image-1315 " src="/images/2017/img_59856da13846f.png" alt="" /></p>
+<p>Pozměníme si teď náš kód. Chceme přistupovat na /.auth/me - to lze udělat jednoduše ze strany klienta, ale já to teď chci ze strany serveru. Zavolám tedy z node.js přes request tuto URL a do požadavku nakopíruji cookie přicházející od klienta. Prozatím jen výstup vezmeme a zparsujeme do JSON a vypíšeme na web.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express');
+var app = express();
+var request = require('request');
+
+app.get('/', function (req, res) {
+    var aadlogin = 'Prihlasit se pres &lt;a href="./.auth/login/aad"&gt;AAD&lt;/a&gt;&lt;br&gt;'; 
+    var googlelogin = '\nPrihlasit se pres &lt;a href="./.auth/login/google"&gt;Google&lt;/a&gt;&lt;br&gt;'; 
+    var user = req.header('x-ms-client-principal-name');
+    var stranka = '';
+    if (user == undefined) {
+        stranka = 'Nikdo neni prihlasen&lt;br&gt;' + aadlogin + googlelogin;
+    } else {
+        stranka = 'Prihlasen je ' + user + '&lt;br&gt;';
+    }
+    res.write(stranka);
+    
+    var options = {
+      url: 'https://mojeauthapp.azurewebsites.net/.auth/me',
+      headers: {
+        "accept-encoding": "identity",
+        "cookie": req.header('cookie')
+    }
+    };
+        request(options, function (error, response, body) {
+            if (body) {
+                json = JSON.parse(body);
+                res.write(JSON.stringify(json));
+            }
+        res.end();
+    });
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Otevřeme stránku (nové anononymní okno, ať se znova přihlašujeme) a přihlásíme se přes AAD. Tady bude výstup:</p>
+<p id="FPmaUfE"><img class="img-fluid wp-image-1317 " src="/images/2017/img_59856fa20c11e.png" alt="" /></p>
+<p>Překopíruji si do Visual Studio Code a použiji Prettify. Kromě jména, příjmení a tak podobně najdeme i sekci groups.</p>
+<p id="mLPsKvB"><img class="img-fluid wp-image-1318 " src="/images/2017/img_5985703764b7c.png" alt="" /></p>
+<p>Co je to za ošklivou hodnotu? To je ID skupiny - to dohledáme v GUI.</p>
+<p id="zSFxKCg"><img class="img-fluid wp-image-1319 " src="/images/2017/img_5985708eb606e.png" alt="" /></p>
+<p>Jasně, není to nejpohodlnější, ale pro jednodušší scénáře to stačí. Pokročilejší řešení je používat Graph API, ale o tom později.</p>
+<p>Pojďme teď náš kód upravit tak, abychom zjistili, zda je uživatel členem skupina1 nebo není.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">var express = require('express');
+var app = express();
+var request = require('request');
+
+app.get('/', function (req, res) {
+    var aadlogin = 'Prihlasit se pres &lt;a href="./.auth/login/aad"&gt;AAD&lt;/a&gt;&lt;br&gt;'; 
+    var googlelogin = '\nPrihlasit se pres &lt;a href="./.auth/login/google"&gt;Google&lt;/a&gt;&lt;br&gt;'; 
+    var user = req.header('x-ms-client-principal-name');
+    var stranka = '';
+    if (user == undefined) {
+        stranka = 'Nikdo neni prihlasen&lt;br&gt;' + aadlogin + googlelogin;
+    } else {
+        stranka = 'Prihlasen je ' + user + '&lt;br&gt;';
+    }
+    res.write(stranka);
+    
+    var options = {
+      url: 'https://mojeauthapp.azurewebsites.net/.auth/me',
+      headers: {
+        "accept-encoding": "identity",
+        "cookie": req.header('cookie')
+    }
+    };
+    if (user != undefined) {
+        request(options, function (error, response, body) {
+            if (body) {
+                json = JSON.parse(body);
+                var group = 'efe61e7a-59a4-4dd2-9d3d-386077ce22c5';
+                var isMember = false;
+                for (var i = 0; i &lt; json[0].user_claims.length; i++) {
+                    if (json[0].user_claims[i].typ == "groups")
+                        if (json[0].user_claims[i].val == group)
+                            isMember = true;
+                }
+            if (isMember) res.write('Uzivatel je clenem skupina1')
+                else res.write('Uzivatel neni clenem skupina1');
+            res.end();
+            }});
+        }
+        else res.end();
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Nejprve vyzkoušíme uživatele, který je členem skupina1.</p>
+<p id="lekBmwy"><img class="img-fluid wp-image-1321 " src="/images/2017/img_59857af9194fa.png" alt="" /></p>
+<p>A pak jiného, který členem není.</p>
+<p id="emXiBUI"><img class="img-fluid wp-image-1322 " src="/images/2017/img_59857d70cd9b9.png" alt="" /></p>
+<p>Princip je zřejmý, teď už je na skutečných programátorech začlenit hezky a udržitelně tuto možnost autorizace do své aplikace.</p>
+<h1>Pokročilá autorizace s Microsoft Graph</h1>
+<p>Přes /.auth/me dostáváme dost užitečných informací - id, jméno uživatele a dokonce i členství v security group. Nicméně v adresáři je toho daleko víc. Autentizace v App Service vám při správném nastavení umožňí ve jménu přihlášeného uživatele získat token na čtení přes Graph API. Samozřejmě ale toto řešení bych používal skutečně jen u interních aplikací - pro něco spravovaného externím subjektem postačí běžná autentizace/autorizace, která neodhaluje další detaily uživatelů.</p>
+<p>Nejprve v Azure Active Directory u registrace naší aplikace klikneme na její práva.</p>
+<p id="DLzRNIa"><img class="img-fluid wp-image-1324 " src="/images/2017/img_5985a97b26ba1.png" alt="" /></p>
+<p>Přidělíme práva pro čtení v adresáři. Jsme upozorněni, že musíme pro  aplikaci zajistit ještě klíč, k tomu se vrátíme.</p>
+<p id="NWtGLhD"><img class="img-fluid wp-image-1325 " src="/images/2017/img_5985aa3babb61.png" alt="" /></p>
+<p>Teď musíme pro aplikaci vytvořit klíč. Vyplňte název a délku platnosti a při kliknutí na Save se vám ukáže klíč - ten si nakopírujte.</p>
+<p id="IVGWREm"><img class="img-fluid wp-image-1326 " src="/images/2017/img_5985ab026069e.png" alt="" /></p>
+<p>Pro následující krok v nastavení zatím není dostupné GUI v portále. Abychom nemuseli přímo do API, použijeme resource explorer (resources.azure.com). Do additionalLoginParams vložíme</p>
+<p>["response_type=code id_token", "resource=https://graph.microsoft.com/v1.0/me/"]</p>
+<p>Do clientSecret vložte klíč, který jsme získali dříve.</p>
+<p id="FvvvSqa"><img class="img-fluid wp-image-1333 " src="/images/2017/img_59860d10de198.png" alt="" /></p>
+<p>V tuto chvíli pro nás App Service zajistí oprávnění pro čtení Microsoft Graph. Změníme tedy náš kód tak, aby načetl jméno nadřízeného přihlášeného uživatele.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express');
+var app = express();
+var request = require('request');
+
+app.get('/', function (req, res) {
+    var aadlogin = 'Prihlasit se pres &lt;a href="./.auth/login/aad"&gt;AAD&lt;/a&gt;&lt;br&gt;'; 
+    var googlelogin = '\nPrihlasit se pres &lt;a href="./.auth/login/google"&gt;Google&lt;/a&gt;&lt;br&gt;'; 
+    var user = req.header('x-ms-client-principal-name');
+    var stranka = '';
+    if (user == undefined) {
+        stranka = 'Nikdo neni prihlasen&lt;br&gt;' + aadlogin + googlelogin;
+    } else {
+        stranka = 'Prihlasen je ' + user + '&lt;br&gt;';
+    }
+    res.write(stranka);
+    
+    var options = {
+      url: 'https://mojeauthapp.azurewebsites.net/.auth/me',
+      headers: {
+        "accept-encoding": "identity",
+        "cookie": req.header('cookie')
+    }
+    };
+    if (user != undefined) {
+        request(options, function (error, response, body) {
+            if (body) {
+                json = JSON.parse(body);
+                var group = 'efe61e7a-59a4-4dd2-9d3d-386077ce22c5';
+                var isMember = false;
+                for (var i = 0; i &lt; json[0].user_claims.length; i++) {
+                    if (json[0].user_claims[i].typ == "groups")
+                        if (json[0].user_claims[i].val == group)
+                            isMember = true;
+                }
+            if (isMember) res.write('Uzivatel je clenem skupina1')
+                else res.write('Uzivatel neni clenem skupina1');
+            graphUrl = 'https://graph.microsoft.com/v1.0/me/manager';
+            graphString = {'auth': {'bearer': req.header('x-ms-token-aad-access-token')}};
+            request.get(graphUrl, graphString, function (err, response, graphData) {
+                managerJson = JSON.parse(graphData);
+                res.write('&lt;br&gt;Tvuj nadrizeny je ' + managerJson.displayName)
+                res.end();
+                });
+            }});
+        }
+        else res.end();
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Celé API je velmi mocné. Co dalšího s ním můžete dělat si prohlédněte zde: <a href="https://developer.microsoft.com/en-us/graph/graph-explorer">https://developer.microsoft.com/en-us/graph/graph-explorer</a></p>
+<p id="InmMQkm">Otevřeme aplikaci v novém anonymním okně a přihlásíme se. Všimněte si, že naše aplikace teď požaduje nové oprávnění, které musíme přijmout.</p>
+<p id="WMoMEWu"><img class="img-fluid wp-image-1331 " src="/images/2017/img_59860714dce6b.png" alt="" /></p>
+<p>Podívejme se na výsledek.</p>
+<p id="CMbBtkv"><img class="img-fluid wp-image-1334 " src="/images/2017/img_5986e8d1a8eed.png" alt="" /></p>
+<h1></h1>
+<p><em>Azure App Service v kombinaci s Azure Active Directory nabízí nesmírně robustní autentizaci a autorizaci a přitom je to daleko jednodušší, než psát si takové funkce samostatně. Pro některé scénáře jsme nemuseli napsat ani jednu řádku kódu. Pro ty složitější nám stačí přidat jen pár drobností a jednoduše se dostaneme k security group uživatele nebo nám platforma zprostředkuje token pro přímý přístup k Microsoft Graph API pro přihlášeného uživatele.</em></p>
+<p>Zbývá nám ještě jedna sada scénářů. Jak řešit registraci a přihlašování zákazníků, tedy osob, které nejsou ve firemní AAD? Jak ověřovat platnost jejich emailu vloženého při registraci? Kolik kódu budu muset napsat? Příště se podíváme na Azure Active Directory B2C v kombinaci s App Service - to přesně tuto problematiku řeší velmi elegantně a joko službu bez nutnosti psát a udržovat složitý kód!</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

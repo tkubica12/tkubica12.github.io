@@ -1,0 +1,257 @@
+---
+layout: post
+status: publish
+published: true
+title: Pohodlný deployment aplikací do Azure App Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1152
+wordpress_url: http://tomaskubica.cz/?p=1152
+date: '2017-08-07 04:52:40 +0000'
+date_gmt: '2017-08-07 03:52:40 +0000'
+categories:
+tags:
+- AppService
+- Automatizace
+---
+<p>Podívejme se dnes na způsoby, jakými můžete ručně i automaticky provést deployment aplikace do App Service, nejpopulárnější platformní služby v Azure. Uvidíte jednoduchou instalaci z Visual Studio, Eclipsu, deployment přes FTP, Git, GitHub, Visual Studio Team Services, DropBox i doručení ve formě Docker kontejneru.<!--more--></p>
+<h1>Nechť existuje servisní plán</h1>
+<p>Pro dnešní ukázku jsem si připravil App Service Plan ve variantě Standard, ale zmíněné deployment metody jsou k dispozici i u nižších variant.</p>
+<p id="yITovxi"><img class="img-fluid wp-image-1153 " src="/images/2017/img_597f7502edd72.png" alt="" /></p>
+<h1>Visual Studio</h1>
+<p>Azure je otevřený mnoha platformám, jazykům a způsobům nasazování aplikací, ale začneme jak se sluší a patří v Microsoft ekosystému. Konkrétně ve vývojovém prostředí Visual Studio, oblíbeném zejména pro .NET aplikace, ale dnes často pro Javascript a Node.js i další jazyky. Vytvořím si prázdnou webovou aplikaci v moderním .NET Core, tedy v open source multi-platformním přenositelném prostředí.</p>
+<p id="UBgoxoM"><img class="img-fluid wp-image-1154 " src="/images/2017/img_597f76a434fd4.png" alt="" /></p>
+<p>Pojďme teď jednoduše prázdnou aplikaci publikovat v Azure.</p>
+<p id="cUxucYQ"><img class="img-fluid wp-image-1155 " src="/images/2017/img_597f76e2ec108.png" alt="" /></p>
+<p>Použiji můj existující servisní plán (to jsou worker nody, tedy sada alokovaných zdrojů pro skupinu mých aplikací) a nechám vytvořit novou resource group.</p>
+<p id="PrHmDwa"><img class="img-fluid wp-image-1156 " src="/images/2017/img_597f7755f0bfb.png" alt="" /></p>
+<p>Po kliknutí na tlačítko Create stačí jen čekat.</p>
+<p id="CaURSaH"><img class="img-fluid wp-image-1157 " src="/images/2017/img_597f77e70c85c.png" alt="" /></p>
+<p>Po chvilce je hotovo. Vaše aplikace běží a můžete se na ni podívat.</p>
+<p id="urlGwbl"><img class="img-fluid wp-image-1158 " src="/images/2017/img_597f785a3e932.png" alt="" /></p>
+<p id="mcfcLqi"><img class="img-fluid wp-image-1159 " src="/images/2017/img_597f786c937b1.png" alt="" /></p>
+<p>V Azure se vytvořila příslušná Web App.</p>
+<p id="SdkgyaD"><img class="img-fluid wp-image-1160 " src="/images/2017/img_597f7893be262.png" alt="" /></p>
+<p>Můžeme si stránku změnit.</p>
+<p id="GDaZxYS"><img class="img-fluid wp-image-1161 " src="/images/2017/img_597f78e29581f.png" alt="" /></p>
+<p>Klikněte znovu na publish.</p>
+<p id="VPhJQVU"><img class="img-fluid wp-image-1162 " src="/images/2017/img_597f7926b701e.png" alt="" /></p>
+<p>Po chvilce je nová verze aplikace nasazena.</p>
+<p id="RsJUPwE"><img class="img-fluid wp-image-1163 " src="/images/2017/img_597f794ad70c0.png" alt="" /></p>
+<p>Jednoduché, že?</p>
+<h1>FTP</h1>
+<p>Klasickou možností je provést deployment nakopírováním potřebných souborů přímo do serveru. Upřímně řečeno není to ideální - automatizace něčeho takového je méně přirozená a navíc se musíte postarat i o vytvoření například web.config souboru (pokud třeba provozujete Node.JS na IIS, který je pod kapotou, musíte tímto souborem serveru říct, jak s tím naložit). Ostatní metody jsou v tomto ohledu modernější a jednodušší. Nicméně i FTP se může někdy hodit.</p>
+<p>Připravme si novou Web App v mém servisním plánu.</p>
+<p id="jeMNlJu"><img class="img-fluid wp-image-1165 " src="/images/2017/img_597f7deb5c31c.png" alt="" /></p>
+<p>Vyzkoušíme si jednoduché nakopírování kódu přes FTP/SFTP. Je to jednoduchý protokol a nepodporuje moderní formy autetentizace (jako je třeba vícefaktorové ověření), proto nemůžeme použít svůj login do Azure, ale vytvoříme specifický FTP účet.</p>
+<p id="WQEHXFz"><img class="img-fluid wp-image-1166 " src="/images/2017/img_597f7eae429ba.png" alt="" /></p>
+<p>Na přehledové stránce pak najdeme příslušný FTP odkaz. Na ten nakopírujeme jednoduchou statickou HTML stránku:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;H1&gt;Cha! Jede to.&lt;/H1&gt;</pre>
+<p>Nakopírujeme soubor do wwwroot.</p>
+<p id="ZtrPken"><img class="img-fluid wp-image-1168 " src="/images/2017/img_59800d97b3a9d.png" alt="" /></p>
+<p>Statický web je připraven.</p>
+<p id="NRjmjKH"><img class="img-fluid wp-image-1169 " src="/images/2017/img_59800dbc2f54f.png" alt="" /></p>
+<h1>Lokální Git</h1>
+<p>Podívejme se teď na další metody, které jsou k dispozici díky výbornému nástroji Kudu, který je pod kapotou Azure App Services pro zajištění pokročilých forem deploymentu a troubleshootingu (projekt je open source a najdete ho zde: (<a href="https://github.com/projectkudu/kudu">https://github.com/projectkudu/kudu</a>). První z možností je lokální Git. Vaše Web Site v Azure začne fungovat jako Git server proti kterému můžete vyvolat push vašeho kódu. Kudu zajistí nejen příjem nové verze kódu, ale i další potřebné operace jako je generování web.config či instalace dependencies. Vyzkoušejme si to.</p>
+<p>Použiji primitivní Node.js aplikaci s dependencí na Express framework. Vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express')
+var app = express()
+
+app.get('/', function (req, res) {
+  res.send('Hovoří Mr. Node')
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Soubor s popisem a dependencies (package.json) je také jednoduchý:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "name": "nodejs-webik",
+  "version": "0.0.1",
+  "author": "Tomas",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.13.4"
+  }
+}
+</pre>
+<p>Vytvořil jsem další Web Appku. Nejprve se ujistěte, že máte nastaveno lokální jméno a heslo pro Git (je stejné jako pro FTP), zejména pokud jste přeskočili příklad s FTP.</p>
+<p id="lnxmZVJ"><img class="img-fluid wp-image-1171 " src="/images/2017/img_598010e27b621.png" alt="" /></p>
+<p>Půjdeme do Deployment Options a zapneme lokální Git.</p>
+<p id="JAqQzDe"><img class="img-fluid wp-image-1172 " src="/images/2017/img_598011337c1f1.png" alt="" /></p>
+<p>Od teď se vedle naší webové aplikace objevil náš vlastní Git server. Jeho URL najdeme na hlavní přehledové stránce:</p>
+<p id="AXJeGWl"><img class="img-fluid wp-image-1173 " src="/images/2017/img_598011868ac00.png" alt="" /></p>
+<p>V adresáři u mě na počítači, kde mám zmíněné dva soubory, provedu iniciaci Git a provedu commit těchto souborů.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS &gt; git init
+Initialized empty Git repository in C:/Azure/Node.js/.git/
+PS &gt; git add -A
+warning: LF will be replaced by CRLF in package.json.
+The file will have its original line endings in your working directory.
+PS &gt; git commit -m "prvni verze"
+[master (root-commit) 5cdfb25] prvni verze
+ 2 files changed, 23 insertions(+)
+ create mode 100644 index.js
+ create mode 100644 package.json</pre>
+<p>Teď stačí jen namířit na příslušný Git server naší Web App a provést push kódu. Podívejte se co všechno se děje (výpis jsem v části npm zkrátil).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS &gt; git remote add azure "https://tomaskubica@mujgitdeploy.scm.azurewebsit
+es.net:443/mujgitdeploy.git"
+
+PS &gt; git push azure master
+Counting objects: 4, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (4/4), 587 bytes | 0 bytes/s, done.
+Total 4 (delta 0), reused 0 (delta 0)
+remote: Updating branch 'master'.
+remote: Updating submodules.
+remote: Preparing deployment for commit id '5cdfb25902'.
+remote: Generating deployment script.
+remote: Generating deployment script for node.js Web Site
+remote: Generated deployment script files
+remote: Running deployment command...
+remote: Handling node.js deployment.
+remote: KuduSync.NET from: 'D:\home\site\repository' to: 'D:\home\site\wwwroot'
+remote: Deleting file: 'hostingstart.html'
+remote: Copying file: 'index.js'
+remote: Copying file: 'package.json'
+remote: Using start-up script index.js from package.json.
+remote: Generated web.config.
+remote: The package.json file does not specify node.js engine version constraints.
+remote: The node.js application will run with the default node.js version 6.9.1.
+remote: Selected npm version 3.10.8
+remote: ......
+remote: nodejs-webik@0.0.1 D:\home\site\wwwroot
+remote: npm WARN nodejs-webik@0.0.1 No description
+remote: `-- express@4.15.3
+...
+remote:   `-- vary@1.1.1
+remote:
+remote: Finished successfully.
+remote: Running post deployment command(s)...
+remote: Deployment successful.
+To https://mujgitdeploy.scm.azurewebsites.net:443/mujgitdeploy.git
+ * [new branch]      master -&gt; master</pre>
+<p>Co se tedy stalo? Web App přijala náš kód a Kudu automaticky vytvořilo deployment skripty pro node.js (na základě automatické detekce použitého jazyka aplikace) a nakopírovalo všechno potřebné do serveru. Následně došlo k vygenerování web.config a po načtení package.json zajistil Azure instalaci potřebných dependencies, v mém případě Express frameworku. Ověřte, že aplikace žije.</p>
+<p id="kdVwTYy"><img class="img-fluid wp-image-1174 " src="/images/2017/img_59801398b04e1.png" alt="" /></p>
+<p>Můžeme teď provést drobnou modifikaci aplikace a následně znova použijte git push. Velmi rychle budete mít v cloudu novou verzi své aplikace.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS &gt; git add -A
+
+PS &gt; git commit -m "Pridan pan JS"
+[master 8a949d6] Pridan pan JS
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+PS &gt; git push azure master
+Counting objects: 3, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 325 bytes | 0 bytes/s, done.
+Total 3 (delta 1), reused 0 (delta 0)
+remote: Updating branch 'master'.
+remote: Updating submodules.
+remote: Preparing deployment for commit id '8a949d661b'.
+remote: Generating deployment script.
+remote: Running deployment command...
+remote: Handling node.js deployment.
+remote: KuduSync.NET from: 'D:\home\site\repository' to: 'D:\home\site\wwwroot'
+remote: Copying file: 'index.js'
+remote: Using start-up script index.js from package.json.
+remote: Generated web.config.
+remote: The package.json file does not specify node.js engine version constraints.
+remote: The node.js application will run with the default node.js version 6.9.1.
+remote: Selected npm version 3.10.8
+remote: npm WARN nodejs-webik@0.0.1 No description
+remote: npm WARN nodejs-webik@0.0.1 No repository field.
+remote: npm WARN nodejs-webik@0.0.1 No license field.
+remote: Finished successfully.
+remote: Running post deployment command(s)...
+remote: Deployment successful.
+To https://mujgitdeploy.scm.azurewebsites.net:443/mujgitdeploy.git
+   5cdfb25..8a949d6  master -&gt; master</pre>
+<p id="odXDgjJ"><img class="img-fluid wp-image-1175 " src="/images/2017/img_5980144a60474.png" alt="" /></p>
+<h1>Deployment Java aplikace z Eclipse</h1>
+<p>Podobně jako můžete provést deployment třeba .NET nebo Node.js aplikace z Visual Studio, tak pro nejoblíbenější vývojové prostředí Javistů existuje Azure plugin, který udělá prakticky to samé pro JSP. Plugin najdeme jednoduše. V GUI dáme vyhledat nový software na serveru http://dl.microsoft.com/eclipse.</p>
+<p id="UZCElmE"><img class="img-fluid wp-image-1176 " src="/images/2017/img_59801a9216763.png" alt="" /></p>
+<p>Po instalaci vezmeme jednoduchou JSP aplikaci a provedeme deployment do Azure.</p>
+<p id="ZYRtUek"><img class="img-fluid wp-image-1177 " src="/images/2017/img_59801d2a1ab3e.png" alt="" /></p>
+<p id="EMbbaHz"><img class="img-fluid wp-image-1178 " src="/images/2017/img_59801dc4d9591.png" alt="" /></p>
+<p id="fBOijtS"><img class="img-fluid wp-image-1179 " src="/images/2017/img_59801e1cac4f2.png" alt="" /></p>
+<p id="dTxmwzt"><img class="img-fluid wp-image-1180 " src="/images/2017/img_59801e56ae08f.png" alt="" /></p>
+<p>Po chvilce je vaše Java aplikace nahoře.</p>
+<p id="wQHkiWj"><img class="img-fluid wp-image-1182 " src="/images/2017/img_59801ee620b72.png" alt="" /></p>
+<p>Při změně stačí jen znova kliknout na Deploy a nová verze je na světě.</p>
+<p id="tfEyGPK"><img class="img-fluid wp-image-1183 " src="/images/2017/img_59801fc7651d2.png" alt="" /></p>
+<p id="VMmptOK"><img class="img-fluid wp-image-1184 " src="/images/2017/img_59801fdc00ffa.png" alt="" /></p>
+<h1>Git ve Visual Studio Team Services</h1>
+<p>Sázení aplikace přímo z IDE, přes FTP nebo do lokálního Gitu je jednoduché a příjemné pro samostatného vývojáře či skupinku ať už v rámci malého projektu nebo pro jeho osobní zkušební nasazování v Dev prostředí (ostatně k řešení různých prostředí přes Deployment Sloty se na tomto blogu ještě dostaneme). Pro větší tým bude určitě bude daleko přirozenější a efektivnější využívat sofistikovanější version control řešení. Podporované jsou VSTS, GitHub, BitBucket nebo generický Git systém.</p>
+<p>Vytvořím si nový projekt ve Visual Studio Team Services.</p>
+<p id="oBSoKmE"><img class="img-fluid wp-image-1196 " src="/images/2017/img_5980288bb928a.png" alt="" /></p>
+<p>Naklonuji si projekt k sobě, přidám soubory naší Node.js a provedu git push.</p>
+<p id="rGuqghi"><img class="img-fluid wp-image-1197 " src="/images/2017/img_598029c9afdd9.png" alt="" /></p>
+<p>Napojme teď naší Web App na tento projekt.</p>
+<p id="UXiXAbO"><img class="img-fluid wp-image-1198 " src="/images/2017/img_59802ccae9a61.png" alt="" /></p>
+<p>Sledujme co se děje - Azure pro nás sbírá změny z našeho projektu.</p>
+<p id="HKComeb"><img class="img-fluid wp-image-1199 " src="/images/2017/img_59802d0510457.png" alt="" /></p>
+<p>Po chvilce bude aplikace nahoře.</p>
+<p id="hxDmMTW"><img class="img-fluid wp-image-1200 " src="/images/2017/img_59802d2552cbf.png" alt="" /></p>
+<p>Proveďme teď změnu kódu, pro jednoduchost přímo z VSTS GUI.</p>
+<p id="HRBJrPE"><img class="img-fluid wp-image-1201 " src="/images/2017/img_59802d86eb2eb.png" alt="" /></p>
+<p>Jakmile uděláme commit automaticky se spustí proces deploymentu v Azure.</p>
+<p id="aQejRAE"><img class="img-fluid wp-image-1202 " src="/images/2017/img_59802db0b7d00.png" alt="" /></p>
+<p id="RcuWHcF"><img class="img-fluid wp-image-1203 " src="/images/2017/img_59802dd0b222c.png" alt="" /></p>
+<p>Po chvilce máme rozchozenou novou verzi aplikace.</p>
+<p id="jzZaits"><img class="img-fluid wp-image-1204 " src="/images/2017/img_59802df5122d9.png" alt="" /></p>
+<h1>GitHub</h1>
+<p>Používáte pro svůj projekt GitHub? Ukažme si jeho integraci s Azure App Services. Vytvořil jsem repozitář a do něj přidal Node.JS aplikaci z předchozích ukázek.</p>
+<p id="msiDBpN"><img class="img-fluid wp-image-1187 " src="/images/2017/img_598024fad8be2.png" alt="" /></p>
+<p>V Azure vytvořím novou Web App a deployment namířím na tento repozitář a master branch.</p>
+<p id="LStgNAb"><img class="img-fluid wp-image-1188 " src="/images/2017/img_5980256155426.png" alt="" /></p>
+<p>Za malou chviličku bude deployment hotový a aplikace je nahoře.</p>
+<p id="SZyWaBf"><img class="img-fluid wp-image-1189 " src="/images/2017/img_5980259b11717.png" alt="" /></p>
+<p id="ODxluXV"><img class="img-fluid wp-image-1190 " src="/images/2017/img_598025ae4cd41.png" alt="" /></p>
+<p>Proveďme teď změnu kódu, pro ukázku přímo v GitHub GUI.</p>
+<p id="wPuRZlf"><img class="img-fluid wp-image-1191 " src="/images/2017/img_598025fcb2413.png" alt="" /></p>
+<p>Provedeme commit do masteru, tím se spustí proces deploymentu této nové verze do Azure automaticky.</p>
+<p id="ZxdUHyv"><img class="img-fluid wp-image-1192 " src="/images/2017/img_598026352b5c9.png" alt="" /></p>
+<p>Co se děje v Deployment Options?</p>
+<p id="dLAUQcq"><img class="img-fluid wp-image-1193 " src="/images/2017/img_5980265c233ed.png" alt="" /></p>
+<p>Nová verze aplikace je na světě.</p>
+<p id="ECzGRqc"><img class="img-fluid wp-image-1194 " src="/images/2017/img_5980267ed8bd4.png" alt="" /></p>
+<h1>Generický Git</h1>
+<p>Možná chcete pro svůj projekt použít obyčejný Git pro přístupy bez jakéhokoli loginu (public přístup), nepotřebujete automatické rozpoznání změn ani nic podobného. Jednoduše chcete na kliknutí naklonovat veřejný projekt do vaší Web App. Například tento kód v Pythonu (podporu Python musíte v Web App specificky zapnout na záložce Application settings)  <a href="https://github.com/Azure-Samples/app-service-web-python-get-started.git">https://github.com/Azure-Samples/app-service-web-python-get-started.git</a></p>
+<p id="pqcUuoN"><img class="img-fluid wp-image-1209 " src="/images/2017/img_598061fa1e189.png" alt="" /></p>
+<p id="nIQltUI"><img class="img-fluid wp-image-1210 " src="/images/2017/img_59806249bd34e.png" alt="" /></p>
+<p>Aplikace je nahoře. Počítejme ale s tím, že při změně kódu se nebude aktualizovat, jen se naklonovala. Pro kontinuální deployment zvolte integraci s VSTS, GitHub apod.</p>
+<p id="FHifbxE"><img class="img-fluid wp-image-1212 " src="/images/2017/img_5980653215e76.png" alt="" /></p>
+<h1>Deployment ze sdílny souborů</h1>
+<p>Pro vývojáře to může znít zvláštně - proč řešit deployment přes sdílnu souborů, když máme version control. Možná ale aplikaci nasazuje někdo, kdo není kovaný v Gitu a od dodavatele (nebo vývojového týmu) dostává jen archiv se všemi soubory. Pro něj může být zajímavé jednoduše archiv rozbalit ve svém počítači do adresáře v OneDrive nebo DropBoxu a v Azure ťuknout na tlačítko synchronizovat - tím se aplikace sama nainstaluje.</p>
+<p>Připojme teď naší Web App právě sem.</p>
+<p id="AwiMVYk"><img class="img-fluid wp-image-1213 " src="/images/2017/img_598066dc5b7bf.png" alt="" /></p>
+<p>Azure pro mě vytvořil adresář mujDropBoxDeploy a já do něj nakopíruji svoje Node.js soubory.</p>
+<p id="eKtsZRo"><img class="img-fluid wp-image-1214 " src="/images/2017/img_5980675230b5b.png" alt="" /></p>
+<p>Dám synchronizovat svou aplikaci.</p>
+<p id="gHhOoHQ"><img class="img-fluid wp-image-1215 " src="/images/2017/img_5980677c84eca.png" alt="" /></p>
+<p id="MSjfles"><img class="img-fluid wp-image-1216 " src="/images/2017/img_59806796744ff.png" alt="" /></p>
+<p>Aplikace se rychle nainstaluje.</p>
+<p id="tjHGwEb"><img class="img-fluid wp-image-1217 " src="/images/2017/img_598067e665d51.png" alt="" /></p>
+<h1>Deployment Docker kontejneru</h1>
+<p>Docker je nová binárka, výborný způsob jak zapouzdřit a distribuovat aplikace včetně všech jejich dependencies. Místo zdrojových kódů můžete ve vývoji naplnit kontejnerový image a ten uložit teba v Azure Container Registry nebo do Docker Hub. Z těchto repozitářů pak lze kontejner nasadit v Azure App Service. Zatím je tato možnost dostupná pouze pro Linux worker nody, tedy pro Web Apps on Linux. Vyzkoušejme si to.</p>
+<p>V době psaní tohoto článku není možné kombinovat Linux a Windows nody v jednom servisním plánu, uděláme si tedy Linuxový servisní plán.</p>
+<p id="qrZbuYA"><img class="img-fluid wp-image-1219 " src="/images/2017/img_598068ae61622.png" alt="" /></p>
+<p>Rovnou při vytváření Web App můžeme vyplnit kontejner. Můžete použít výše popsané metody, tedy nasazení ze zdrojového kódu, kdy Web App on Linux používá kontejnery jako hostitelská prostředí pro Node.js, Ruby apod. To už umíme. Druhou možností je ale použít svůj vlastní kontejner jako jednotku deploymentu. Nasaďme veřejně dostupný yeasy/simple-web kontejner.</p>
+<p id="eRszpyb"><img class="img-fluid wp-image-1220 " src="/images/2017/img_598069472ad4b.png" alt="" /></p>
+<p>Kontejner jede.</p>
+<p id="ywLVpCh"><img class="img-fluid wp-image-1221 " src="/images/2017/img_59806c7634cec.png" alt="" /></p>
+<p>&nbsp;</p>
+<h1>CI/CD pipeline</h1>
+<p>Kontinuální deployment do Dev/Test pro testování a podobné věci (Continuous Integration) a deployment do pre-prod a produkčních prostředí (Continuous Delivery/Deployment) vás při čtení určitě napadl. Jak celý proces orchestrovat v rámci CI/CD pipeline ve Visual Studio Team Services nebo třeba s použitím Jenkins? Dobré téma! Na to se podíváme někdy příště.</p>
+<p>&nbsp;</p>
+<p><em>Dnes to bylo trochu delší. Možnosti deploymentu aplikací do Azure jsou skutečně široké. Jsou tu metody spočívající v nakopírování aplikaci tradičním FTP nebo modernějším OneDrive či DropBox, ale i vývojářsky smysluplnější lokální Git nebo deployment z IDE až po integrace umožňující plně automatizovaný kontinuální deployment jako jsou Visual Studio Team Services, GitHub nebo Bitbucket. To všechno vás dovede i na tvorbu kompletních CI/CD pipeline, k čemuž se na tomto blogu ještě vrátíme. Jednoduchý web? Komplexní projekt? .NET, Node, Java, Python, Ruby a tak podobně? Potřeba deploymentu Docker kontejneru? To všechno pro vás Azure App Service umí zajistit.</em></p>

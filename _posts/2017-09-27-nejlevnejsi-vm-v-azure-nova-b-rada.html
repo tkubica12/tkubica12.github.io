@@ -1,0 +1,41 @@
+---
+layout: post
+status: publish
+published: true
+title: Nejlevnější VM v Azure - nová B řada
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1436
+wordpress_url: http://tomaskubica.cz/?p=1436
+date: '2017-09-27 06:18:16 +0000'
+date_gmt: '2017-09-27 05:18:16 +0000'
+categories:
+tags:
+- Compute
+---
+<p>U všech VM v Azure máte alokované zdroje, díky čemuž získáváte vyrovnaný výkon. Možná je to výkon běžného jádra postaveného na procesoru 2673 v3 (2,4 GHz), třeba jde o nižší výkon v A řadě nebo naopak o high-end jádro 3,2 GHz z 2667 v3 v H řadě. Řada B je ale jiná. Nemáte plné přiřazené zdroje, ale jen jejich část a můžete velmi přesným a férovým způsobem nastřádat výkon a šáhnout si na maximum, když je to potřeba. Jak tedy fungují?<!--more--></p>
+<h1>B-řada VM</h1>
+<p>Tato nová řada (aktuálně v Preview) je postavena na stejné technologii jako například stroje Dv2, Dv3 či Ev3. Nemáte ovšem core či vCPU (HT-core) k dispozici celý, ale jen jeho část s možností burstingu výš (o tom jak to funguje později).</p>
+<p>Varianta B1s (1 vCPU a 1GB RAM) vás po ostrém spuštění vyjde asi na 8,8 EUR měsíčně (v rámci preview za polovic!), což představuje nejlevnější VM v ceníku. Nejdražší B8MS, kdy už máte možnost si sáhnout na 8 vCPU a 32GB paměti za 271 EUR.</p>
+<p>Důležité je, že na rozdíl od zástupců z cenově nízko položené řady A tady můžete použít i Premium storage. B řada tedy neznamená, že nemůžete dosahovat velmi dobrých výkonů, spíše to, že po ní nemůžete chtít konstantní velkou zátěž. Ve světě kontejnerů a serverless bych například CRON tasky, reakce na příchozí email apod. řešil asynchronně vytvořením zdroje ad-hoc, ale u klasického světa VM to moc dobře nejde (doba startu apod.). Pro klasičtější přístup možná bude ideální použít B řadu - když je občas potřeba výkon, dostane ho a když zrovna ne, tak sice zdroj stále platíte (ale méně, než třeba u D řady), ale šetříte si kredity na větší zátěž. Dalším příkladem použití mohou být různé méně navštěvované webové servery, málo přistupované databáze a tak podobně. Když na to přijde, jste schopni odpovědět silou slušně výkoného procesoru a SSD storage. Mohu tedy použít levnou A řadu, mám konstantní, ale jen základní výkon. Nebo půjdu do D řady a mám vysoký a konstantní výkon. B řada je třetí možnost - velmi dobrý výkon, ale jen v omezených okamžicích.</p>
+<h1>Jak bursting funguje</h1>
+<p>Podrobnosti a konkrétní čísla najdete zde: <a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/b-series-burstable">https://docs.microsoft.com/en-us/azure/virtual-machines/linux/b-series-burstable</a></p>
+<p>Tak například jednoduchá B1s má "v průměru" 10% CPU. Jinak řečeno můžete mít trvalou zátěž na této úrovni. Nicméně B řada vám umožňuje spořit. Jeden kredit představuje schopnost využít 100% core na minutu. V případě B1s vám každou minutu přistane v peněžence 10% core, tedy 0,1 kreditu. Ten samozřejmě můžete hned utratit (tedy využít 10% výkonu core), ale také si ho uspořit. Po deseti minutách si nastřádáte dohromady jeden celý kredit a můžete následně využít 100% core na jednu minutu. Nebo 50% core na dvě minuty. Zkrátka pravidelně získáváte kredity a buď je rovnou utratíte, nebo schováte na později pro burst. Velikost vaší peněženky je ovšem omezena - v případě nejmenší B1s na 144 kreditů.</p>
+<p>Dále například v případě B2s, který má 2 core, máte dlouhodobý průběr 40% z těchto dvou core dohromady. Dostáváte tedy 0,4 kreditu každou minutu. Za uspořené kredity můžete jít až do maximálního zatížení obou core, tedy 200% (pálíte tak 2 kredity za minutu).</p>
+<p>Jak jste na tom s kredity a jejich spotřebou? Můžete použít Azure Metric a zjistíte to:</p>
+<p id="bDyAGKk"><img class="img-fluid wp-image-1437 " src="/images/2017/img_59c88afe3b24a.png" alt="" /></p>
+<h1>Malá zkouška</h1>
+<p>Provedl jsem si jednoduchou zkoušku. Nastartoval jsem VM s Ubuntu a nainstaloval sysbench. Šlo o 2-corové stroje z rodiny Av2, Dv3 a nový B2s. Podíval jsem se na délku zpracování sysbench příkazem:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sysbench --test=cpu --num-threads=2 run
+</pre>
+<p>V případě Dv3 jsem naměřil 5,5 vteřiny, u Av2 13 vteřin (můj test není ani trochu profesionální - lepší představu o srovnání výkonnosti mezi řadami získáte z ACU jednotek zde: <a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/acu">https://docs.microsoft.com/en-us/azure/virtual-machines/linux/acu</a>).</p>
+<p>Spustil jsem test na B2s a dostal hodnotu asi 11,5 vteřiny, ale to jsem měl nastřádáno několik kreditů. Nechal jsem test opakovaně běžet a čekal, až mi úspory dojdou. Jaký čas zpracování bych měl očekávat? Utrácel jsem kredity za 200% CPU (čili dvě jádra), ale B2s připisuje 40%, tedy 0,4 kreditu za minutu. Jakmile mi zásoba došla, mohl jsem využít jen to, co mi zrovna přišlo - tedy 40%. Trojčlenka mi vychází na něco kolem 60 vteřin pro běh performance testu. Přesně tak to dopadlo - 60 sekund.</p>
+<p>Stačilo následně na chvilku test vypnout, třeba jen na třicet vteřin, a následný běh byl znovu za 11 sekund. Technicky vzato se tedy kredity nepočítají po minutách (to je jen, aby to bylo lépe pochopitelné a představitelné), ale v daleko menších intervalech - skutečně tedy několikavteřinový burst vám vezme jen kredity odpovídající těmto vteřinám.</p>
+<p>Pokud si chcete B řadu v Preview vyzkoušet, budete muset zažádat o přístup k nim. Ve vašem portálu vytvořte ticket a požádejte o zvýšení kvóty pro B stroje: <a href="https://docs.microsoft.com/en-us/azure/azure-supportability/resource-manager-core-quotas-request">https://docs.microsoft.com/en-us/azure/azure-supportability/resource-manager-core-quotas-request</a></p>
+<p>&nbsp;</p>
+<p><em>Potřebujete výkonou VM včetně podpory Premium Storage, ale po většinu času vaše aplikace skoro nic nedělá? Pak je nová B řada právě pro vás, vyzkoušejte ji.</em></p>

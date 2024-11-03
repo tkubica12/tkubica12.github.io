@@ -1,0 +1,60 @@
+---
+layout: post
+status: publish
+published: true
+title: Co přinesl rok 2017 v Azure v IaaS službách
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1799
+wordpress_url: http://tomaskubica.cz/?p=1799
+date: '2017-12-27 12:01:56 +0000'
+date_gmt: '2017-12-27 11:01:56 +0000'
+categories:
+tags:
+- Storage
+- Compute
+---
+<p>Rok je v cloudu dlouhá doba. V této sérii zpětných pohledů se pokouším ohlédnout za největšími novinkami, které rok 2017 přinesl. V dnešním díle se zaměřím na základní kámen všeho - infrastrukturu, tedy compute a storage v Azure s tím, že na networking a kontejnery se podíváme v jiném článku.<!--more--></p>
+<h1>Masivní příval nových compute prostředků</h1>
+<p>Pokud vaše datové centrum obnovujete jednou za pár let, Azure takhle nefunguje. Prochází v zásadě trvalým redesignem, přidáváním nových a nových typů strojů a navyšováním kapacity těch stávajících, otevíráním nových datových center uvnitř regionů i spouštění zcela nových regionů. Pokud jste loni používali nějaký stroj v režimu pay-as-you-go, kdykoli ho můžete vypnout a přejít na některou z dále uvedených novinek roku 2017. Přináší obvykle nové možnosti (procesory, velikosti) a/nebo snížení ceny.</p>
+<h3>A-series v2</h3>
+<p>Pokud hledáte základní server, je A-řada určena právě pro vás. Není zde specifikován konkrétní typ CPU, ale máte výkon core pro sebe. ACU (komparativní srovnání výkonu řad, které najdete zde <a href="https://docs.microsoft.com/en-us/azure/virtual-machines/windows/acu">https://docs.microsoft.com/en-us/azure/virtual-machines/windows/acu</a>) uvádí u A-řady hodnotu 100, tedy řekněme polovinu nejběžnější D-řady. V lednu 2017 byla uvedena v2 generace této řady, která přinesla nižší cenu a přitom současně více paměti na core a také paměťově navýšené řady jako je A4m v2.</p>
+<h3>L-series (blíže neurčený Intel E5 v3)</h3>
+<p>Některé aplikace, konkrétně například NoSQL databáze jako je MongoDB, Cassandra a další, rádi použijí brutální storage výkon lokálního SSD a nepotřebují infrastrukturně perzistenci storage. Jednoduše o několikanásobné uložení dat se stará aplikace samotná, tedy DB si dělá mirror a je připravena na failover. Co tedy chcete je dostatečně velký (několik TB) lokální SSD disk. Přesně takhle je koncipována řada L, která přišla v dubnu 2017.</p>
+<h3>L v2 řada (AMD EPYC™7551) - preview</h3>
+<p>Vývoj jde neuvěřitelně dopředu a tak ještě ve stejném roce v prosinci 2017 přišla L-series v2 postavená (a to je velká novinka) na procesoru firmy AMD. Největší model L64s v2 nabízí lokální SSD o velikosti 15 TB ... to už je pořádný mazlík, ne?</p>
+<h3>D v3 a E v3 řady (E5-2673 v4)</h3>
+<p>Historicky byl Azure postaven tak, že u všech typů VM se vCPU = fyzický core. Žádné sdílení a přeprodání jednoho core deseti zákazníkům. Toho se Azure drží i nadále a platí to i pro tyto v3 řady. Jenže fyzický core umí hyper-threading, který z něj udělá dva a díky pipelinám z něj dostanete o dost víc. U nejnovější generace D strojů (v3 a pokračováním D1x jsou E v3, tedy modely s více paměti) se využívá hyper-threading a vCPU = 1 thread na fyzickém core (tedy 2 vCPU mají jeden fyzický core). Ty jsou ale stále pro vás, nikdy se fyzický core nesdílí na víc jak jednoho zákazníka, proto u této řady najdete jen sudé počty core (neexistuje tedy 1-corový D v3). ACU klasického D v2 je 210 (až 250), D v3 disponuje výkonem 160 (až 190 při Intel Turbo). Odměna pro vás? Nižší cena, větší servery (64 vCPU) a na paměť velmi vstřícná řada E v3 s až 432 GB paměti! Za takový stroj jste v roce 2016 museli zaplatit o polovinu víc (použít G řadu).</p>
+<h3>B-series (burstovatelný E5-2673 v3 nebo v4)</h3>
+<p>Možná se vaše aplikace chová tak, že občas potřebuje pořádně zabrat, ale většinu času toho zas tak moc nedělá. A-series vám nevyhovuje, protože na špičky je moc pomalá a navíc nepodporuje SSD disky? D-series vám zase přijde zbytečná, když většinu času takový výkon nepotřebujete? Právě pro vás vznikla řada B. Je to jediná nabídka v rámci Azure kde nemáte výkon dedikovaný pro sebe, ale současně je míra sdílení a burstovatelnosti naprosto exaktně daná.</p>
+<h3>N-series ve všech variantách (GPU stroje)</h3>
+<p>Tato kategorie se bouřlivě rozvíjí. V prosinci 2016 tato éra začala stroji NV (NVIDIA M60) pro grafickou workstation a NC (NVIDIA K80) pro výpočty nad GPU. O rok později, tedy teď v prosinci 2017 už je k v general availability i řada NCv2 (NVIDIA P100) a ND (NVIDIA P40). Navíc ještě na konci 2017 bylo spuštěno preview NCv3 postavené na masivní výkonnosti karty NVIDIA V100.</p>
+<h3>F-series v2 (Intel Platinum 8168)</h3>
+<p>Předchozí generace F-series, která přišla ke konci 2016, byla v zásadě jen D v2 řada s modely s menším mírou paměti na core zaměřená na výpočetní úlohy. Běžné D stroje mají CPU:RAM 1:4, paměťově optimalizované E stroje 1:8 a F řada jde na opačnou stranu s poměrem 1:2. Nová generace Fv2 ale už nemá klasický serverový Intel procesor, ale speciální škálovatelnou řadu s kódovým označením Skylake. Jsou to minimálně v době uvedení, tedy v říjnu 2017, výpočetně nejsilnější stroje z public cloudu (z velké trojky Microsoft, Amazon a Google).</p>
+<h3>M-series aneb mamuti (E7-8890 v3)</h3>
+<p>Máte mamutí aplikace, které potřebují scale up? Třeba SAP HANA databázi nebo celý S4HANA systém? Co třeba VM o velikosti 128 vCPU a 3,8 TB RAM? Jasná práce pro M řadu.</p>
+<h1>Další finanční i technické novinky v compute zdrojích</h1>
+<p>Nové stroje nejsou jediné novinky roku 2017.</p>
+<h3>SLA a zóny dostupnosti</h3>
+<p>Do roku 2017 vstoupil Azure s SLA pro jedinou instanci VM ve výši 99,9%, něco, o pokud vím Google ani AWS během roku 2017 nedorovnali. Současně nadále platí SLA v režimu podobném AWS a Google, konkrétně 99,95% na dvě a více VM běžících v Availability Setu. Nicméně Azure v roce 2017 zavedl preview Availability Zones, další vrstvu zákazníkem řiditelné redundance uvnitř regionu. Jakmile tato služba přijde do general availability, nabídne pro aplikaci přes více zón dostupnosti nejvyšší compute SLA v cloudu (z velké trojky) - 99,99%. Mimochodem - pokud srovnáváte s vaším vlastním SLA nebo hostingem - toto SLA zahrnuje jak plánované tak neplánované výpadky a je definováno jako dostupnost komunikace s VM, tedy včetně kompletní síťařiny od kraje Azure až po virtuální sítě (zkuste se podívat jak často vám v on premises selže VM vs. vypadne aplikace protože je problém v síti ... networking rozhodně není zanedbatelným strůjcem výpadků, spíše naopak).</p>
+<h3>Azure Batch Low Priority</h3>
+<p>V Azure nejsou všechny zdroje vždy obsazené a co kdyby vám Microsoft nabídl významnou slevu, když budete ochotni si vzít tyto nevyužité zdroje s tím, že vám je může kdykoli zase sebrat a nikdy nevíte dopředu kolik jich bude volných? Tuto možnost, která obvykle pod názvem spot instance existovala u konkurence, Azure v roce 2017 zavedl také. A co víc do Azure Batch přidal ve spolupráci s renderovacími dodavateli software možnost financovat licence nástrojů jako Autodesk dle skutečné spotřeby.</p>
+<h3>Reserved Instances</h3>
+<p>Pokud jste ochotni si VM, které chcete běžet 24x7, předplatit, dává smysl vám dát slevu. Pro Azure to znamená nižší náklady - odpadají nevyužité zdroje, zjednodušuje se kapacitní plánování a zlepšuje výtěžnost investic. Tyto nižší náklady se promítají ve slevě pro vás. Předchozí mechanismus (precommited instance) byl dost nepraktický - objednával se sepáratně, řešení bylo smluvní v rámci EA, bez jakékoli flexibility (třeba možnost předčasného ukončení) a nebylo ho možné uplatnit z předplatného (monetary commitment) či v CSP programu. Rezervované instance mají mechanismus daleko lepší. Objednáváte rovnou z portálu na 1 nebo 3 roky (pak je sleva ještě výraznější), lze platit z monetary commitmentu a řešení je flexibilní a má možnosti předčasného ukončení či výměny třídy VM za jinou apod. Rezervované instance fungují pro všechny operační systémy, ale pokud 24x7 workload kombinujete s přenosem klasických licencí do cloudu (Red Hat, SUSE a Azure Hybrid Use Advantage pro Windows) dostanete se na skutečně velmi zajímavé ceny za trvale běžící VM.</p>
+<h1>Storage</h1>
+<p>Ukládání dat je základním stavebním blokem veškeré datové perzistence. Vývoj v této oblasti není tak překotný jako u compute prostředků. Storage samotná musí být velká, levná, dostupná, výkonná a hlavně robustní z pohledu durability. Technické vychytávky se dějí hlavně o patro výš v databázích a tak podobně. Přesto některé zásadní změny v roce 2017 opravdu proběhly.</p>
+<h3>Managed Disks</h3>
+<p>Velkou změnou roku 2017 byl příchod spravovaných disků. Už nemusíte vytvářet storage account a přemýšlet jak v několika z nich udělat disky tak, abyste dostali maximální výkon a dostupnost. Managed Disks tohle udělají za vás. Jednoduše přidáte disk ve variantě Standard (HDD) nebo Premium (SSD) a je to. Pak už jen můžete dělat snapshoty či z Managed Disku vytvořit Managed Image pro naklonování dalších VM. V průběhu roku 2017 se postupně rozšiřovaly dostupné velikosti disků oběma směry - aktuálně od 32 GB do 4 TB na disk.</p>
+<h3>Šifrování</h3>
+<p>V roce 2017 se hodně pracovalo na šifrování s tím, že ukládání dat v zašifrované podobě se stalo výchozí hodnotou - data jsou tedy automaticky šifrována. To platí jak pro disky, tak pro bloby a file share. K šifrování je použito Microsoft-managed klíčů, které podléhají různým certifikacím z hlediska toho jak se o ně starat a vše auditovat. Jednoduše tak splníte vaše požadavky na šifrování dat v klidu (at rest) - stane se to samo a máte na to papír. Pokud z nějakých důvodů potřebujete šifrovat vaším vlastním klíčem, i to je v případě disků a blobů možné - klíč si dáte do Azure Key Vault trezoru (v premium verzi jde o hardwarový trezor - Thales HSM), kde je bezpečně uložen a nikdo k němu nemůže.</p>
+<h3>Azure Files Sync</h3>
+<p>Zajímavou novinkou je rozšíření Azure Files (file share v cloudu) o synchronizační software pro vaše lokální file share ve Windows. Dokáže zajišťovat synchronizaci a dokonce i cloud tier tak, že lokální uživatelé nepoznají rozdíl - cloudem nafouknete váš stávající share.</p>
+<h3>Archivní blob tier</h3>
+<p>V průběhu roku 2017 se rozšířil počet zálohovacích software s nativní podporou Azure Blob storage a to je dobře, protože v prosinci 2017 dorazila další varianta - archivní tier. Ten umožňuje odkládat data, která opravdu schováváte jen pro strýčka příhodu někam, kde za ně dáte cirka 40 Kč měsíčně za 1 TB.</p>
+<p>&nbsp;</p>
+<p><em>V oblasti storage a zejména compute se toho v Azure v roce 2017 událo opravdu hodně. Tempo vývoje této platformy mě neuvěřitelně baví. A jak je to se síťařinou, kontejnery,  správou, datovými službami nebo aplikačními platformami? Čtěte další články na tomto blogu a vyzkoušejte Azure ještě dnes!</em></p>

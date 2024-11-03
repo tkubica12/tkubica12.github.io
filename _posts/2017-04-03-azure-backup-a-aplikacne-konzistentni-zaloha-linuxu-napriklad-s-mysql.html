@@ -1,0 +1,84 @@
+---
+layout: post
+status: publish
+published: true
+title: Azure Backup a aplikačně konzistentní záloha Linuxu, například s MySQL
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 554
+wordpress_url: http://tomaskubica.cz/?p=554
+date: '2017-04-03 05:25:33 +0000'
+date_gmt: '2017-04-03 04:25:33 +0000'
+categories:
+tags:
+---
+<p>Azure Backup je služba pro zálohování vašich VM v Azure, ale těch v on-premise Hyper-V či VMware. Díky technologii VSS podporuje pro Windows OS aplikačně konzistentní zálohování, ale donedávna pro Linux nabízela jen file-system konzistentní zálohu. Teď ale přichází preview aplikačně konzistentního řešení pro Linux, podívejme se na to.<!--more--></p>
+<h1>Úrovně konzistence vašich záloh</h1>
+<p>Připomeňme si nejprve úrovně konzistence záloh virtuálních mašin.</p>
+<h2>Nekonzistentní</h2>
+<p>Představte si, že by záloha fungovala tak, že začne kopírovat bloky na začátku disku a než dojede na konec, uběhne třeba 15 minut a provoz souborového systému nebyl přerušen. To by bylo strašné, protože metainformace souborového systému se nakopírovaly hned na začátku a mezitím se na disku dělo spousta věcí, o kterých metadata "už neví" - změny v souborech apod. Taková záloha nemá žádnou konzistenci a značná část souborového systému může být rozsypána.</p>
+<h2>Crash konzistentní</h2>
+<p>Pokud natvrdo vypnete váš OS, právě zapisovaný soubor může být poškozen, nicméně škoda se týká skutečně jen těch věcí, které s v daný čas řeší (na rozdíl od předchozího případu). Většina moderních OS dnes nějakým způsobem žurnáluje, takže se po startu z toho oklepe a ostatní data nejsou obvykle poničena. Tohoto můžeme docílit vytvořením snapshotu disku (tedy v zásadě zmrazit a naklonovat), ten bude crash konzistentní.</p>
+<h2>File-system konzistentní</h2>
+<p>V předchozím případě jsme ohrozili soubory, které se zrovna aktivně zapisovali. V OS ale můžeme zavolat něco, co zakáže další operace v souborovém systému, ale nechá doběhnout ty stávající (např. fsFreeze v Linuxu). Pak uděláme snapshot (a z něj teprve nakopírujeme do backup prostoru, čímž je doba odstavení FS velmi krátká) a ten bude file-system konzistentní. Žádné poškozené soubory. Tohle je řešení, které je plně dostatečné pro řadu VM - web servery, celá řada aplikačních a i některá nastavení databází (zejména tam, kde se nejprve provede perzistentní zápis do žurnálu, pak se vrací OK odpověď a později se z žurnálu přesune změna do samotné DB) apod.</p>
+<h2>Aplikačně konzistentní</h2>
+<p>Jenže co když máte databázi a v té běží nějaké transakce. File-system konzistence DB sice nejspíš nezboří (byť po restartu může DB trochu chroupat, než projede žurnál), ale nedokončené transakce jsou fuč. Nutno poznamenat - možná to nevadí. Je byznys otázkou zda ztráta transakcí z třeba pár desítek vteřin má fatální dopad na finance s ohledem na četnost incidentů. Ale možná ano a pak potřebujeme před zálohováním udělat něco podobného jako fsFreeze udělal pro souborový systém. Říct databázi, že má propsat vše co je ve frontě do DB (ať nemusíme přehrávat žurnál po recovery) a znemožnit další zapisování. Pak provedeme zálohu a až bude snapshot připraven, povolíme zase zápisy do DB. To je aplikačně konzistentní záloha.</p>
+<h1>Azure Backup a aplikačně konzistentní zálohování</h1>
+<p>Služba Azure Backup přináší krásně integrované zálohování v rámci Azure pro image z marketplace, kdy přímo u VM stačí říct, že se má zálohovat a Azure se postará o zbytek. Současně můžete toto řešení použít pro zálohování on-premise VM (jde o Microsoft DPM). Pro svět Windows se používá VSS - rámec, který využívá řada dodavatelů aplikací a přináší aplikačně konzistentní zálohu. Doposud ve světě Linux byl Azure Backup jen file-system konzistentní (ale jak jsem psal - pro řadu situací to stačí), ale nově v rámci Preview (tedy je to věřejně k dispozici, ale zatím ne jako oficiální plně podporované řešení) můžete provádět aplikačně konzistentní zálohu. Jak na to?</p>
+<h1>Příklad MySQL konzistentní zálohy v Linux s Azure Backup</h1>
+<p>Spustil jsem si Ubuntu VM a nainstaloval v ní MySQL server. Nastavit Azure Backup pro zálohování VM je opravdu snadné. Přímo v GUI VM klikněte na Backup a můžete si vybrat existující Backup Vault nebo založit nový.</p>
+<p><img class="img-fluid wp-image-559 " src="/images/2017/img_58e1433db2772.png" alt="" /></p>
+<p>Pokud chcete, upravte zálohovací politiku - kdy jaké zálohy dělat (denní, týdenní, měsíční, roční) a kterou jak dlouho držet.</p>
+<p><img class="img-fluid wp-image-560 " src="/images/2017/img_58e14385eb704.png" alt="" /></p>
+<p>Hotovo - od této chvíle máte vyřešení zálohování na úrovni file-system consistent pokud jde o Linux a aplikačně konzistentní u Windows. Jednoduché. Pojďme to teď vylepšit a zálohovat MySQL v Linuxu korektně.</p>
+<p>Preview aplikačně konzistentního zálohování stojí na principu agenta, který se přes VM extension dostane dovnitř v okamžiku, kdy Azure Backup pro mašinu zapnete. Tento agent pak tradičně řeší zálohovací operace jako je fsFreeze. Novinkou je možnost rozšířit tyto hotové skripty o vaše vlastní, které se spustí před zálohou a po jejím úspěšném dokončení. Můžete si upravit řadu parametrů a také stáhnout hotové příklady (zatím jich je málo, ale služba je teprve v preview).</p>
+<p>Nejdřív si vytvoříme konfigurační soubor jako root. Ten musí být v adresáři /etc/azure a jmenovat se VMSnapshotScriptPluginConfig.json. Vypadat bude takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">{
+    "pluginName" : "ScriptRunner",
+    "preScriptLocation" : "/etc/azure/prebackup.sh",
+    "postScriptLocation" : "/etc/azure/postbackup.sh",
+    "preScriptParams" : ["", ""],
+    "postScriptParams" : ["", ""],
+    "preScriptNoOfRetries" : 0,
+    "postScriptNoOfRetries" : 0,
+    "timeoutInSeconds" : 30,
+    "continueBackupOnFailure" : true,
+    "fsFreezeEnabled" : true
+}</pre>
+<p>Specifikoval jméno svých skriptů před a po záloze, zbytek je ve výchozím stavu. Tento soubor musí vlastnit root a mít práva 600:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo chmod 600 /etc/azure/VMSnapshotScriptPluginConfig.json</pre>
+<p>Co tedy musíme s MySQL udělat před tím, než provedeme zálohu? Bylo by možné službu vypnout, ale to je moc drastické. Co uděláme je, že nejprve dokončíme všechny zapisovací operace a následně přepneme MySQL do read only režimu. To je v MySQL tento příkaz:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">FLUSH TABLES WITH READ LOCK; SET GLOBAL read_only = ON;</pre>
+<p>Skript tedy jednoduše zavolá právě tohle (ve skriptu mám natvrdo login do DB, to asi není ideální - ale jde mi teď o pochopení konceptu, ne dokonalost). Tohle je můj prebackup.sh:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">echo "Flushing tables and making DB read only -&gt; executing" &gt;&gt; /etc/azure/mybackup.log
+mysql -uroot -proot -D tomas -e "FLUSH TABLES WITH READ LOCK; SET GLOBAL read_only = ON;" &gt;&gt; /etc/azure/mybackup.log
+echo "Flushing tables and making DB read only -&gt; done" &gt;&gt; /etc/azure/mybackup.log
+</pre>
+<p>Po dokončení zálohy potřebujeme udělat přesný opak, tedy vypnout read only režim a udemknout tabulky.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">SET GLOBAL read_only = OFF; UNLOCK TABLES;</pre>
+<p>Tohle je můj postbackup.sh:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">echo "Making DB writable again -&gt; executing" &gt;&gt; mybackup.log
+mysql -uroot -proot -D tomas -e "SET GLOBAL read_only = OFF; UNLOCK TABLES;"
+echo "Making DB writable again -&gt; done" &gt;&gt; mybackup.log
+</pre>
+<h2>Vyzkoušíme - spustíme backup</h2>
+<p>Jděte do Azure portálu do VM a v záložce Backup klikněte na Backup Now, ať nemusíme čekat. Průběh zálohy jsem sledoval v logu  /var/log/azure/Microsoft.Azure.RecoveryServices.VMSnapshotLinux/1.0.9111.0/extension.log</p>
+<p>Vybírám nejzajímavější události. Nalezení mých skriptů, jejich spuštění, následné zmražení souborového systému, provedení snapshotu a pak odmrznutí a spuštění mého post skriptu. Všimněte si, že to celé trvalo pár vteřin.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">2017/04/02 18:28:14 Info  Plugin config path is /etc/azure/VMSnapshotScriptPluginConfig.json
+2017/04/02 18:28:14 Info  App Consistent Consistent Backup Enabled
+2017/04/02 18:28:14 Info  Running prescript for ScriptRunner module...
+2017/04/02 18:28:19 Info  Finished prescript execution from PluginHost side. Continue Backup: True
+2017/04/02 18:28:19 Info  fsfreeze mount :/
+2017/04/02 18:28:20 Info  end of snapshot process
+2017/04/02 18:28:20 Info  unfreeze ends...
+2017/04/02 18:28:20 Info  Starting postscript for all modules.
+2017/04/02 18:28:25 Info  Finished postscript execution from PluginHost side. Continue Backup: True
+2017/04/02 18:28:25 Info  Enable Succeeded with App Consistent Snapshot</pre>
+<p>Zálohování živé DB bude vždy vyžadovat pozastavení zápisů, byť jen na kratičkou dobu, což v noci nemusí vadit. Pokud to je ale problém, pak můžete zálohovat jen na slave. Vytvoříte si MySQL repliku a tam se nezapisuje, takže při záloze ji pouze zamknete, odzálohujete, odemknete a ona se dosynchronizuje vůči master. Při recovery pak ze slave VM uděláte nového mastera. Třetí cestou je zálohovat MySQL prostředky DB - proces je to v zásadě stejný, ale místo snapshotu VM budete vytvářet export dat.</p>
+<p><em>Azure Backup pro Linux VM v Azure přináší rámec pro řešení aplikačně konzistentních záloh i v Linuxu, nejen Windows. Je naprosto univerzální, ve skriptech můžete dělat cokoli. Dnes jsme si vyzkoušeli řešení pro MySQL a stejnými koncepty můžete přidat jiné databáze či další aplikace, u kterých hledáte aplikačně konzistentní zálohování.</em></p>
+<p>&nbsp;</p>

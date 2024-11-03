@@ -1,0 +1,85 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Nový Azure Firewall: na co se hodí a v čem je jiný, než NSG nebo App Gateway?'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2309
+wordpress_url: http://tomaskubica.cz/?p=2309
+date: '2018-07-23 05:38:46 +0000'
+date_gmt: '2018-07-23 04:38:46 +0000'
+categories:
+tags:
+- Security
+- Networking
+---
+<p>Před pár dny bylo uvedeno preview produktu Azure Firewall. Kdy mám použít Network Security Group, kdy Application Gateway, kdy Azure Firewall a kdy prvky třetích stran? Pojďme si na to odpovědět a Azure Firewall vyzkoušet.<!--more--></p>
+<h1>Řízení síťového provozu v Azure</h1>
+<p>Azure nabízí dva nativní prostředky, které jsou k dispozici zdarma. Jde o Network Security Group, která umožňuje filtrovat provoz stavovým způsobem na základě IP adres, portů a tagů (například na některé služby v Azure) a Application Security Group, která doplňuje NSG o možnost vytvářet dynamické objekty (skupiny VM). Je to plně stavové řešení a lze je aplikovat na subnet, na samotné VM nebo na oboje současně. Přečtěte si o NSG a ASG více zde: <a href="https://tomaskubica.cz/jak-navrhnout-fw-pravidla-v-azure-s-nsg-a-asg/">https://tomaskubica.cz/jak-navrhnout-fw-pravidla-v-azure-s-nsg-a-asg/</a></p>
+<p>Jak vystavit aplikaci do Internetu? Stáčí dát vašemu VM Public IP a povolit provoz v NSG. Pokud se jedná o farmu webů, můžete dát Public IP na Azure Load Balancer a na něm nastavit pravidla pro balancování webového provozu dovnitř farmy. Pokud chcete mít věci ještě víc pod kontrolou a vystavit aplikaci "nepřímo" přes reverse proxy, je tu Azure Application Gateway. Ta dokáže terminovat TLS provoz, provádět chytré směrování na základě domén a URL nebo aplikovat pravidla Web Application Firewallu.</p>
+<h1>Chybí něco?</h1>
+<p>Se zmíněnými základními prostředky se dá udělat opravdu hodně, tak chybí něco?</p>
+<p>Co se týče pokročilých funkcí nějakého NGFW jako jsou IPS, DLP či proudový antivir, něco takového nativní prostředky Azure nedělají. Stejně tak můžete mít potřebu používat zařízení, která máte schválena ve firemním standardu a nemusíte si tak nechat zdlouhavě schvalovat něco jiného. To samé platí pro nějaké hybridní řešení správy všech firewallů apod. Máte-li tyto požadavky, použijte řešení třetí strany dle vaší volby - podpora pro Azure je velmi bohatá.</p>
+<p>Nechme ale tohle stranou - ještě něco by to chtělo? Zaměřme se na odchozí provoz do Internetu. Pokud VM nedáte Public IP a ona bude chtít do Internetu, půjde napřímo (pokud jí to nezakážete v NSG) nebo třeba přes on-premises za VPNkou (s force tunnelingem - není moc efektivní, ale jde to). NSG pravidly tedy můžeme ovlivnit kam se z VM dostaneme a kam ne. To je fajn, ale v tomto případě daleko častěji potřebujeme doménové jméno, než IP. Ta se u veřejně dostupných služeb často mění, rozhodující je spíše URL. To NSG neumí. Řadu PaaS služeb můžete řešit přes Service Endpoint (to v zásadě dělá něco podobného - propouští provoz z VNETu do cílové PaaS služby a v ní blokuje přístupy odjinud z Internetu - nicméně je to spíše protunelování, uvnitř PaaS služby uvidíte v logu přístup z privátní adresy VNETu). Ne všechny služby ale Service Endpoint mají a ne všechny služby jsou Azure PaaS. Co třeba Visual Studio Team Services, GitHub, API či otevřená data vašeho města či jiná cloudová služba?</p>
+<p>Druhá starost může vzniknou v okamžiku, kdy vaše aplikace komunikuje do nějakého API běžícího na veřejné IP, které vyžaduje whitelisting vaší IP adresy. V on-premises to necháte protéct vaším firewallem, zaNATujete a víte, že to odejde s konkrétní IP. Pokud ale VM v Azure nemá Public IP, odchozí adresa vám bude propůjčena per session (takže ji dopředu nevíte). Můžete dát Public IP každé VM aplikace, ale to znamená řešit whitelist pro několik adrest. Můžeme před VMka dát Azure LB s Public IP a odchozí provoz z VM bude dělat SNAT na jeho IP. To se nám ale nemusí hodit. Tak například pro VMka potřebujeme interní LB, protože aplikace je určena pro vnitřní síť. To znemožňuje mít na ní ještě druhý LB s public IP. Nebo máme potřebu dát jednu IP směrem ven pro různé části aplikace a dát je pod jeden LB nedává smysl. Nebo jsou tyto části v různých subnetech nebo dokonce různých VNETech propojeních přes VNET peering. Zkrátka někdy tam LB nedostaneme, tak co s tím?</p>
+<p>Napadá mě ještě třetí situace. Máte větší prostředí a z důvodu oddělení různých projektů používáte více subscription a jednu sdílenou s kontektivitou a infrastrukturou (<a href="https://docs.microsoft.com/en-us/azure/networking/networking-virtual-datacenter">https://docs.microsoft.com/en-us/azure/networking/networking-virtual-datacenter</a>). V rámci vaší politiky chcete řídit co smí do Internetu, co se má vystavit do Internetu a jak mohou projekty komunikovat mezi sebou. Mohli bychom to řešit v rámci projektové subscription s využitím NSG/ASG pro filtraci a Application Gateway pro vystavení do Internetu. Ale co když je projektů několik? A vlastníci projektů tak nebudou mít přístup k nastavení NSG, aby neobcházeli pravidla? Nebude to omezující? Potřebovali bychom centralizované řešení tohoto problému uvnitř sdílené subskripce.</p>
+<h1>Azure Firewall</h1>
+<p>Produkt byl oznámen před několika dny a jeho první verze se právě nachází v Preview, o které můžete požádat. Dá se tak očekávat, že produkt se bude aktivně rozvíjet a aktuální sada funkcí bude postupně vylepšována. Pojďme si říct jak to funguje, na co je to dobré a prakticky si to nasadit.</p>
+<h2>Cloud-native firewalling zejména kolem přístupů ven</h2>
+<p>NSG je součást SDN fabric, je to distribuovaná funkce. Azure Firewall je něco jiného. Musí to být nějaký kód běžící v nějakém zdroji, řekněme virtuální appliance. Pokud použijete nějakou třetí strany musíte vyřešit následující otázky. Jak zajistit vysokou dostupnost? Obvykle potřebujete před instance dát Azure LB a promyslet si to, aby nedocházelo k asymetrickému routingu. Jak dynamicky škálovat výkon? Můžete nasadit vícero instancí virtuální krabičky třeba do Virtual Machine Scale Set a na kliknutí měnit počet instancí. Bude ale potřeba tohle ještě pořešit z hlediska appliance (nějaká synchronizace nastavení v clusteru a licenční požadavky). Dále se musíte věnovat patchování této krabičky a přemýšlet jak to udělat s minimalizací výpadku a rizika.</p>
+<p>Azure Firewall podobně jako Azure Applicaiton Gateway je cloud-native služba. Neřešíte nějaké licence, platíte cloudovým způsobem. V případě Azure Firewall je to za logický firewall (virtuální krabičku) a protékající provoz. To je úžasné - když posíláte víc, cloud to sám pozná a zdroje si přidá. U Application Gateway si sice instance (a tím daný výkon) řešíte sami, ale je to doslova jedno kliknutí. Pochopitelně celé je to jako služba, takže co je pod kapotou a jak se to patchuje nemusíte řešit, Azure to pro vás dělá.</p>
+<p>Co tedy Azure Firewall dnes umí? Je to virtuální appliance poslouchající na interní IP a můžete do ní namířit traffic z libovolných subnetů klidně i z peerovaných VNETů. Dále má externí public IP (pokud chcete) pro komunikaci do Interneu. Můžete zadávat dvě kategorie pravidel. Síťová L3/L4 pravidla (zdrojové a cílové IP a porty) a aplikační pravidla na základě doménového jména (tzn. funguje to typicky posloucháním HTTP paketu a v případě HTTPS zkoumáním vráceného certifikátu cílového serveru). Nic víc, nic míň.</p>
+<h2>Azure Firewall vs Azure Application Gateway</h2>
+<p>NSG/ASG je distribuovaná služba, ale jak Azure Firewall tak Azure Application Gateway jsou centralizované služby mající něco společného s napojením na Internet. V čem je rozdíl?</p>
+<p>Azure Firewall slouží k řízení co zevnitř smí komunikovat směrem ven a na jaká IP nebo s jakými doménovými jmény. Aktuálně řídí provoz zevnitř ven a vůbec ne zvenku dovnitř. Neslouží k vystavování webů ven, je o komunikaci, kterou zahájil server uvnitř.</p>
+<p>Application Gateway je reverse proxy. Naopak tedy slouží k vystavení služeb, ke kterým mají mít přístup uživatelé na druhé straně. Protože je to proxy funguje jako prostředník komunikace. Terminuje komunikaci s klientem na venkovní straně a jeho jménem vytváří komunikaci se serverem ve vnitřní straně. Zabývá se komunikací, kterou zahájil klient venku.</p>
+<h2>Doménově utvářená pravidla směrem ven</h2>
+<p>Vyzkoušejme si první scénář. Založím si Azure Firewall a uvidím, že má nějakou interní IP, která se nám později bude hodit.</p>
+<p id="LoEAaBm"><img class="img-fluid wp-image-2312 " src="/images/2018/img_5b5435e08514d.png" alt="" /></p>
+<p>K firewallu je také přirazena public IP (resp. být nemusí, ale já jsem to v průvodci chtěl).</p>
+<p id="udQpKzk"><img class="img-fluid wp-image-2314 " src="/images/2018/img_5b54365dd2e95.png" alt="" /></p>
+<p>Jak dostaneme provoz do firewallu? Tohle je o směrování. Ve výchozím stavu bude mít subnet pravidlo, že například Internet je směrován rovnou do Internetu. Toto pravidlo musíme změnit a poslat tento provoz do IP adresy firewallu jako next hop. My to uděláme jen pro Internet, ale stejně tak můžete tohle udělat pro konkrétní subnet nebo peerovaný VNET. Konfiguračně jde o vytvoření přídavné směrovací tabulky (UDR):</p>
+<p id="bCGghoz"><img class="img-fluid wp-image-2315 " src="/images/2018/img_5b5436e721c21.png" alt="" /></p>
+<p>Do ní zadáme následující pravidlo:</p>
+<p id="EcQkFFx"><img class="img-fluid wp-image-2316 " src="/images/2018/img_5b5436f970801.png" alt="" /></p>
+<p>A přiřadíme na jednom a více subnetech.</p>
+<p id="tSKduEH"><img class="img-fluid wp-image-2317 " src="/images/2018/img_5b54370cbe8b2.png" alt="" /></p>
+<p>Vyzkoušejme si teď aplikační pravidlo. Představme si, že odmítám pustit VM jen tak do Internetu. Potřebuji přístup na základní Azure služby (to je ve výchozím stavu Azure Firewall povoleno, takže třeba KMS server na registraci Windows licence chodí, ale můžete to změnit) a na svůj prostor ve Visual Studio Team Services. Ale jen na ten svůj. Nejen, že IP adresa VSTS se může měnit, ale hlavně já chci mujtym.visualstudio.com, ale nechci povolit cizitym.visualstudio.com (což je nejspíš povede na stejnou IP). Zadejme tedy toto aplikační pravidlo.</p>
+<p id="DKWHCVA"><img class="img-fluid wp-image-2318 " src="/images/2018/img_5b5437b46b39f.png" alt="" /></p>
+<p>Výborně. Vlezu do VM a pokusím se klonovat projekt z mujtym a i z jiného prostoru. Funguje jen to, co jsem chtěl!</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git clone https://mujtym.visualstudio.com/mujProjekt/_git/mujPr
+Cloning into 'mujProjekt'...
+Username for 'https://mujtym.visualstudio.com':
+
+$ git clone https://vstsdemos.visualstudio.com/DefaultCollection/BikeSharing360/_git/BikeSharing360
+Cloning into 'BikeSharing360'...
+fatal: unable to access 'https://vstsdemos.visualstudio.com/DefaultCollection/BikeSharing360/_git/BikeSharing360/':
+</pre>
+<h2>Předvídatelná zdrojová IP adresa a centralizace</h2>
+<p>Připomeňme další potíže, které Azure Firewall řeší. Veškerý provoz, který firewallem proteče směrem do Internetu, bude mít jeho public IP adresu. Pokud potřebujete na straně nějaké služby v Internetu použít whitelisting na IP adresu, je to nejpohodlnější způsob jak to zajistit. Žádné obrzličky typu přidání Azure LB i když není potřeba. Další zajímavost je, že do Azure Firewall můžete poslat cokoli, co je síťově propojeno. Stačí vybrat jeden nebo více subnetů ve VNETu (některé tam pošlete, některé ne). Totéž ale platí pro VNETy, které jsou peerované. Tak například ve spoke subskripci s aplikací můžete vzít jeden subnet a do něj dát UDR, které provoz třeba na Internet namíří rovnou do Azure Firewall ve sdílené hub subskripci. Klidně tedy celé prostředí může při komunikaci do Internetu mít stejnou IP - podobně, jako to je u vašeho firemního firewallu.</p>
+<p>Nepotřebujeme nastavovat nic dalšího - jednoduše si vyzkoušíme, že IP adresa je opravdu ta co čekáme. Povolme si přístup na ipify (vrací IP klienta).</p>
+<p id="MgBzXyn"><img class="img-fluid wp-image-2319 " src="/images/2018/img_5b5438f409b1f.png" alt="" /></p>
+<p>Vyzkoušejme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl https://api.ipify.org
+40.119.148.21</pre>
+<h2>Logování</h2>
+<p>Každý firewall by měl logovat a Azure Firewall to také dělá. Aktuálně to umí do Event Hub (z něj lze data streamovat do QRadar, Splunk či ArcSight do on-premises SIEM systémů), do Azure Log Analytics nebo jednoduše do souboru na Blob Storage, kde to záznam vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "category": "AzureFirewallApplicationRule",
+    "time": "2018-07-20T14:00:01.2421630Z",
+    "resourceId": "/SUBSCRIPTIONS/vasesubscriptionid/RESOURCEGROUPS/FW/PROVIDERS/MICROSOFT.NETWORK/AZUREFIREWALLS/MUJFW",
+    "operationName": "AzureFirewallApplicationRuleLog",
+    "properties": {"msg":"HTTPS request from 10.0.0.4:55656 to api.ipify.org:443. Action: Allow. Rule Collection: sourceiptest. Rule: ipify"}
+}
+</pre>
+<p>Dá se očekávat, že v budoucnu přibude integrace do Azure Security Center.</p>
+<p>&nbsp;</p>
+<p><em>Potřebujete enterprise řešení shodné s vaší firemní strategií a on-premises deploymentem? V Azure můžete nasadit připravená řešení třetích stran včetně Cisco, Fortinet, Checkpoint, Barracuda, Palo Alto nebo Sophos případně WAF řešení typu F5, Imperva, Barracuda, Fortinet nebo SonicWall a další. V Azure jsou perfektně podporovány a řada z nich je integrovaná do Azure Security Center.</em></p>
+<p><em>Pokud ale hledáte cloud-native řešení, které samo škáluje, je přímo součástí Azure prostředí a je pro vás spravováno, takže se nemusíte starat o jeho součástky, podívejte se na Azure Firewall. Kombinace NSG/ASG pro vnitřní segmentaci projektů, Azure Firewall pro oddělení velkých celků a přístupu na Internet a Application Gateway pro vystavování aplikací bezpečně ven je ideální pro cloudově zaměřené zákazníky.</em></p>
+<p>&nbsp;</p>

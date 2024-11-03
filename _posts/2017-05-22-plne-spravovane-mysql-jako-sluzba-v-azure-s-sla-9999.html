@@ -1,0 +1,92 @@
+---
+layout: post
+status: publish
+published: true
+title: Plně spravované MySQL jako služba v Azure s SLA 99,99%
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 756
+wordpress_url: http://tomaskubica.cz/?p=756
+date: '2017-05-22 05:37:24 +0000'
+date_gmt: '2017-05-22 04:37:24 +0000'
+categories:
+tags:
+- MySQL
+---
+<p>Potřebujete pro svojí aplikaci v Azure MySQL DB? Proč se patlat se infrastrukturou, starat se o cluster, přemýšlet jak zálohovat a řešit jak velkou VM použít vzhledem k potřebnému výkonu? Co raději mít MySQL jako službu. Řeknete kolik má mít místa a jaký výkon. O její dostupnost, clustering  a patchování se postará Azure v SLA 99,99%, objednáte si konkrétní výkon a vše se vám automaticky zálohuje každých 5 minut. To vše platíte po minutě a podle výkonu, který požadujete. Co vy na to?<!--more--></p>
+<h1>MySQL jako služba - jak to funguje</h1>
+<p>Na začátek musím poznamenat, že služba je aktuálně v režimu Preview, takže zatím není pokryta zmíněným SLA. Nicméně pro vývojové prostředí a testování je už teď perfektní s tím, že obvykle je přechod do GA otázkou pár měsíců.</p>
+<p>MySQL jako služba je řešení, kdy získáváte přístup k MySQL podle vašich požadavků a to, jak je to nainstalované, updatované, jak je monitorován cluster, zálohovaná data apod., se nestaráte - to řeší Azure a vám dává SLA a výkonnostní garance. Vybíráte si výpočetní jednotky, což je normalizovaný CPU výkon (100 odpovídá jednomu coru určitého výkonu) a storage jednotky. Služba má 3 kategorie, kde ve variantě Basic zahrnuje nižší výkonnostní a prostorové možnosti (100 výpočetních jednotek a max. 1050GB storage) a point-in-time zálohu (v intervalu 5 minut) drží po dobu 7 dní. Tier Standard drží point-in-time zálohu 35 dní, dosahuje vyšších výkonů (2000 výpočetních jednotek, což odpovídá 20 jádrům, ale v preview režimu zatím jen 800 a max 10TB storage), ale také už má garance na výkon z hlediska IOPSů (3-násobek prostoru, tzn. např. u 10 000 GB storage máte 30 000 IOPS). Tier Premium zatím není dostupný, ale bude zaměřen na minimální latenci. V rámci tieru můžete svoje výkonnostní požadavky měnit prakticky za běhu (funguje to tak, že se data nejprve na pozadí replikují do jiné výkonnostní skupiny a když je to hotové, dojde k jejich překlopení, což způsobí odstávku v 99% případů do 30 vteřin, obvykle však asi 4 sekundy). Point-in-time restore můžete také samozřejmě využít ke klonování databáze, což je velmi zajímavé například pro automatizované testování v rámci CI/CD pipeline.</p>
+<p>Kolik vás něco takového může stát? Základní plně spravovaný MySQLcluster s dostupností 99,99%, 50 GB prostoru, 50 výpočetními jednotkami a 7 denním point-in-time restore stojí asi 15 EUR měsíčně. 1TB prostoru s 100 výpočetními jednotkami stojí asi 102 EUR měsíčně.  Pro produkci asi budete preferovat standardní tier s garancí na IOPS. Základní verze s 100 výpočetními jednotkami, 125GB prostoru, 375 IOPS garancí a 35 dní point-in-time restore stojí asi 73 EUR. V rámci preview nejnabušenější verze s 800 výpočetními jednotkami, 1TB prostoru a 3000 IOPS vás vyjde na 646 EUR měsíčně. Vyšší varianty budou dostupné až později.</p>
+<h1>Vyzkoušejme si to</h1>
+<p>V portálu se pustíme do vytvoření nové MySQL databáze jako služba.</p>
+<p id="ljtjsEp"><img class="img-fluid wp-image-758 " src="/images/2017/img_5919f21c71c51.png" alt="" /></p>
+<p>Zadáme základní údaje a login.</p>
+<p id="tOilnpl"><img class="img-fluid wp-image-759 " src="/images/2017/img_5919f26d36717.png" alt="" /></p>
+<p>Vybereme si verzi (5.6 nebo 5.7, minor patche jsou řešeny platformou) a cenovou variantu.</p>
+<p id="dncYtau"><img class="img-fluid wp-image-760 " src="/images/2017/img_5919f2af56921.png" alt="" /></p>
+<p>Za chvilku už je naše nové MySQL připraveno.</p>
+<p id="EpzGFgS"><img class="img-fluid wp-image-762 " src="/images/2017/img_5919f625c9995.png" alt="" /></p>
+<p>První co uděláme je přidání IP adresy systému, který bude do databáze přistupovat - já přidám IP adresu svého počítače. Všimněte si, že výchozí nastavení vynucuje SSL připojení, což doporučuji ponechat.</p>
+<p id="xLdpDCu"><img class="img-fluid wp-image-763 " src="/images/2017/img_5919f6db5ea71.png" alt="" /></p>
+<p>Připojíme se. Pro zjednodušení máte pro různé jazyky connection string přímo v GUI. Já použiji Linux stroj a mysql klienta (příkazovou řádku).</p>
+<p>Protože chceme využívat šifrované spojení musíme u některých klientů (a mysql-client je ten případ) stáhnout CA a přegenerovat na lokální certifikát.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">wget https://www.digicert.com/CACerts/BaltimoreCyberTrustRoot.crt
+openssl x509 -inform DER -in BaltimoreCyberTrustRoot.crt -out MySQLcert.pem
+</pre>
+<p>Připojme se do MySQL.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ mysql -htomuvmysql.mysql.database.azure.com --ssl --ssl-mode required -utomas@tomuvmysql -pAzure12345678 --ssl-ca ./MySQLcert.pem
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 65535
+Server version: 5.6.26.0 MySQL Community Server (GPL)
+
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql&gt;</pre>
+<p>Jsme tam!</p>
+<p>Pojďme si založit databázi, v ní tabulku a dáme do ní nějaká data.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">mysql&gt; create database mojedb;
+mysql&gt; use mojedb;
+mysql&gt; create table tabulka (c1 varchar(50),c2 varchar(50));
+mysql&gt; insert into tabulka values('hopsa','hejsa');
+Query OK, 1 row affected (0.49 sec)
+
+mysql&gt; select * from tabulka;
++-------+-------+
+| c1    | c2    |
++-------+-------+
+| hopsa | hejsa |
++-------+-------+
+1 row in set (0.02 sec)</pre>
+<p>Databázi uvidíme i na přehledové stránce v GUI.</p>
+<p id="cqBQsxV"><img class="img-fluid wp-image-765 " src="/images/2017/img_591a78532d5f0.png" alt="" /></p>
+<p>Počkáme teď víc jak 5 minut, aby byla provedena záloha. Pak se podívejme  na možnost restore stavu DB v libovolném čase (resp. s přesností oněch 5-minutových intervalů). Přímo na hlavní stránce klikněte na tlačítko Restore.</p>
+<p id="Pyjidow"><img class="img-fluid wp-image-767 " src="/images/2017/img_591a7cecedfc3.png" alt="" /></p>
+<p>Zadejte čas v minulosti, který chcete obnovit a jméno databáze, do které se má záloha provést.</p>
+<p id="nHiZFaO"><img class="img-fluid wp-image-766 " src="/images/2017/img_591a792161624.png" alt="" /></p>
+<p>Připojme se do obnovené DB - najdeme tam svoje data.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ mysql -hobnovenymysql.mysql.database.azure.com --ssl --ssl-mode required -utomas@obnovenymysql -pAzure12345678 --ssl-ca ./My
+SQLcert.pem
+
+mysql&gt; use mojedb;
+mysql&gt; select * from tabulka;
++-------+-------+
+| c1    | c2    |
++-------+-------+
+| hopsa | hejsa |
++-------+-------+
+1 row in set (0.25 sec)</pre>
+<p>&nbsp;</p>
+<p><em>Komfort, který mají uživatele Azure SQL Database je velmi vysoký a pokud pro svůj projekt nutně potřebujete MySQL, šlo jen závidět. Dnes už ale existuje spravovaná verze MySQL - velmi pohodlná, jednoduchá, patchovaná, zálohovaná a s garancí na SLA. Azure SQL je určitě moje volba pro náročné enterprise aplikace (mnoho forem šifrování, data masking, obrovské množství funkcí), ale pokud je například váš webový projekt postaven na MySQL, najdete v Azure výbornou managed službu - 100% kompatibilní (žádné úpravy, postaveno na komunitní verzi) a s vysokým komfortem.</em></p>
+<p>&nbsp;</p>

@@ -1,0 +1,492 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Networking v cloudu: Pokročilé kousky s Azure VPN a BGP'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 999
+wordpress_url: http://tomaskubica.cz/?p=999
+date: '2017-07-10 04:33:00 +0000'
+date_gmt: '2017-07-10 03:33:00 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Jak se má síťař orientovat v cloudu? To je hlavní téma této série článků a tentokrát se podíváme na VPN spojení cloudu a vaší sítě. Ukážeme si základní scénáře, ale i pokročilé situace s dynamickým směrováním, napojením několika lokalit u vás i v cloudu.<!--more--></p>
+<h1>Site-to-site se statickým směrováním</h1>
+<p>Začneme jednoduchým příkladem, tedy vytvoření IPSEC VPNky z Azure na jedno VPN zařízení vaší sítě (gateway). V následujících příkladech budu jako on-premises technologii používat Cisco router, ale stejně to samozřejmě funguje na čemkoli jiném. Na straně Azure využijeme nativní prostředky Azure, které mají nejlepší poměr cena/výkon (můžete si i v Azure vzít třeba Cisco, Fortinet, palo Alto, CheckPoint atd., ale nativní prostředky vás vyjdou rozhodně nejlevněji a to včetně vysoké dostupnosti). V této sérii budu používat PowerShell. Hodně věcí můžete dělat v GUI nebo v CLI, ale zejména konfigurace BGP je aktuálně dostupná pouze v PowerShell, tak ať nemusíme různě přeskakovat, uděláme v něm rovnou všechno.</p>
+<p>Takhle bude naše síť vypadat:</p>
+<p id="UjzDVhd"><img class="img-fluid wp-image-1000 " src="/images/2017/img_5959ec649dbb1.png" alt="" /></p>
+<p>Nejprve si vytvoříme VNET s nějakou adresací, dva subnety a ještě jeden třetí, jehož jménu musí být přesně GatewaySubnet (tím Azure pozná, že se jedná o spojovačku do VPN brány).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmResourceGroup -Name vpnka -Location westeurope
+$sub1 = New-AzureRmVirtualNetworkSubnetConfig -Name sub1 -AddressPrefix '172.21.1.0/24'
+$sub2 = New-AzureRmVirtualNetworkSubnetConfig -Name sub2 -AddressPrefix '172.21.2.0/24'
+$subspoj = New-AzureRmVirtualNetworkSubnetConfig -Name GatewaySubnet -AddressPrefix '172.21.254.0/24'
+
+$vnet = New-AzureRmVirtualNetwork -Name vpntestnet -ResourceGroupName vpnka -Location westeurope -AddressPrefix 172.21.0.0/16 -Subnet $sub1, $sub2, $subspoj</pre>
+<p>Bude dobré vytvořit si testovací VM, z které budeme zkoušet pingat mašiny na druhé straně nebo loopback adresy na onpremises routeru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$pip = New-AzureRmPublicIpAddress -ResourceGroupName vpnka -Location westeurope -Name mojevmko -DomainNameLabel mojevmko -AllocationMethod Dynamic
+$sub1 = Get-AzureRmVirtualNetworkSubnetConfig -Name sub1 -VirtualNetwork $vnet
+$nic = New-AzureRmNetworkInterface -Name nic -ResourceGroupName vpnka -Location westeurope -SubnetId $sub1.Id -PublicIpAddressId $pip.Id 
+$securePassword = ConvertTo-SecureString ' ' -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential ("tomas", $securePassword)
+$vmConfig = New-AzureRmVMConfig -VMName testvm -VMSize Basic_A1 | Set-AzureRmVMOperatingSystem -Linux -ComputerName testvm -Credential $cred -DisablePasswordAuthentication | Set-AzureRmVMSourceImage -PublisherName Canonical -Offer UbuntuServer -Skus 16.04-LTS -Version latest | Add-AzureRmVMNetworkInterface -Id $nic.Id
+$sshPublicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex"
+Add-AzureRmVMSshPublicKey -VM $vmconfig -KeyData $sshPublicKey -Path "/home/tomas/.ssh/authorized_keys"
+New-AzureRmVM -ResourceGroupName vpnka -Location westeurope -VM $vmConfig</pre>
+<p>Nejprve si vytvoříme VPN bránu na straně Azure. Musíme pro ni vytvořit a přiřadit veřejnou IP adresu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$A1ip = New-AzureRmPublicIpAddress -Name A1ip -ResourceGroupName vpnka -Location westeurope -AllocationMethod Dynamic
+$subspoj = Get-AzureRmVirtualNetworkSubnetConfig -Name 'GatewaySubnet' -VirtualNetwork $vnet
+$vpnipcfg1 = New-AzureRmVirtualNetworkGatewayIpConfig -Name vpnipcfg1 -SubnetId $subspoj.Id -PublicIpAddressId $A1ip.Id
+$vpn1 = New-AzureRmVirtualNetworkGateway -Name vpn1 -ResourceGroupName vpnka -Location westeurope -IpConfigurations $vpnipcfg1 -GatewayType Vpn -VpnType RouteBased -GatewaySku VpnGw1</pre>
+<p>V on-premises mám Cisco router a v Azure teď VPN bránu. Musíme je teď na sebe namířit, aby sestavili tunel. Na straně Azure je toto (a musím říct, že pro mě to není zrovna nejlepší označení, protože mě mate) označeno jako lokální brána - zadejte jí veřejnou IP routeru v on-premises.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$R1 = New-AzureRmLocalNetworkGateway -Name R1 -ResourceGroupName vpnka -Location westeurope -GatewayIpAddress '52.166.115.166'
+</pre>
+<p>Dále na straně Azure potřebujeme vytvořit spojení, tedy deklarovat odkud kam se spojujeme a jaký bude šifrovací klíč (můžete i nastavit samotné IPSEC parametry jako je dh group a další, ale já je nechám na defaultech - víc informací k modifikaci nastavení IPSEC je zde: <a href="https://docs.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-ipsecikepolicy-rm-powershell">https://docs.microsoft.com/en-us/azure/vpn-gateway/vpn-gateway-ipsecikepolicy-rm-powershell</a>).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vpn1toR1 = New-AzureRmVirtualNetworkGatewayConnection -Name vpn1toR1 -ResourceGroupName vpnka -Location westeurope -VirtualNetworkGateway1 $vpn1 -LocalNetworkGateway $R1 -ConnectionType IPsec -RoutingWeight 10 -SharedKey AzureKlic123
+</pre>
+<p>V Cisco routeru budeme také potřebovat vytvořit patřičnou konfiguraci. K tomu potřebujeme znát IP adresu brány v Azure - tu už jsme si vytvořili, tak se stačí jen podívat:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$(Get-AzureRmPublicIpAddress -Name A1ip -ResourceGroupName vpnka).IpAddress
+
+52.166.60.175</pre>
+<p>Tady je co nakonfigurovat v routeru:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">crypto ikev2 proposal azure-proposal
+  encryption aes-cbc-256 aes-cbc-128 3des
+  integrity sha1
+  group 2
+  exit
+
+crypto ikev2 policy azure-policy
+  proposal azure-proposal
+  exit
+
+crypto ikev2 keyring azure-keyring
+  peer 52.166.60.175
+    address 52.166.60.175
+    pre-shared-key AzureKlic123
+    exit
+  exit
+
+crypto ikev2 profile azure-profile
+  match address local interface GigabitEthernet1
+  match identity remote address 52.166.60.175 255.255.255.255
+  authentication remote pre-share
+  authentication local pre-share
+  keyring local azure-keyring
+  exit
+
+
+crypto ipsec transform-set azure-ipsec-proposal-set esp-aes 256 esp-sha-hmac
+ mode tunnel
+ exit
+
+crypto ipsec profile azure-vti
+  set transform-set azure-ipsec-proposal-set
+  set ikev2-profile azure-profile
+  exit
+
+int tunnel 1
+  ip address 52.166.115.166 255.255.255.255
+  ip tcp adjust-mss 1350
+  tunnel source GigabitEthernet1
+  tunnel mode ipsec ipv4
+  tunnel destination 52.166.60.175
+  tunnel protection ipsec profile azure-vti
+  exit</pre>
+<p>Pokud se všechno podařilo, měl by být IPSEC nahoře!</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Get-AzureRmVirtualNetworkGatewayConnection -Name vpn1toR1 -ResourceGroupName vpnka
+
+
+Name                    : vpn1toR1
+ResourceGroupName       : vpnka
+Location                : westeurope
+...
+ConnectionStatus        : Connected
+EgressBytesTransferred  : 48400
+IngressBytesTransferred : 233750
+TunnelConnectionStatus  : []</pre>
+<p>Krása. Jenže Azure neví jaké sítě mám on-premises a můj router zase netuší co je v Azure. Pro začátek to tedy vyřešme jednoduchou statickou routou.</p>
+<p>V routeru:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">ip route 172.21.0.0 255.255.0.0 tunnel 1
+</pre>
+<p>V azure:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Set-AzureRmLocalNetworkGateway -AddressPrefix '172.17.0.0/16' -LocalNetworkGateway $R1
+</pre>
+<p>Vyzkoušejte ping z VM v Azure třeba na IP adresu routeru v jeho subnetu - funguje!</p>
+<h1>Site-to-site s dynamickým směrováním s BGP</h1>
+<p>Statické směrování je na spoji typu bod-bod fajn, ale jakmile budeme přidávat zařízení a lokality, začne to být velmi komplexní. Nakonec bude přidání nové sítě strašně složité a díky nutnosti vše dobře ručně konfigurovat na všech místech snadno na něco zapomeneme a redundance (nalezení nové cesty) nezafunguje podle záměru. Zkrátka dynamický směrovací protokol je rozhodně lepší volba. Azure podporuje BGP a to si také vyzkoušíme zatím na jednoduchém site-to-site příkladu. Výsledná topologie bude vypadat takhle:</p>
+<p id="IVFOrvK"><img class="img-fluid wp-image-1002 " src="/images/2017/img_5959ee1c16c43.png" alt="" /></p>
+<p>Azure VPN podporuje BGP a chceme provést peering mezi touto VPN a routerem u sebe. Je nutné použít eBGP, tedy obě lokality musí mít odlišné číslo autonomního systému (samozřejmě může být privátní, tak jak to mám já). Výsledkem bude, že vlastní sítě už nemusíme nastavovat jako statické cesty, prvky se to od sebe naučí dynamicky. BGP nebudeme rozjíždět na běžných interfacech, ale použijeme loopback (resp. Azure to pro nás na své straně udělá sám, ale koncept je stejný).</p>
+<p>Nejprve přenastavíme svou bránu v Azure tak, že jí dáme číslo AS 65001.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Set-AzureRmVirtualNetworkGateway -Asn 65001 -VirtualNetworkGateway $vpn1
+</pre>
+<p>Dále zapneme podporu BGP na naší connection.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Set-AzureRmVirtualNetworkGatewayConnection -VirtualNetworkGatewayConnection $vpn1toR1 -EnableBGP $True
+</pre>
+<p>Teď musíme navázat BGP peering na obou stranách. Začněme stranou routeru. V první řadě pro navázání spojení budeme potřebovat loopback:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">interface loopback 1
+  ip address 10.0.0.1 255.255.255.255
+  exit</pre>
+<p>Dále musíme znát "loopback" v Azure - to zjistíme takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$(Get-AzureRmVirtualNetworkGateway -Name vpn1 -ResourceGroupName vpnka).BgpSettingsText
+{
+  "Asn": 65001,
+  "BgpPeeringAddress": "172.21.254.254",
+  "PeerWeight": 0
+}</pre>
+<p>Je to tedy 172.21.254.254. Všechny sítě se chceme učit dynamicky, ale cestu k loopbacku musíme jako jedinou dodat staticky. Zrušíme tedy předchozí routy a uděláme novou specifickou pro BGP peera.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">no ip route 172.21.0.0 255.255.0.0 tunnel 1
+ip route 172.21.254.254 255.255.255.255 tunnel 1</pre>
+<p>V tuto chvíli můžeme nastavit BGP. My jsme AS 65002 a peerujeme s Azure, které jsme nastavili na AS 65001. Přidáme také network statement pro dynamické propagování této routy. Protože jedeme na loopbackách nezapomeneme povolit eBGP multihop.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">router bgp 65002
+  bgp router-id 10.0.0.1
+  neighbor 172.21.254.254 remote-as 65001
+  neighbor 172.21.254.254 ebgp-multihop 255
+  neighbor 172.21.254.254 update-source loopback 1
+  address-family ipv4 unicast
+    neighbor 172.21.254.254 activate
+    network 172.17.0.0 mask 255.255.0.0
+    exit</pre>
+<p>Výborně. Teď nastavit stranu Azure. Co potřebujeme je přidat statickou cestu k 10.0.0.1 (loopback routeru) a nastavit ho jako BGP peera.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Set-AzureRmLocalNetworkGateway -Asn 65002 -BgpPeeringAddress 10.0.0.1 -AddressPrefix '10.0.0.1/32' -LocalNetworkGateway $R1
+</pre>
+<p>To je všechno - pokud vše dobře dopadlo, BGP  se vidí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R1#sh ip bgp nei
+BGP neighbor is 172.21.254.254,  remote AS 65001, external link
+  BGP version 4, remote router ID 172.21.254.254
+  BGP state = Established, up for 00:00:27</pre>
+<p>Prohlédněte si routovací tabulku - uvidíme cestu do Azure naučenou přes BGP.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R1#sh ip route bgp
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is 172.17.0.1 to network 0.0.0.0
+
+      172.21.0.0/16 is variably subnetted, 2 subnets, 2 masks
+B        172.21.0.0/16 [20/0] via 172.21.254.254, 00:02:08</pre>
+<p>Z VM v Azure také můžeme poslat ping na loopback - bude chodit.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@testvm:~$ ping 10.0.0.1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=254 time=3.85 ms</pre>
+<p>Vyzkoušejme si teď dynamičnost tohoto nastavení. V On-premises přidáme novou síť a budeme chtít, aby se na ni VM v Azure dostala, aniž bychom museli jakkoli do Azure zasahovat. Vytvoříme nový loopback a zařadíme ho pod BGP advertisement (samozřejmě můžete pak používat redestribuci apod., ale to už síťaři vědí).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">int loopback 2
+  ip add 10.1.0.1 255.255.255.255
+  exit
+router bgp 65002
+  address-family ipv4 unicast
+    network 10.1.0.1 mask 255.255.255.255
+    exit
+  exit</pre>
+<p>A zkuste pingnout z VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@testvm:~$ ping 10.1.0.1
+PING 10.1.0.1 (10.1.0.1) 56(84) bytes of data.
+64 bytes from 10.1.0.1: icmp_seq=29 ttl=254 time=3.94 ms</pre>
+<p>A ještě jedna důležitá věc. Azure (záměrně) neumí advertisovat default routu, ale přijímat ano, ale dejte pozor, co chcete. Jste tedy schopni v on-premises generovat default routu na sebe a provoz VM v Azure tak nebude chodit do Internetu Microsoft cestou, ale přes vaše on-premises připojení.</p>
+<h1>Redundance brány v Azure</h1>
+<p>Vaše VPN brána v Azure má k sobě v zásobě kolegu a v případě havárie (selhání virtuálního hosta s VPNkou) dokáže na náhradníka přesunout svou konfiguraci. Je to jako mít náhradní router. Při očekávaném výpadku (Azure provádí maitenance a je nutné vaši VPN odpojit) dojde k výpadku na asi 20 vteřin - Azure na nahrádníka nahraje konfiguraci a v rozhodný okamžik "přepojí kabel". Pokud byl výpadek neočekávaný, nemá Azure dopředu přednahranou konfiguraci, takže výpadek bude trvat asi 2 minuty. V obou situacích vám najede "jiný router" s konfigurací předchozího, takže se vše automaticky znovu chytne.</p>
+<p>Existuje ještě možnost Active-Active řešení, ale o tom později.</p>
+<p>Jste také tak rychlí při výměně on-premises routeru? Asi ne, předpokládám, že budete mít takových zařízení víc v režimu active/active a použijeme dynamické směrování pro překlopení provozu. Pojďme na to.</p>
+<h1>Dva on-premises routery</h1>
+<p>Předpokládejme, že na vaší straně jsou dva použitelné routery (VPNky). Možná jsou úplně u sebe, možná je každý v jiném datovém centru. Pro účely tohoto článku můžeme klidně předpokládat, že jsou v odlišných datových centrech a primárně řeší jiné místní rozsahy IP adres. Co je zásadní je, že z pohledu Azure půjde o jeden autonomní BGP systém. Vypadat to bude nějak takhle:</p>
+<p id="sBMYKQK"><img class="img-fluid wp-image-1005 " src="/images/2017/img_595a073101538.png" alt="" /></p>
+<p>Nejprve tedy přípravné práce - já použiji mezi routery iBGP. Na prvním routeru přidám:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">router bgp 65002
+  neighbor 172.18.0.4 remote-as 65002
+  neighbor 172.18.0.4 next-hop-self
+  neighbor 172.18.0.4 update-source gigabitEthernet 1
+  address-family ipv4 unicast
+    neighbor 172.18.0.4 activate
+    redistribute connected
+    exit
+ip route 172.18.0.4 255.255.255.255 172.17.0.1</pre>
+<p>A na druhém udělám toto:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">int loopback 1
+  ip add 10.0.0.2 255.255.255.255
+  exit
+router bgp 65002
+  bgp router-id 10.0.0.2
+  neighbor 172.17.0.4 remote-as 65002
+  neighbor 172.17.0.4 next-hop-self
+  neighbor 172.17.0.4 update-source gigabitEthernet 1
+  address-family ipv4 unicast
+    neighbor 172.17.0.4 activate
+    redistribute connected
+    exit
+ip route 172.17.0.4 255.255.255.255 172.18.0.1</pre>
+<p>iBGP by se mi mělo spojit a na R1 tedy uvidím, že dostávám informaci o Azure síti (172.21.0.0/16) z Azure peera a informaci o svém druhém DC (172.18.0.0/16) z R2.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R1#sh ip bgp
+BGP table version is 30, local router ID is 10.0.0.1
+Status codes: s suppressed, d damped, h history, * valid, &gt; best, i - internal,
+              r RIB-failure, S Stale, m multipath, b backup-path, f RT-Filter,
+              x best-external, a additional-path, c RIB-compressed,
+              t secondary path,
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI validation codes: V valid, I invalid, N Not found
+
+     Network          Next Hop            Metric LocPrf Weight Path
+ *&gt;   10.0.0.1/32      0.0.0.0                  0         32768 ?
+ *                     172.21.254.254                         0 65001 i
+ *&gt;i  10.0.0.2/32      172.18.0.4               0    100      0 i
+ *&gt;   10.1.0.1/32      0.0.0.0                  0         32768 i
+ *&gt;   52.166.115.166/32
+                      0.0.0.0                  0         32768 ?
+ *&gt;   172.17.0.0/24    0.0.0.0                  0         32768 ?
+ *&gt;i  172.18.0.0/24    172.18.0.4               0    100      0 ?
+ *&gt;   172.21.0.0       172.21.254.254                         0 65001 i
+</pre>
+<p>Připojme teď R2 do Azure. Nejprve co se týče IPSEC:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">crypto ikev2 proposal azure-proposal
+  encryption aes-cbc-256 aes-cbc-128 3des
+  integrity sha1
+  group 2
+  exit
+
+crypto ikev2 policy azure-policy
+  proposal azure-proposal
+  exit
+
+crypto ikev2 keyring azure-keyring
+  peer 52.166.60.175
+    address 52.166.60.175
+    pre-shared-key AzureKlic123
+    exit
+  exit
+
+crypto ikev2 profile azure-profile
+  match address local interface GigabitEthernet1
+  match identity remote address 52.166.60.175 255.255.255.255
+  authentication remote pre-share
+  authentication local pre-share
+  keyring local azure-keyring
+  exit
+
+
+crypto ipsec transform-set azure-ipsec-proposal-set esp-aes 256 esp-sha-hmac
+ mode tunnel
+ exit
+
+crypto ipsec profile azure-vti
+  set transform-set azure-ipsec-proposal-set
+  set ikev2-profile azure-profile
+  exit
+
+int tunnel 1
+  ip address 13.80.12.80 255.255.255.255
+  ip tcp adjust-mss 1350
+  tunnel source GigabitEthernet1
+  tunnel mode ipsec ipv4
+  tunnel destination 52.166.60.175
+  tunnel protection ipsec profile azure-vti
+  exit</pre>
+<p>Na straně Azure:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$R2 = New-AzureRmLocalNetworkGateway -Name R2 -ResourceGroupName vpnka -Location westeurope -GatewayIpAddress '13.80.12.80' -Asn 65002 -BgpPeeringAddress 10.0.0.2 -AddressPrefix '10.0.0.2/32'
+$vpn1toR2 = New-AzureRmVirtualNetworkGatewayConnection -Name vpn1toR2 -ResourceGroupName vpnka -Location westeurope -VirtualNetworkGateway1 $vpn1 -LocalNetworkGateway $R2 -ConnectionType IPsec -RoutingWeight 10 -SharedKey AzureKlic123 -EnableBGP $True</pre>
+<p>Ověřte, že IPSEC spojení je nahoře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Get-AzureRmVirtualNetworkGatewayConnection -Name vpn1toR2 -ResourceGroupName vpnka
+
+
+Name                    : vpn1toR2
+ResourceGroupName       : vpnka
+...
+ConnectionStatus        : Connected
+EgressBytesTransferred  : 2092
+IngressBytesTransferred : 0
+TunnelConnectionStatus  : []</pre>
+<p>Teď napeerujeme BGP. Přidejte konfiguraci eBGP do R2.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">router bgp 65002
+  neighbor 172.21.254.254 remote-as 65001
+  neighbor 172.21.254.254 ebgp-multihop 255
+  neighbor 172.21.254.254 update-source loopback 1
+  address-family ipv4 unicast
+    neighbor 172.21.254.254 activate
+    exit
+no ip route 172.21.0.0 255.255.0.0 tunnel 1
+ip route 172.21.254.254 255.255.255.255 tunnel 1</pre>
+<p>Ujistěme se, že BGP si povídá.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R2#sh ip bgp nei
+...
+BGP neighbor is 172.21.254.254,  remote AS 65001, external link
+  BGP version 4, remote router ID 172.21.254.254
+  BGP state = Established, up for 00:00:24
+</pre>
+<p>Trojúhelník máme sestaven. Pokus se podíváme na BGP tabulku, uvidíme jednu cestu k DC1 (172.17.0.0/16) přes R1 a dvě cesty do Azure. Jedna přes R1 (ta je ale delší, takže není vybrána, čili u ní není zobáček) a druhá přímo do Azure (tedy do 172.21.254.254 přes tunel). To je přesně co potřebujeme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R1#sh bgp
+BGP table version is 111, local router ID is 10.0.0.1
+Status codes: s suppressed, d damped, h history, * valid, &gt; best, i - internal,
+              r RIB-failure, S Stale, m multipath, b backup-path, f RT-Filter,
+              x best-external, a additional-path, c RIB-compressed,
+              t secondary path,
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI validation codes: V valid, I invalid, N Not found
+
+     Network          Next Hop            Metric LocPrf Weight Path
+ * i  10.0.0.1/32      172.18.0.4               0    100      0 65001 i
+ *                     172.21.254.254                         0 65001 i
+ *&gt;                    0.0.0.0                  0         32768 ?
+ *&gt;i  10.0.0.2/32      172.18.0.4               0    100      0 i
+ *&gt;   10.1.0.1/32      0.0.0.0                  0         32768 i
+ *&gt;i  13.80.12.80/32   172.18.0.4               0    100      0 ?
+ *&gt;   52.166.115.166/32
+                      0.0.0.0                  0         32768 ?
+ *&gt;   172.17.0.0/24    0.0.0.0                  0         32768 ?
+ *&gt;i  172.18.0.0/24    172.18.0.4               0    100      0 ?
+ * i  172.21.0.0       172.18.0.4               0    100      0 65001 i
+ *&gt;                    172.21.254.254                         0 65001 i
+</pre>
+<h1>VNET peering a VPNka</h1>
+<p>V rámci své Azure VNET můžeme používat kolik chceme IP rozsahů a díky našemu předchozímu nastavení se tyto propagují do celé BGP sítě. V některých pokročilejších scénářích ale můžete požadovat oddělení některých zdrojů do jiné subscription, například jednu subscription pro finanční oddělení a jinou pro marketing. To dává smysl, ale to znamená i pokaždé novou VNET. Pokud se to má připojit do vaší sítě, znamenalo by to další VPN gateway v Azure - až bude takových tenantů třeba pět, přestane vás to bavit. Tohle se ve větším řeší VNET peeringem. VNET (síťařsky berme jako VRF) lze propojit mezi sebou něčím podobným VPN, ale je to na úrovni SDN, takže je to stejně rychlé jako uvnitř VNET. Samozřejmě ale platí, že VNETy sice mohou být v jiné subscription (pokud mají stejný nadřazený obchodní subjekt, třeba banku), ale ne v jiných regionech (k tomu později). VNET peering nám dovolí sdílet VPN připojení. Typicky pak vytvoříte subscription pro sdílené služby typu doménový řadič, VPNka a tak podobně. K té potom připojujete různá byznys oddělení přes VNET peering (ale pozor - ta služba není zdarma, takže to nedělejte zbytečně).</p>
+<p>Výsledek vypadá takhle:</p>
+<p id="tftluNZ"><img class="img-fluid wp-image-1008 " src="/images/2017/img_595a1e1a8d919.png" alt="" /></p>
+<p>Vytvoříme nový VNET pro marketingové oddělení.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmResourceGroup -Name marketing -Location westeurope
+$msub1 = New-AzureRmVirtualNetworkSubnetConfig -Name msub1 -AddressPrefix '172.22.1.0/24'
+$msub2 = New-AzureRmVirtualNetworkSubnetConfig -Name msub2 -AddressPrefix '172.22.2.0/24'
+
+$vmnet = New-AzureRmVirtualNetwork -Name marketingnet -ResourceGroupName marketing -Location westeurope -AddressPrefix 172.22.0.0/16 -Subnet $msub1, $msub2</pre>
+<p>Zapněte peering těchto dvou VNETů tak, že původní VNET bude nabízet služby brány pro oddělení marketingu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Add-AzureRmVirtualNetworkPeering -Name CentralToMarketing -VirtualNetwork $vnet -RemoteVirtualNetworkId $mvnet.Id -AllowForwardedTraffic -AllowGatewayTransit
+Add-AzureRmVirtualNetworkPeering -Name MarketingToCentral -VirtualNetwork $mvnet -RemoteVirtualNetworkId $vnet.Id -AllowForwardedTraffic -UseRemoteGateways</pre>
+<p><span style="font-size: 1rem;">Jděte do Cisco routeru a podívejme se na směrovací tabulku - najdeme tu cestu k 172.22.0.0/16, tzn. naše VPN spojení ví nejen o hlavním VNETu, ale i o tom do něj napeerovaném.</span></p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">R1#sh ip route bgp
+Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area
+       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2
+       E1 - OSPF external type 1, E2 - OSPF external type 2
+       i - IS-IS, su - IS-IS summary, L1 - IS-IS level-1, L2 - IS-IS level-2
+       ia - IS-IS inter area, * - candidate default, U - per-user static route
+       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP
+       a - application route
+       + - replicated route, % - next hop override, p - overrides from PfR
+
+Gateway of last resort is 172.17.0.1 to network 0.0.0.0
+
+      10.0.0.0/32 is subnetted, 3 subnets
+B        10.0.0.2 [200/0] via 172.18.0.4, 00:00:35
+      13.0.0.0/32 is subnetted, 1 subnets
+B        13.80.12.80 [200/0] via 172.18.0.4, 00:00:35
+      172.18.0.0/16 is variably subnetted, 2 subnets, 2 masks
+B        172.18.0.0/24 [200/0] via 172.18.0.4, 00:00:35
+      172.21.0.0/16 is variably subnetted, 2 subnets, 2 masks
+B        172.21.0.0/16 [20/0] via 172.21.254.254, 01:04:13
+B     172.22.0.0/16 [20/0] via 172.21.254.254, 00:00:32
+</pre>
+<p>Pro otestování si v marketingu můžete vytvořit VM a zkusit komunikaci do on-premises - funguje. Také si můžeme potom na síťové kartě vypsat efektivní směrovací tabulku, kde uvidíme naše sítě.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Get-AzureRmEffectiveRouteTable -NetworkInterfaceName tomas721 -ResourceGroupName marketing | Format-Table
+
+Name State  Source                AddressPrefix       NextHopType           NextHopIpAddress
+---- -----  ------                -------------       -----------           ----------------
+     Active Default               {172.22.0.0/16}     VnetLocal             {}
+     Active Default               {172.21.0.0/16}     VNetPeering           {}
+     Active VirtualNetworkGateway {10.0.0.1/32}       VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {10.1.0.1/32}       VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {10.0.0.2/32}       VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {13.80.12.80/32}    VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {52.166.115.166/32} VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {172.17.0.0/24}     VirtualNetworkGateway {52.166.60.175}
+     Active VirtualNetworkGateway {172.18.0.0/24}     VirtualNetworkGateway {52.166.60.175}
+     Active Default               {0.0.0.0/0}         Internet              {}
+     Active Default               {10.0.0.0/8}        None                  {}
+     Active Default               {100.64.0.0/10}     None                  {}
+     Active Default               {172.16.0.0/12}     None                  {}
+     Active Default               {192.168.0.0/16}    None                  {}
+</pre>
+<p>Nemusíme tedy vytvářet (a platit) VPN spojení pro každou subscription v rámci firmy zvlášť, ale použijeme centrální sdílený VNET s VPNkou.</p>
+<h1>Peering do jiného regionu</h1>
+<p>Co když vaše firma používá zdroje v odlišných Azure regionech? Pak nelze použít VNET peering, protože SDN je mezi regiony oddělené (z důvodu control plane bezpečnosti apod.). Můžete udělat VPNku v regionu a tu napojit do on-premises routerů. Pak ale pokud je provoz mezi regiony, tak ten půjde přes on-premises. Nejlepší tedy bude opět použít BGP a peering jednak do sousedního regionu a jednak do obou on-premises routerů. Výsledek bude tento:</p>
+<p id="ibZJibo"><img class="img-fluid wp-image-1010 " src="/images/2017/img_595a8770e8556.png" alt="" /></p>
+<p>Nejprve si jako na začátku vytvoříme VNET v US regionu včetně spojovačkového subnetu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmResourceGroup -Name us -Location eastus
+$ussub1 = New-AzureRmVirtualNetworkSubnetConfig -Name ussub1 -AddressPrefix '172.23.1.0/24'
+$ussubspoj = New-AzureRmVirtualNetworkSubnetConfig -Name GatewaySubnet -AddressPrefix '172.23.254.0/24'
+
+$usvnet = New-AzureRmVirtualNetwork -Name usvnet -ResourceGroupName us -Location eastus -AddressPrefix 172.23.0.0/16 -Subnet $ussub1, $ussubspoj</pre>
+<p>V dalším kroku namíříme na "protikus" a tím bude v tomto případě VPN v Azure, kterou jsme vytvořili na začátku tohoto článku. Nakonfigurujeme také connection.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$AZEU = New-AzureRmLocalNetworkGateway -Name AZEU -ResourceGroupName us -Location eastus -GatewayIpAddress '52.166.60.175' -Asn 65001 -BgpPeeringAddress '172.21.254.254' -AddressPrefix '172.21.254.254/32' 
+
+$UStoEUconn = New-AzureRmVirtualNetworkGatewayConnection -Name UStoEUconn -ResourceGroupName us -Location eastus -VirtualNetworkGateway1 $vpnus -LocalNetworkGateway $AZEU -ConnectionType IPsec -RoutingWeight 10 -SharedKey AzureKlic123  -EnableBGP $True</pre>
+<p>Teď musíme nastavit druhou stranu, tedy původní VPN. K tomu potřebujeme zjistit veřejnou IP v US a také BGP "loopback":</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$(Get-AzureRmPublicIpAddress -Name AZUS -ResourceGroupName us).IpAddress
+52.168.27.236
+$(Get-AzureRmVirtualNetworkGateway -Name vpnus -ResourceGroupName us).BgpSettingsText
+{
+  "Asn": 65003,
+  "BgpPeeringAddress": "172.23.254.254",
+  "PeerWeight": 0
+}</pre>
+<p>Nastavíme tedy Evropu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$AZUS = New-AzureRmLocalNetworkGateway -Name AZUS -ResourceGroupName vpnka -Location westeurope -GatewayIpAddress '52.168.27.236' -Asn 65003 -BgpPeeringAddress '172.23.254.254' -AddressPrefix '172.23.254.254/32' 
+
+$EUtoUSconn = New-AzureRmVirtualNetworkGatewayConnection -Name EUtoUSconn -ResourceGroupName vpnka -Location westeurope -VirtualNetworkGateway1 $vpn1 -LocalNetworkGateway $AZUS -ConnectionType IPsec -RoutingWeight 10 -SharedKey AzureKlic123  -EnableBGP $True</pre>
+<p>Ověřte, že spojení je nahoře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Get-AzureRmVirtualNetworkGatewayConnection -Name EUtoUSconn -ResourceGroupName vpnka
+
+
+Name                    : EUtoUSconn
+ResourceGroupName       : vpnka
+Location                : westeurope
+...
+ConnectionStatus        : Connected
+EgressBytesTransferred  : 64
+IngressBytesTransferred : 64
+TunnelConnectionStatus  : []</pre>
+<p>Z pohledu IPSEC to vypadá dobře. Teď bychom se tedy mohli podívat do svého on-premises routeru. Pokud je vše v pořádku, měli bychom vidět svou US síť (172.23.0.0/16) dostupnou ve VPN v Evropě. Směrovací tabulku VPN gateway získáme tímto příkazem:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Get-AzureRmVirtualNetworkGatewayLearnedRoute -VirtualNetworkGatewayName vpn1 -ResourceGroupName vpnka | F
+ormat-Table
+
+AsPath LocalAddress   Network           NextHop        Origin  SourcePeer     Weight
+------ ------------   -------           -------        ------  ----------     ------
+       172.21.254.254 172.21.0.0/16                    Network 172.21.254.254  32768
+       172.21.254.254 172.22.0.0/16                    Network 172.21.254.254  32768
+65003  172.21.254.254 172.23.0.0/16     172.23.254.254 EBgp    172.23.254.254  32768
+65002  172.21.254.254 172.17.0.0/24     10.0.0.1       EBgp    10.0.0.1        32768
+65002  172.21.254.254 172.18.0.0/24     10.0.0.2       EBgp    10.0.0.2        32768
+65002  172.21.254.254 10.0.0.2/32       10.0.0.2       EBgp    10.0.0.2        32768
+65002  172.21.254.254 52.166.115.166/32 10.0.0.1       EBgp    10.0.0.1        32768
+65002  172.21.254.254 10.1.0.1/32       10.0.0.1       EBgp    10.0.0.1        32768</pre>
+<p>Aktuálně Azure VPN brána nepodporuje transit, tedy propagování eBGP route naučených z on-premises v jednom regionu do eBGP z druhého regionu. To by umožňovalo použít Azure síť pro přemostění například vašich dvou poboček a to z obchodních i praktických důvodů není dovoleno.  Tedy VPN služba je určena k propojení prostředků uvnitř Azure, napojení na různé externí sítě, ale ne na propojení dvou externích sítí.</p>
+<p>Pro dokončení našeho obrázku tedy potřebujem propojit VPN gateway v US s dvojicí on-premises routerů a zajistit BGP peering. Všechno potřebné už jsme ovšem v tomto článku zkoušeli, takže budu šetřit místem a samotnou konfiguraci už nechám na vás. Výsledkem bude, že on-premises má přímou cestu do zdrojů v Aure EU i v Azure US s tím, že pokud je komunikace mezi zdroji v Azure EU a US, tak to jde přes VPNku přímo mezi nimi.</p>
+<h1>Active/Active VPN brána v Azure</h1>
+<p>Jak už bylo řečeno VPN v Azure z pohledu dostupnosti zajištěna tím, že při její odstávce či neplánované havárii naběhne záložní, která si automaticky vezme konfiguraci té první. Pokud máte ale velmi vysoké nároky (pak předpokládám másto IPSEC zvolíte pronajatý okruh s ExpressRoute) možná budete potřebovat rychlejší překlopení. Pro to je určen režim Active/Active, kdy získáte dva redundantní aktivní systémy (provoz se balancuje). Na to ale potřebujete minimálně SKU VpnGw2 (tedy od varianty 1Gbps nahoru). Vyzkoušejme si to.</p>
+<p>Vytvoříme další VNET.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmResourceGroup -Name aa -Location westeurope
+$sub1 = New-AzureRmVirtualNetworkSubnetConfig -Name sub1 -AddressPrefix '172.20.1.0/24'
+$sub2 = New-AzureRmVirtualNetworkSubnetConfig -Name sub2 -AddressPrefix '172.20.2.0/24'
+$subspoj = New-AzureRmVirtualNetworkSubnetConfig -Name GatewaySubnet -AddressPrefix '172.20.254.0/24'
+
+$vnet = New-AzureRmVirtualNetwork -Name aanet -ResourceGroupName aa -Location westeurope -AddressPrefix 172.20.0.0/16 -Subnet $sub1, $sub2, $subspoj</pre>
+<p>Dále tentokrát vytvoříme 2 IP adresy a IP konfigurace a založíme si VPN kategorie VpnGw2 s povoleným Active/Active.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ip1 = New-AzureRmPublicIpAddress -Name ip1 -ResourceGroupName aa -Location westeurope -AllocationMethod Dynamic
+$ip2 = New-AzureRmPublicIpAddress -Name ip2 -ResourceGroupName aa -Location westeurope -AllocationMethod Dynamic
+$subspoj = Get-AzureRmVirtualNetworkSubnetConfig -Name 'GatewaySubnet' -VirtualNetwork $vnet
+$cfg1 = New-AzureRmVirtualNetworkGatewayIpConfig -Name cfg1 -SubnetId $subspoj.Id -PublicIpAddressId $ip1.Id
+$cfg2 = New-AzureRmVirtualNetworkGatewayIpConfig -Name cfg2 -SubnetId $subspoj.Id -PublicIpAddressId $ip2.Id
+$vpn = New-AzureRmVirtualNetworkGateway -Name aavpn -ResourceGroupName aa -Location westeurope -IpConfigurations $cfg1,$cfg2 -GatewayType Vpn -VpnType RouteBased -GatewaySku VpnGw2 -Asn 65005 -EnableActiveActiveFeature</pre>
+<p>Co se stalo? Naše VPN služba má právě dvě "tváře", tedy dvě IP adresy a také dva "loopbacky" pro BGP peering. Teď už stačí si je zjistit a navázat na ně tunely tak, jak už jsme v tomto článku dělali. Jen tentokrát budou z každého vašeho on-premises routeru směřovat do Azure tunely rovnou dva a provoz z Azure se na ně bude balancovat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$(Get-AzureRmPublicIpAddress -Name ip1 -ResourceGroupName aa).IpAddress
+52.233.195.112
+
+$(Get-AzureRmPublicIpAddress -Name ip2 -ResourceGroupName aa).IpAddress
+52.233.192.152
+
+$(Get-AzureRmVirtualNetworkGateway -Name aavpn -ResourceGroupName aa).BgpSettingsText
+{
+  "Asn": 65005,
+  "BgpPeeringAddress": "172.20.254.4,172.20.254.5",
+  "PeerWeight": 0
+}</pre>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p><em>Architekti, Azure vám dává dostatek možností pro bezpečné propojení privátních sítí mezi sebou. Síťaři, do Azure se privátně napojíte prostředky, které dobře znáte - IPSec a BGP. A pokud hledáte větší propustnost (např. 10Gbps) a cestu zcela mimo internet, můžete využít služby ExpressRoute - přímého peeringu do Microsoft sítě (spojení je fyzicky realizováno v exchange pointu, takže u nás vám službu typicky zprostředkuje operátor například v rámci vaší WAN MPLS on něj).</em></p>

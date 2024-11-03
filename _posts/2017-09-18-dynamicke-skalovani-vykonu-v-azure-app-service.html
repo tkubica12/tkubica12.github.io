@@ -1,0 +1,168 @@
+---
+layout: post
+status: publish
+published: true
+title: Dynamické škálování výkonu v Azure App Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1254
+wordpress_url: http://tomaskubica.cz/?p=1254
+date: '2017-09-18 04:38:54 +0000'
+date_gmt: '2017-09-18 03:38:54 +0000'
+categories:
+tags:
+- AppService
+---
+<p>Hostitelem vašich webových aplikací a API je v App Service servisní plán. Soustava vám alokovaných zdrojů pro aplikace, které nad ním pustíte (plánů můžete mít samozřejmě víc). Tyto prostředky ale můžete přidávat a ubírat dynamicky a ovlivňovat tak celkový dostupný výkon a tím i cenu řešení. Proč dimenzovat a nakupovat prostředí na špičky, když obvykle přes den potřebujete o dost méně a v noci skoro nic? <!--more--></p>
+<h1>Ruční škálování</h1>
+<p>Hostitelem pro vaše webové aplikace je servisní plán. Tam si vybíráte jeho tier (ovlivňuje především dostupné funkce a možnosti), velikost jednotky výkonu (kolik CPU a RAM má mít jednotlivý node) a také počet nodů v clusteru. Doporučuji pro běžné webové aplikace používat nody co nejmenší a soustředit se na scale out, tedy práci s jejich počtem. Dává vám to větší flexibilitu a tím možnost lépe ovlivňovat svoje náklady. Samozřejmě některé aplikace mohou mít velké nároky na paměť a pro takové jsou vhodné větší nody.</p>
+<p>V mém případě běží servisní plán na jednom nodu, tedy jedné instanci.</p>
+<p id="JJOHtaX"><img class="img-fluid wp-image-1255 " src="/images/2017/img_59819769a1308.png" alt="" /></p>
+<p>Nad tímto plánem jsem nasadil následující jednoduchou Node aplikaci, která vrací zkrácený identifikátor instance:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express')
+var app = express()
+
+app.get('/', function (req, res) {
+    var today = new Date();
+    var h = today.getHours();
+    var m = today.getMinutes();
+    var s = today.getSeconds();
+    if (h&lt;10) h = '0' + h;
+    if (m&lt;10) m = '0' + m;
+    if (s&lt;10) s = '0' + s;
+    res.send(h + ':' + m + ':' + s + ' Pozdrav z ' + process.env.WEBSITE_INSTANCE_ID.substring(0,8) + '\n');
+})
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Z Linux stroje jsem ve smyčce pustil curl a výstup vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true;do curl http://mojenodebalance.azurewebsites.net; sleep 2; done
+
+09:09:33 Pozdrav z 85cfba63
+09:09:35 Pozdrav z 85cfba63
+09:09:38 Pozdrav z 85cfba63
+09:09:41 Pozdrav z 85cfba63
+09:09:43 Pozdrav z 85cfba63
+09:09:46 Pozdrav z 85cfba63
+09:09:48 Pozdrav z 85cfba63
+09:09:51 Pozdrav z 85cfba63</pre>
+<p>Všechny odpovědi tedy pocházejí z jediného nodu. Pojďme teď ručně zvýšit dostupné zdroje přidáním dalších instancí. Klidně třeba na pětinásobek zdrojů.</p>
+<p id="kZDLtLV"><img class="img-fluid wp-image-1256 " src="/images/2017/img_59819820aeea5.png" alt="" /></p>
+<p>Po pár vteřinách začnou odpovědi přicházet z různých instancí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">09:11:37 Pozdrav z 85cfba63
+09:11:42 Pozdrav z 0fd26d3b
+09:11:44 Pozdrav z 0fd26d3b
+09:11:53 Pozdrav z 1f61cd57
+09:11:56 Pozdrav z 85cfba63
+09:12:05 Pozdrav z 67f47919
+09:12:07 Pozdrav z 0fd26d3b
+09:12:13 Pozdrav z d37fe6fe
+09:12:15 Pozdrav z 0fd26d3b</pre>
+<p>Pokud použijeme přístup z prohlížeče, zjistíme, že požadavky chodí stále na stejný server. To je tím, že ve výchozím nastavení aplikace je zapnutá ARR afinita, tedy klient dostane cookie a s jejím použitím se vždy dostává na stejný node. To je vhodné pro aplikace, které ještě používají state v paměti (jsou tedy statefull). Moderní webové aplikace typicky state externalizují - do Azure Redis, Cosmos DB a tak podobně, takže nepotřebují, aby klient mluvil po celou dobu k jedinému nodu. Nicméně starší aplikace tak často psané nejsou, takže výchozí nastavení je bezpečné. Vyzkoušejme si to. Klient dostává ARR cookie.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl -i http://mojenodebalance.azurewebsites.net
+HTTP/1.1 200 OK
+Content-Length: 28
+Content-Type: text/html; charset=utf-8
+ETag: W/"1c-lbvsWARLXwee029z95eizl5K5wo"
+Server: Microsoft-IIS/8.0
+X-Powered-By: Express
+X-Powered-By: ASP.NET
+Set-Cookie: ARRAffinity=67f479194c8db3406c6bdd512330b3391f3a231c89fb7676bde25d1fd8bb5468;Path=/;HttpOnly;Domain=mojenodebalance.azurewebsites.net
+Date: Wed, 02 Aug 2017 09:16:29 GMT
+
+09:16:32 Pozdrav z 67f47919</pre>
+<p>Pokud cookie použijeme, přistupujeme stále na stejný server.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true;do curl --cookie ARRAffinity=67f479194c8db3406c6bdd512330b3391f3a231c89fb7676bde25d1fd8bb5468 http://mojenodebalance.azurewebsites.net; sleep 2; done
+
+09:19:38 Pozdrav z 67f47919
+09:19:40 Pozdrav z 67f47919
+09:19:43 Pozdrav z 67f47919
+09:19:45 Pozdrav z 67f47919
+09:19:47 Pozdrav z 67f47919</pre>
+<p>Takové řešení není optimální z hlediska rozložení zátěže. Některý klient může aplikaci používat velmi intenzivně zatímco jiný skoro vůbec. To způsobuje nerovnoměrné zatížení. Ještě důležitější je, že pokud přidáme node, tak v tomto režimu začne obsluhovat až nově příchozí klienty a nemusí tak efektivně vyřešit výkonnostní špičku pro stávající uživatele. Zkrátka - pokud máte aplikaci vybudovanou jako moderní stateless řešení, což bych doporučoval, pak ARR afinitu vypněte v nastavení aplikace (takže v servisním plánu můžete mít stateful i stateless aplikace).</p>
+<p id="oDBtxST"><img class="img-fluid wp-image-1257 " src="/images/2017/img_59819ac40fb7c.png" alt="" /></p>
+<p>Server přestane cookie posílat a pokud mu jí někdo bude dávat, ignoruje ji.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl -i http://mojenodebalance.azurewebsites.net
+HTTP/1.1 200 OK
+Content-Length: 28
+Content-Type: text/html; charset=utf-8
+ETag: W/"1c-oCIXbXLiSwRw0dDwic1N/irGsg4"
+Server: Microsoft-IIS/8.0
+X-Powered-By: Express
+X-Powered-By: ASP.NET
+Date: Wed, 02 Aug 2017 09:23:15 GMT
+
+09:23:17 Pozdrav z 1f61cd57
+
+$ while true;do curl --cookie ARRAffinity=67f479194c8db3406c6bdd512330b3391f3a231c89fb7676bde25d1fd8bb5468 http://mojenodebalance.azurewebsites.net; sleep 2; done
+
+09:23:51 Pozdrav z 0fd26d3b
+09:23:54 Pozdrav z 85cfba63
+09:23:56 Pozdrav z d37fe6fe</pre>
+<h1>Plánované škálování</h1>
+<p>Často jste schopni dobře předvídat zátěž. Pokud máte byznys aplikaci pro české zákazníky, v noci příliš provozu nebude - postačí nám jeden node. Přes den se lidé přihlašují a 3 nody dávají smysl. Jenže vaše aplikace je to první, co lidé ráno po příchodu do práce spustí, takže mezi 8:00 a 10:00 je rozumné mít 5 nodů. Taková pravidla si můžeme nastavit a systém škáluje automaticky.</p>
+<p id="rcGvLqm"><img class="img-fluid wp-image-1258 " src="/images/2017/img_59819be9cdef2.png" alt="" /></p>
+<p>Použijeme škálování podle kalendáře, resp. nejprve zakotvíme výchozí stav na jedinou instanci.</p>
+<p id="gYNlVuX"><img class="img-fluid wp-image-1259 " src="/images/2017/img_59819c4400533.png" alt="" /></p>
+<p>Pojďme od 10:00 do 19:00 navýšit počet instancí na 3, ale jen ve všední dny.</p>
+<p id="vRXxXvX"><img class="img-fluid wp-image-1262 " src="/images/2017/img_59819d7edbea4.png" alt="" /></p>
+<p>Mezi 8:00 a 10:00 ve všední dny ovšem na 5 instancí. Takhle můžeme pokračovat dál jak potřebujeme.</p>
+<p id="iCWAlDl"><img class="img-fluid wp-image-1263 " src="/images/2017/img_59819d94b8d20.png" alt="" /></p>
+<p>Notifikace ohledně úpravy počtu nodů si můžete nechat posílat na email nebo jako webhook do nějaké vaší aplikace.</p>
+<p id="oXvoHtR"><img class="img-fluid wp-image-1264 " src="/images/2017/img_59819e071aed0.png" alt="" /></p>
+<p>Po zapnutí autoškálování se po chvilce podívejme na historii. Vidíme, že došlo k navýšení počtu instancí z jedné na tři (protože je právě pracovní doba).</p>
+<p id="TdoBbNO"><img class="img-fluid wp-image-1265 " src="/images/2017/img_59819ef6007db.png" alt="" /></p>
+<p id="KTLHnpQ"><img class="img-fluid wp-image-1266 " src="/images/2017/img_59819f1f50aa7.png" alt="" /></p>
+<h1>Škálování na základě metriky</h1>
+<p>Většina zátěže sice může být předvídatelná, ale některé situace ne. Vznikne bouře na sociální síti nebo vyjde článek o kterém jste nevěděli a počet požadavků prudce vzroste. Na to lze reagovat na základě metrik. Důležité je, že tyto můžete kombinovat s plánovaným nastavením. Tedy nemusíte mít jedno auto-škálovací pravidlo, ale hned několik. Například v noci škálovat mezi 1 a 2 nody a přes den mezi 3 a 7 (víc už nechcete, protože chcete držet náklady pod kontrolou). To se dá nastavit.</p>
+<p>Jaké metriky můžete použít? V první řadě je zásadní si uvědomit, že škálování probíhá na úrovni servisního plánu, ne individuálních aplikací, které nad ním běží. Jsou to tedy celkové metriky za váš servisní plán, třeba nějakou sadu aplikací. Můžete použít CPU a obsazenost paměti, množství přijímaných nebo odesílaných dat a nebo také L7 metriku spočívající v délce HTTP fronty (tzn. nestíháte vyřizovat požadavky).</p>
+<p>Vyzkoušejme si něco jednoduchého - zatížení CPU. Naši Node aplikaci obohatíme o funkci, která nesmyslně generuje zátěž cpu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">app.get('/load', function (req, res) {
+  var now = new Date().getTime();
+    var result = 0;
+    var ms = 2000;
+  while(true) {
+    result += Math.random() * Math.random();
+    if (new Date().getTime() &gt; now +ms)
+      break;
+  }
+    res.send('Load vygenerovan\n');
+})</pre>
+<p>Zrušíme škálování z předchozího příkladu a nastavíme si to jinak. Budeme chtít, aby počet nodů osciloval mezi jedním a pěti.</p>
+<p id="zUzPqnk"><img class="img-fluid wp-image-1268 " src="/images/2017/img_5981a5c9909ae.png" alt="" /></p>
+<p>Klikneme na Add a rule a přidáme pravidlo. Jako kritérium použiji CPU a to za posledních 5 minut. To je dost agresivní nastavení, aby se mi to dobře ukazovalo - v praxi bude lepší zvolit 10 minut, aby měla zátěž čas se v klidu stabilizovat. Zejména moje reakce na 15% zatížení je nesmysl (je to jen pro ukázku), očekával bych, že hranici reakce budete stanovovat někde kolem 70%.</p>
+<p id="spfeoHr"><img class="img-fluid wp-image-1269 " src="/images/2017/img_5981a645b2411.png" alt="" /></p>
+<p>Dále musím zvolit operaci přidání nebo ubrání nodu. Buď o konkrétní počet nebo o procento nebo na konkrétní počet. Pokud chcete mít schopnost rychle reagovat na situaci, můžete chtít navyšovat nody třeba hned po dvou. Já zvolím po jednom. Také nechceme, aby se node objevil a ještě než se rozehřeje a uživatelé ho začnou využívat jsme opět přidávali další a další. Cool interval dám na 5 minut, takže metriky mají nějaký čas se stabilizovat.</p>
+<p id="MRhVeGk"><img class="img-fluid wp-image-1270 " src="/images/2017/img_5981a71f66324.png" alt="" /></p>
+<p>Teď budeme potřebovat opačné pravidlo, tedy kdy začít nody odebírat.</p>
+<p id="MFfujGz"><img class="img-fluid wp-image-1271 " src="/images/2017/img_5981a77146441.png" alt="" /></p>
+<p>Pokud zátěž CPU klesne pod 10% - to bude moje metrika. V praxi půjdete nahoru třeba při 70% a dolu řekněme kolem 30-50%.</p>
+<p id="HKxewiC"><img class="img-fluid wp-image-1272 " src="/images/2017/img_5981a7ba8cd9a.png" alt="" /></p>
+<p>Snížíme počet o jednu instanci.</p>
+<p id="xwqDyva"><img class="img-fluid wp-image-1273 " src="/images/2017/img_5981a7d017aae.png" alt="" /></p>
+<p>V separátním okně si otevřu Azure Monitor a budu sledovat zatížení CPU v mém servisním plánu.</p>
+<p id="QhFyCqo"><img class="img-fluid wp-image-1274 " src="/images/2017/img_5981a8652294f.png" alt="" /></p>
+<p>Pustíme generátor zátěže uvnitř naší aplikace.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true;do curl http://mojenodebalance.azurewebsites.net/load; sleep 2; done
+
+Load vygenerovan
+Load vygenerovan
+Load vygenerovan</pre>
+<p>Pojďme čekat a sledovat metriky i počty instancí. Jak vidno zatížení CPU se nám postupně podařilo zvládnout.</p>
+<p id="KAbljyb"><img class="img-fluid wp-image-1276 " src="/images/2017/img_5981afae82763.png" alt="" /></p>
+<p>Robot nám škáluje nahoru.</p>
+<p id="ghJPxeh"><img class="img-fluid wp-image-1277 " src="/images/2017/img_5981afe6997c8.png" alt="" /></p>
+<p>&nbsp;</p>
+<p id="iHHvxAE"><img class="img-fluid wp-image-1279 " src="/images/2017/img_5981b050d1f96.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Platformní služba vám umožňuje reagovat na potřeby vašich zákazníků a uživatelů. Kromě obrovské přidané hodnoty ve správě, agilitě nasazování a tak podobně vám také může šetřit náklady. Zdroje, které si alokuje, sice jsou o něco dražší, než prázdná infrastrukturní VM, ale automatické škálování vám umožní používat jen to, co je opravdu potřeba. Proč platit v noci a o víkendu stějně jako v ranní špičce? Použijte škálování Azure App Service a dáte uživatelům lepší výkon, když je to potřeba a šetříte, když je využití aplikace malé.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

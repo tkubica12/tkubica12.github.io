@@ -1,0 +1,66 @@
+---
+layout: post
+status: publish
+published: true
+title: Získejte přehled o stavu své VM s novým VM Insights v Azure Monitor
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2499
+wordpress_url: http://tomaskubica.cz/?p=2499
+date: '2018-10-01 05:18:04 +0000'
+date_gmt: '2018-10-01 04:18:04 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>V Azure je hned několik míst, kde můžete sbírat metriky z virtuálních strojů a vytvářet alerty. V preview je nyní krásné sjednocení všech těchto technologií pod jednotnou střechu Azure Monitor. Dívat se tak můžete jak na skupiny VM, tak na konkrétní stroj přímo z jeho hlavní záložky v portálu. Pojďme se na to mrknout.</p>
+<p><!--more--></p>
+<h1>Azure Monitor</h1>
+<p>Místem pro sjednocení všech pohledů na monitoring se stává Azure Monitor. Pod jeho střechou najdete host metriky, guest metriky, informace z VM, Application Insights, pokročilé síťové analýzy s Network Watcher nebo monitoring kontejnerů, alerty a logování.</p>
+<p>Nás dnes budou zajímat Insights. Pokud nás trápí jeden konkrétní stroj, najdeme je přímo na jeho záložce.</p>
+<p id="YsgpdLL"><img class="img-fluid wp-image-2500 " src="/images/2018/img_5bb19800084c4.png" alt="" /></p>
+<p>Pokud chceme výkon či stav sledovat za skupinu strojů v rámci resource group nebo celého workspace, můžeme se na totéž podívat přímo v sekci Azure Monitor.</p>
+<p id="bMrQdys"><img class="img-fluid wp-image-2502 " src="/images/2018/img_5bb198607fc11.png" alt="" /></p>
+<h1>Health</h1>
+<p>Insights pro nás může sledovat telemetrii a stav VM a identifikovat ty, které se blíží nějaké hranici přetížení, přeplnění nebo nejsou ve vhodném stavu.</p>
+<p id="xMAdsxW"><img class="img-fluid wp-image-2503 " src="/images/2018/img_5bb198e185dab.png" alt="" /></p>
+<p>Co všechno health záložka sleduje? Kliknutím na View all health criteria se můžeme podívat na podrobnosti.</p>
+<p id="LOUuxGE"><img class="img-fluid wp-image-2504 " src="/images/2018/img_5bb199439bde2.png" alt="" /></p>
+<p>Doklikat se můžeme až na detaily každé mašiny.</p>
+<p id="liBiMYR"><img class="img-fluid wp-image-2505 " src="/images/2018/img_5bb19a150c02f.png" alt="" /></p>
+<p>U každého pravidla se můžeme dostat až ke konkrétnímu nastavení citlivosti.</p>
+<p id="zDibKpC"><img class="img-fluid wp-image-2506 " src="/images/2018/img_5bb19a77b997e.png" alt="" /></p>
+<h1>Performance</h1>
+<p>V přehledu výkonnosti si můžeme vybrat různá seskupení strojů. Může to být resource group nebo skupina vytvořená v rámci Log Analytics (tu lze dynamicky plnit podle nějakého parametru - Linux vs. Windows stroje, podle příslušnosti v AD skupině apod.).</p>
+<p id="lGDKPzo"><img class="img-fluid wp-image-2507 " src="/images/2018/img_5bb19ae8cc2b9.png" alt="" /></p>
+<p>Čekají nás hezké a užitečné grafy.</p>
+<p id="SaXsndx"><img class="img-fluid wp-image-2508 " src="/images/2018/img_5bb19b14d036e.png" alt="" /></p>
+<p id="FkZYJcI"><img class="img-fluid wp-image-2509 " src="/images/2018/img_5bb19b3d278e7.png" alt="" /></p>
+<p>Líbí se mi velmi komprimovaný TopN pohled, ve kterém je v rámci jedné obrazovky vidět aktuální stav v průměru, 90. a 95. percentilu a malý grafík historického vývoje.</p>
+<p id="pwmlWKo"><img class="img-fluid wp-image-2510 " src="/images/2018/img_5bb19b900ecf4.png" alt="" /></p>
+<p id="bZGnzpG"><img class="img-fluid wp-image-2511 " src="/images/2018/img_5bb19ba9271aa.png" alt="" /></p>
+<p>Máte stroj s Windows a potřebujete u něj jít ještě hlouběji? Nově si přímo na záložce VM můžete vyvolat spuštění diagnostiky výkonu.</p>
+<p id="TTEnKjy"><img class="img-fluid wp-image-2512 " src="/images/2018/img_5bb19bfdcb902.png" alt="" /></p>
+<p>Výsledný report si stáhnete jako ZIP soubor a je v něm krásný výsledek v HTML.</p>
+<p id="UGQpHoa"><img class="img-fluid wp-image-2513 " src="/images/2018/img_5bb19c4f3ae99.png" alt="" /></p>
+<p id="uEafjhw"><img class="img-fluid wp-image-2514 " src="/images/2018/img_5bb19c69195da.png" alt="" /></p>
+<p id="OPLwdYH"><img class="img-fluid wp-image-2515 " src="/images/2018/img_5bb19c84b7caa.png" alt="" /></p>
+<p id="YEaptUe"><img class="img-fluid wp-image-2516 " src="/images/2018/img_5bb19cc49ebe8.png" alt="" /></p>
+<p id="hYJueCw"><img class="img-fluid wp-image-2517 " src="/images/2018/img_5bb19ce754c73.png" alt="" /></p>
+<p id="XBexIiL"><img class="img-fluid wp-image-2518 " src="/images/2018/img_5bb19d05b976f.png" alt="" /></p>
+<h1>Map</h1>
+<p>Jedna z nejoblíbenější solution pro Azure Log Analytics je ServiceMap. Funguje tak, že poslouchá jednotlivé komunikační toky a z toho umí vykreslit mapu návazností mezi vašimi VM a zobrazit uživatelské přístupy i komunikaci na externí systémy. Tyto mapy jsou v aktualizované podobě dostupné pro Insights v rámci Azure Monitor.</p>
+<p id="KkfvniQ"><img class="img-fluid wp-image-2501 " src="/images/2018/img_5bb1983aafbf9.png" alt="" /></p>
+<p>Takhle třeba vypadají přístupy na SQL server proces.</p>
+<p id="DbAiKgX"><img class="img-fluid wp-image-2519 " src="/images/2018/img_5bb19dc6d0311.png" alt="" /></p>
+<p>Mimochodem detaily samosebou dostanete i pro vaše Linuxové stroje.</p>
+<p id="TRMiMvB"><img class="img-fluid wp-image-2520 " src="/images/2018/img_5bb19e29314ce.png" alt="" /></p>
+<p>Označit můžeme i celou skupinu serverů, například jednu resource group. Dostaneme velmi komplexní informace - tohle by se jinak zjišťovalo opravdu složitě.</p>
+<p id="wSXBDZR"><img class="img-fluid wp-image-2521 " src="/images/2018/img_5bb19e7f96890.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Monitorovací prostředky jsou Azure jsou velmi silné a integrace všech metod pod Azure Monitor vám umožní najít je všechny na jednom místě. Pokud chcete celkový pohled na skupinu serverů, jděte na to z Azure Monitor. Pokud potřebujete aktuálně rychle řešit problém jedné virtuální mašiny, najdete pro vaše pohodlí tyto funkce rovnou na stránce vašeho VM. Vyzkoušejte si Azure Monitor, stojí to za to!</em></p>

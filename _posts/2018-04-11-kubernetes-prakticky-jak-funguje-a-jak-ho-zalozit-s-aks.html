@@ -1,0 +1,101 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: jak funguje a jak ho založit s AKS'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2076
+wordpress_url: http://tomaskubica.cz/?p=2076
+date: '2018-04-11 05:06:21 +0000'
+date_gmt: '2018-04-11 04:06:21 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Minule jsem popisoval proč kontejnery, proč Kubernetes a proč v Azure. Dnes se podíváme na základní principy Kubernetes a nasadíme si ho v plně spravované verzi AKS v Azure.<!--more--></p>
+<h1>Základní architektura</h1>
+<p>Kubernetes je postaven na dvou rolích - master a agent. Ty první mají na starost control plane a management plane celého clusteru. Je na nich etcd jako distribuovaná databáze, API komponenty, scheduler a jednotlivé kontrolery. Tuto vrstvu v AKS nemusíte řešit a ani do ni nemáte přístup - je součástí spravované služby a to dokonce zdarma.</p>
+<p>Agent jsou potom nody (typicky VMka), na kterých se odehrává control plane a data plane, čili běží na nich vaše kontejnery. Jde v zásadě o kontejnerové hostitele s nějakým runtime jako je docker, rkt nebo runc. Vedle toho jsou řídící služby Kubernetes, které hostitele ovládají a komunikují s mastery - kubelet jako ovládací prvek (řídí vytváření Podů apod.) a kube-proxy (komunikační data plane systém a service discovery, tedy v zásadě síťová koponenta provádějící různá směrování).</p>
+<h1>Desired state v Kubernetes</h1>
+<p>Kubernetes je perfektním příkladem použití desired state principů. Základem je databáze požadovaného stavu, která je technologicky řešena v etcd - distribuované databázi pro distribuovaný konsenzus. Vaše interakce se systémem spočívá v deklaraci cílového stavu zapsaného nejčastěji jako YAML datová struktura (šablona). Kubernetes vám vrátí OK a změnu si zaznamená. V systému neustále dochází ke kontrolám zda skutečný stav odpovídá požadovanému a pokud ne, sjedná Kubernetes nápravu.</p>
+<p>Vezměme například situaci, kdy požadujete vytvoření 3 instancí vašeho kontejneru. Po zadání požadavku přijde Kubernetes na to, že požadovaný stav jsou 3 instance, ale aktuálně jich běží 0. Sjedná tedy nápravu a nastartuje 3 instance v clusteru. Pak jeden agent node spadne a Kubernetes rychle přijde na to, že požadované instance jsou 3 a běží jen 2 - zajistí tedy spuštění třetí instance na jiném nodu.</p>
+<h1>Labely místo hierarchie</h1>
+<p>Kubernetes krásně ukazuje volnou provázanost a modularitu místo klasického hierarchického modelu. To vás zbavuje nutnosti vytvářet věci ve správném pořadí a značně zjednodušuje systému život. Tak například pokud potřebujete seskupit několik běžících kontejnerů do jedné služby (třeba s jednou IP a balancovaným provozem) neděláte to tak, že vytvoříte objekt služby a do něj zařadíte kontejnery (takový foreign key styl v relační tabulce). V Kubernetes přiřadíte kontejnerům patřícím k této službě libovolný label, tedy jeden a více key-value párů - cokoli vás napadne, cokoli vám dává smysl. V definici služby říkáte, že do ní patří všechny kontejnery, které mají určité key-value páry v popisu. Je tedy jedno co vytvoříte dřív a máte obrovskou míru svobody. Všechno je desired state popis, tedy Kubernetes pravidelně kontroluje, jaké kontejnery službě patří. Velmi podobné je to třeba s labely pro vaše nody (členy clusteru) a další součásti systému … však uvidíte.</p>
+<h1>Základní konstrukty</h1>
+<h2>Pod</h2>
+<p>Základní jednotkou deploymentu je Pod, jeden a více kontejnerů sdílejících Linux namespace, například IP adresu. Pro začátek určitě použijete jeden kontejner pro jeden Pod, ale později se vám může hodit svázaný deployment pro patterny typu side-car, ambassador nebo adapter (o tom v samostatném článku někdy později). To použijete třeba pro přidání sharding logiky, retry logiky, šifrování, logování, konverze formátů logů či API nebo řízení životního cyklu kódu.</p>
+<h2>Deployment a ReplicaSet</h2>
+<p>Pokud chcete redundanci a škálování výkonu určitě to bude chtít více instancí kontejneru, například webového serveru. Deployment je právě ten mechanismus. Řeknete mu jak má vypadat Pod a v zásadě kolikrát jeho instanci chcete případně s nějakými restrikcemi (například scheduler může preferovat nějaké nody, například s SSD nebo silnějšími CPU apod.). Deployment udržuje instance nahoře a opraví případné chybové stavy, navíc umožňuje pozvolný upgrade verze (rolling upgrade z jednoho kontejnerového image na novější). Pod kapotou používá ReplicaSet.</p>
+<h2>DaemonSet</h2>
+<p>Možná potřebujete do svého clusteru implementovat nějakou servisní komponentu (třeba monitoring, sběr logů apod.), která má běžet práve v jedné instanci na každém nodu. Od toho je DaemonSet.</p>
+<h2>StatefulSet</h2>
+<p>Osobně myslím, že databáze či frontování je lépe využít jako službu v Azure se vší lehkostí, spolehlivostí a SLA. Pokud přesto potřebujete nějakou stateful službu do kontejneru, nemůžete se k ní chovat tak "ošklivě", jak to dělá Deployment. Možná chcete startovat instance postupně, sestřelovat je v předem daném pořadí (nezačít scale-down zabitím master databáze), držet jim neměnné jméno a IP adresu. Na to je určen StatefulSet.</p>
+<h2>CronJob</h2>
+<p>A nebo je vaše úloha naplánovaný Job, třeba pravidelné spuštění nějaké zálohovací operace či import dat z jiného systému. Použijte CronJob.</p>
+<h2>Service</h2>
+<p>Mít víc instancí třeba web serveru je fajn, ale jak ostatní poznají, na kterou instanci se mají obracet a jak vůbec vaší službu najdou? K tomu slouží koncept Service, kdy deklarujete službu, která získá nějaké interní DNS jméno, interní IP adresu, která balancuje provoz nebo externí adresu přicházející z IaaS vrstvy (tedy externě přístupná služba dosažitelná z vně clusteru).</p>
+<h2>Ingress</h2>
+<p>Service můžete použít pro definici přístupů zvenku, například na vaší webovou aplikaci běžící v Kubernetes. Jde ale o L4 operaci, tedy výsledkem je IP adresa. Tu si sami musíte zanést do DNS záznamů, řešit nějaký URL routing (pokud potřebujete), řešit předřazené TLS šifrování apod. Ingress koncept je definice vstupních pravidel na L7 včetně rozhazování na jednotlivé Service podle cesty v URL, TLS akcelerace a řízení certifikátů, pokročilejší pravidla či automatické vytváření subdomény. Typickou implementací Ingress je automatizovaný NGINX, ale existují i další možnosti (včetně některých komerčních od tradičních ADC dodavatelů).</p>
+<h2>ConfigMap a Secret</h2>
+<p>Podům často potřebujete předávat runtime informace - přihlašovací účty, connection stringy, feature flagy. Můžete tak učinit v definici Podu jako environmentální proměnnou, ale škálovatelnější a bezpečnější je použít ConfigMap a Secret. Je to tedy způsob jak oddělit vytváření a správu těchto informací od jejich používání.</p>
+<h2>NetworkPolicy</h2>
+<p>Pokud potřebujete nasazovat síťové politiky uvnitř clusteru (mikrosegmentaci), existuje koncept NetworkPolicy nejčastěji implementovaný pluginem Calico (ale je i celá řada dalších).</p>
+<h2>Namespace a RBAC</h2>
+<p>Na logické úrovni můžete používat Namespace, jakousi přihrádku na všechny Kubernetes objekty. Smyslem je oddělit z pohledu správy systémové instance, vývojářské prostředí a produkční instance. S tím se pojí role-based-access-control pro případné řízení přístupu do těchto Namespace.</p>
+<h2>Volumes</h2>
+<p>Potřebujete pro Pod perzistentní storage? Koncept PersistentVolume (a PersistentVolumeClaim a StorageClass) to umožňuje a otevřená implementace ("driver") je dostupná pro celou řadu řešení, samozřejmě včetně Azure Files (SMB storage) a Azure Disks (bloková storage).</p>
+<h1>Nasazení Kubernetes v Azure s AKS</h1>
+<h2>Příklad mého prostředí notebooku</h2>
+<p>Nejprve vám popíšu jaké prostředí na notebooku používám já. Jsem spíše Linuxák, ale současně fanoušek Windows 10. Moje typické řešení je Visual Studio Code ve Windows jako open source editor a IDE a jsem masivním uživatelem Windows Subsystem for Linux (WSL - překládá to kernelová volání Linuxu na Windows kernel, takže jedete Linux user space bez nutnosti točit VMko). Právě v něm povozuji Azure CLI, kubectl (příkazová řádka Kubernetes) a další věci. Nejčastěji tedy pracuji v příkazové řádce. Občas se mi ale líbí pluginy do VS Code, takže mám kubectl i az nainstalovaný ve Windows části notebooku, abych mohl i z VS Code fungovat. Ale to jsou moje preference. Pokud máte Mac či Linux, bude to vypadat prakticky stejně. Pokud naopak chcete zůstávat rize ve Windows není to problém - kubectl i az je pro Windows plně k dispozici.</p>
+<p>No a jak montovat kontejnery a posílat je do repozitáře? Naprostou většinu času pracuji s Linux kontejnery a využívám Docker for Windows (Docker nemůžete používat ve WSL, některá kernelová volání nejsou implementovaná a některé požadavky na file system také ne). Nicméně plánuji od toho ustoupit a tím hlavním důvodem je nemožnost současně pracovat s Windows a Linux kontejnery. Čekám na Windows 10 verzi 1803. Už od 1709 totiž můžete nainstalovat LinuxKit (od dockeru) a Linux Containers On Windows (LCOW). To je varianta, kdy máte jeden docker ve Windows, který vám umožní spouštět Windows kontejnery a současně Linux kontejnery díky využití hyper-v izolace (kontejner běží vlastně jako malé VMko s LinuxKit miniaturním Linux kernelem). Verze 1803 přinese vylepšení, bez kterého do toho zatím nejdu - schopnost komunikovat s kontejnerem na 127.0.0.1. Ale o tom v nějakém samostatném článku.</p>
+<h2>Jdeme instalovat</h2>
+<p>Nejprve vytvoříme resource group a následně AKS cluster. Dva příkazy, nic víc není potřeba. Pro zjednodušení si nechám vygenerovat nové SSH klíče (ale můžete dodat vlastní) a také nechám CLI automaticky založit účet service principal (ale můžete dodat už existující). Ten je k tomu, aby Kubernetes mohl mluvit s Azure a integrovat se (například vytvářet storage, balancer apod.).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n aks -l westeurope
+az aks create -n aks -g aks \
+  --generate-ssh-keys \
+  --kubernetes-version 1.9.6 \
+  --node-count 3 \
+  --admin-username tomas \
+  --node-vm-size Standard_A1_v2</pre>
+<p>Výborně. Teď si stáhnu přihlašovací údaje do clusteru. Tento příkaz je vezme a uloží do ~/.kube/config a pokud už tam nějaký cluster máte, provede merge (přidá další).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az aks get-credentials -n aks -g aks --admin</pre>
+<p>Pokud ještě nemáte, stáhněte si kubectl. Pokud nechcete hledat kde je, stačí použít Azure CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo az aks install-cli</pre>
+<p>A pak už jen čekejte. Váš cluster bude za takových 10-20 minut plně připraven.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get nodes
+NAME                       STATUS    ROLES     AGE       VERSION
+aks-nodepool1-40944020-1   Ready     agent     9h        v1.9.6
+aks-nodepool1-40944020-2   Ready     agent     9h        v1.9.6
+aks-nodepool1-40944020-3   Ready     agent     9h        v1.9.6</pre>
+<p>To je všechno!</p>
+<p>Ještě zmíním jednu věc. Dost možná budete mít clusterů víc. Několik clusterů v Azure (třeba na hraní a pro produkci) nebo on-premise (třeba Minikube na notebooku). get-credentials můžete udělat klidně pro každý cluster. Do konfiguračního souboru se můžete podívat a najdete tam tzv. context, tedy definovaný přístup.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl config view
+clusters:
+- cluster:
+    certificate-authority-data: REDACTED
+    server: https://blabla.hcp.westeurope.azmk8s.io:443
+  name: aks
+- cluster:
+    certificate-authority-data: REDACTED
+    server: https://blabla.hcp.westus2.azmk8s.io:443
+  name: aks-us
+contexts:
+- context:
+    cluster: aks
+    user: clusterUser_aks_aks
+  name: aks
+- context:
+    cluster: aks-us
+    user: clusterUser_aks-us_aks-us
+  name: aks-us
+</pre>
+<p>Svůj kubectl můžete pak jednoduše přepínat mezi clustery:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl config use-context aks</pre>
+<p>&nbsp;</p>
+<p><em>Dnes jsme si dali úvod do Kubernetes a založili cluster v Azure. Určitě bude stát za to probrat i životní cyklus AKS, tedy jak se škáluje a upgraduje, ale k tomu se vrátíme trochu později. Příště už totiž budeme chtít nasadit váš první kontejner v AKS.</em></p>

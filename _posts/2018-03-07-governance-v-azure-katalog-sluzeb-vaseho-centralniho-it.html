@@ -1,0 +1,71 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Governance v Azure: katalog služeb vašeho centrálního IT'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1938
+wordpress_url: http://tomaskubica.cz/?p=1938
+date: '2018-03-07 07:04:15 +0000'
+date_gmt: '2018-03-07 06:04:15 +0000'
+categories:
+- Vsechny prispevky
+- Azure IaaS
+tags:
+- Governance
+---
+<p>Má vaše IT katalog služeb, které nabízíte obchodním jednotkám či jiným týmům? Spravujete pro ně nějakou aplikaci či prostředí? Současně jim ale chcete dát možnost automatického nasazení, aniž by se vás museli ptát? A také zajistit, že náklady na infrastrukturní zdroje půjdou za nimi? Použijte servisní katalog v Azure - vámi navržená a spravovaná řešení, která vaši kolegové najdou jednoduše v portálu k vytvoření.</p>
+<p><!--more--></p>
+<h1>Proč servisní katalog a proč je jiný, než marketplace</h1>
+<p>Jako ideální příklad použití pro servisní katalog vidím právě situaci popsanou v úvodu. IT chce nabídnout nějaké standardizované řešení ostatním částem organizace privátním způsobem. Současně se můžete rozhodnout, zda toto řešení bude na straně příjemce startovací šablona a ve vytvořených zdrojích se mohou libovolně hrabat nebo zda preferujete variantu, kdy na vytvořené zdroje mají pouze čtecí práva a vy se jim o ně staráte přestože běží v jejich subscription, do které třeba normálně přístup nemáte.</p>
+<p>Druhá situace může být totéž ale s tím, že místo centrálního IT tuto službu nabízí váš dodavatel či partner. Vytvoří pro vás šablonu častěji opakovaného spravovaného řešení a vy sami si ji můžete nasadit a zrušit kolikrát chcete. Stále ovšem jde o privátní situaci, tedy položka katalogu je jen pro vás.</p>
+<p>Stejný mechanismus lze použít i v Marketplace. Servisní katalog je privátní záležitost, Marketplace je naopak určen "široké veřejnosti". Není tedy vhodný pro interní záležitosti, spíše pro aplikační firmy, které chtějí svůj software nabídnout na kliknutí všem zákazníkům Azure (je nutné splnit určité podmínky a být v Microsoft Developer programu).</p>
+<h1>Co v tom může být a jak to funguje</h1>
+<p>Samotné zdroje se řeší formou ARM šablony, takže cokoli co lze šablonou definovat, může být součástí této položky v katalogu. Infrastrukturní věci, platformní služby a tak podobně. Může to být jedno VM, celý kompexní cluster VM nebo PaaS infrastruktura s Web App a Azure SQL DB například. Tato ARM šablona je to, co se příjemci vytvoří v jeho subscription, když si to objedná.</p>
+<p>Druhou součástkou je definice GUI. Při startu z portálu víte, že všechna řešení mají nějakého průvodce, který se ptá na důležité parametry. Toto GUI máte pod svou kontrolou a můžete se zeptat na co chcete. Posbírané výsledky můžete předat ARM šabloně a tímto jí parametrizovat. V ukázce vám popíšu jak to udělat, aby to měl uživatel co nejjednodušší. Tedy aby si nevybíral složité věci, kterým nemusí rozumět, ale spíše nějaké zjednodušené varianty. Nejčastěji "velikost" aplikace - Small, Medium, Large. Za touto jednoduchu volbou schováte technické detaily vašeho doporučeného sizingu, třeba velikosti VM, velikosti a typy disků, SKU Azure SQL DB atd. Stejně tak můžete využít kondicionály v ARM a dát možnost jednoduše zvolit, zda chci vysokou dostupnost nebo ne (a podle toho udělám jednu instanci nebo nějaký balancovaný cluster).</p>
+<p>Třetí komponentou je nastavení práv. Prvním je nastavení zámečku, tedy zda má mít operátor k vytvořeným zdrojům přístup nebo ne. Pokud to chcete koncipovat jako startovací šablonu (a ať si to pak rozvrtá jak chce), zámeček nedávejte. Pokud to má být vámi spravovaná služba, zámeček dejte a uživateli neříkejte ani administrátorský login do VM či DB. S tím souvisí druhá věc - jste schopni u těchto zdrojů přiřadit práva (RBAC) pro vámi definovaný účet či AAD skupinu. Jinak řečeno centrálnímu IT týmu se automaticky vytvoří práva v roli, kterou definujete, takže může se zdroji patřičně zacházet a starat se o prostředí.</p>
+<h1>Vyzkoušejme si to</h1>
+<p>Celou ukázku mám zde: <a href="https://github.com/tkubica12/azure-managed-app">https://github.com/tkubica12/azure-managed-app</a></p>
+<p>Nejprve mrkněte na ARM šablonu s názvem mainTemplate.json. Je to jednoduchá šablonka, která vygeneruje infrastrukturu s jednou VM a veřejným endpointem (výslednou URL mimochodem vrací jako output, který pak uživatel uvidí v portálu). Vaší pozornosti doporučuji jak se implementuje ono zjednodušení sizingu na varianty Small, Medium a Large.</p>
+<p>Dále se podívejte na createUiDefinition.json. To je definice GUI, ve které chci odsouhlasení s tím, že to budu spravovat já a následně se ptám na některé parametry, konkrétně velikost řešení a doménové jméno.</p>
+<p>Oba soubory zabalíme do zipu a na ten se odkážeme při definici této položky v katalogu.</p>
+<p>Pro účely ukázky jsem si vytvořil speciálního uživatele (ve vašem případě bych doporučoval AAD skupinu), který bude pro kolegy aplikaci spravovat a dostane tak přístup k vytvořeným zdrojům. Opsal jsem si jeho object-id a načtu si id role Owner. Pak už vytvořím definici aplikace s tím, že použiji ReadOnly zámeček (varianta kdy nechci, aby se v tom příjemce vrtal) a odkážu na náš zip soubor. Ten je na mém GitHub, takže si jenom změňte userid a můžete si rovnou vyzkoušet.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">roleid=$(az role definition list --name Owner --query [].name --output tsv)
+userid="afa49e36-cf61-46e1-b74f-e2fa9b5d48cd"
+az managedapp definition create -g catalog \
+        -n myManagedApp \
+        -l westeurope \
+        --display-name "My Managed App" \
+        --description "This is demo of application managed by central IT team" \
+        -a "$userid:$roleid" \
+        --lock-level ReadOnly \
+        --package-file-uri "https://raw.githubusercontent.com/tkubica12/azure-managed-app/master/app.zip"
+</pre>
+<p>Následně se jako člen jiného oddělení podívám do Azure, jestli nenajdu nějakou hezkou položku katalogu.</p>
+<p id="lPZXpRy"><img class="img-fluid wp-image-1940 " src="/images/2018/img_5a9f7a3ba303a.png" alt="" /></p>
+<p id="ONjPJNA"><img class="img-fluid wp-image-1941 " src="/images/2018/img_5a9f7a53e58e7.png" alt="" /></p>
+<p id="CvBGguq"><img class="img-fluid wp-image-1942 " src="/images/2018/img_5a9f7a7f2c420.png" alt="" /></p>
+<p>Následovat bude průvodce, jehož obsah jsme si vydefinovali.</p>
+<p id="dxcyUVc"><img class="img-fluid wp-image-1943 " src="/images/2018/img_5a9f7ab308404.png" alt="" /></p>
+<p>Druhý krok jsme určili v definici GUI a chceme jen odklepnout, že příjemce ví co dělá.</p>
+<p id="BfSopyL"><img class="img-fluid wp-image-1944 " src="/images/2018/img_5a9f7aece5d33.png" alt="" /></p>
+<p>Vyplníme název doménového jména a vybereme velikost řešení.</p>
+<p id="oGkTlXn"><img class="img-fluid wp-image-1945 " src="/images/2018/img_5a9f7b1d5f758.png" alt="" /></p>
+<p>Dojedeme na konec a spustíme deployment. Co se stane? Azure vytvoří resource group mojeappka, ale v tom uvidíme jen objekt naší aplikace, nikoli samotné zdroje. Nicméně všimněte si, že tam jsou Outputs z naší ARM šablony, kterými dáváme správu uživateli, na jaké URL naše řešení běží (a předat takhle můžete cokoli dalšího, třeba login do aplikace a tak podobně).</p>
+<p id="PlHkEiE"><img class="img-fluid wp-image-1946 " src="/images/2018/img_5a9f7b998a6c9.png" alt="" /></p>
+<p id="dDNsVBI"><img class="img-fluid wp-image-1950 " src="/images/2018/img_5a9f7cf8d8be1.png" alt="" /></p>
+<p>Kromě toho se ale vytvořila ještě druhá resource group, která začíná mojeappka a zbytek je generovaný. V této resource group jsou vlastní zdroje. proč jsou zvlášť? Je to kvůli řízení přístupu a nastavení zámečku. Druhý důvod je, že pokud aplikaci smažete, automaticky se odstraní i tato resource group s jejími zdroji.</p>
+<p id="uPiNjes"><img class="img-fluid wp-image-1947 " src="/images/2018/img_5a9f7c2109162.png" alt="" /></p>
+<p>Můžeme se podívat, že tato resource group je skutečně zamčená.</p>
+<p id="RznCdhW"><img class="img-fluid wp-image-1948 " src="/images/2018/img_5a9f7c4ff0513.png" alt="" /></p>
+<p>A také si ukážeme, že specificky do této resource group byl dán přístup našemu administrátorovi z centrálního IT. Všimněte si, že role nebyla přiřazena děděním ze subscription (tzn. tento uživatel nemá běžně v subscription přístup), je tam specificky jen pro tuto resource group.</p>
+<p id="KRbWbpj"><img class="img-fluid wp-image-1949 " src="/images/2018/img_5a9f7cc877a1c.png" alt="" /></p>
+<p>A je to! Tímto způsobem jsme vyřešili Azure část, což někdy může stačit. Většinou ale budete chtít zprovoznit automatizovaně i aplikaci. Pak samozřejmě můžete použít custom image, automatizační skripty (třeba cloud-init nebo VM Extension) či předat řízení specializovanému nástroji pro deployment ve VM, třeba Ansible, Chef či Puppet nebo PowerShell DSC. Pokud jde o platformní služby, třeba Web App, proveďte automatizovaný deployment z vašeho source control, třeba VSTS, GitHub či jiného zdroje (třeba i OneDrive).</p>
+<p>&nbsp;</p>
+<p><em>Chcete pro vaší organizaci připravit samoobslužné automatizované řešení pro některé typové aplikace typu blog, CMS platformu, ticketovací systém a tak podobně? Použijte servisní katalog a zjednodušte uživatelům nasazení (zredukujte otázky tím, že vložíte své know how - třeba zjednodušte sizing na Small, Medium a Large). Chcete pro ně nabídnout i kompletní správu řešení? Zdroje můžete uzamknout na ReadOnly a přidat se jako správce vytvořené resource group. A pokud jste aplikační partner a chcete dát zákazníkovi podobné možnosti, můžete jim do jejich prostředí takovou svojí definici vytvořit.</em></p>

@@ -1,0 +1,47 @@
+---
+layout: post
+status: publish
+published: true
+title: Přístupy uživatelů k tabulkám a sloupcům v Azure SQL Database
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 141
+wordpress_url: http://tomaskubica.cz/?p=141
+date: '2017-03-09 14:37:18 +0000'
+date_gmt: '2017-03-09 13:37:18 +0000'
+categories:
+tags:
+- SQL
+- Security
+---
+<p>Data uložená v Azure SQL databázi nemusí být určena každému - určitě se nám budou hodit účty, které nesmí zapisovat a mohou jen číst. A možná v některé z tabulek bude konkrétní sloupeček, který nechceme, aby viděl každý. Dnes si pohrajeme s účty v Azure SQL.<!--more--></p>
+<h1>Klasický SQL user vs. contained SQL user</h1>
+<p>Klasické řešení uživatelského účtu je vytvořit přístupový login na úrovni serveru (tedy nějaké přihlašovací jméno a heslo). V jednotlivých databázích potom můžeme vytvořit uživatele, jehož přihlašovací údaje jsou právě tento login na serveru. Můžete tedy jeden login používat u mnoha databází a pokud potřebujete změnit heslo, stačí to udělat jednou.</p>
+<p>Azure SQL nemá koncept skutečného serveru, který by vám patřil, takže má trochu jinak definované role a "serverové" loginy jsou vytvářeny na úrovni master databáze.</p>
+<p>Nejprve vytvoříme LOGIN v master DB (pošlete v SQL Server Management Studio toto Query na master):</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">CREATE LOGIN serveruser WITH PASSWORD = 'Azure123456';</pre>
+<p>Pak spusťte Query ve vaší databázi, v mém případě v mojesql:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">CREATE USER serveruser FROM LOGIN serveruser;
+ALTER ROLE db_datareader ADD MEMBER serveruser;</pre>
+<p>Teď se můžete zkusit tímto účtem nalogovat. V databázi mojesql budete moci číst, ale ne zapisovat.</p>
+<p>Nevýhodou tohoto přístupu je, že bez LOGIN v serveru tento USER nefunguje. Pokud tedy například budete DB replikovat, musíte si ručně zajistit, že na jiném serveru v destinaci tento LOGIN taky existuje. Možná je tedy lepší uživatele vytvořit specificky přímo pro databázi tak, že nemá žádné návaznosti na cokoli jiného. Contained uživatele vytvoříme snadno - stačí poslat tohle rovnou na kontextu databáze, v mém případě mojesql.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">CREATE USER dbuser WITH PASSWORD = 'Azure123456';
+ALTER ROLE db_datareader ADD MEMBER dbuser;</pre>
+<p>To je vše, můžete se nalogovat.</p>
+<h1>Znepřístupnění tabulky nebo konkrétního sloupečku</h1>
+<p>Nejen, že můžeme někomu zpřístupnit data pouze pro čtení, ale dá se i specifikovat které tabulky nebo dokonce které sloupečky může používat. Pokud nechceme něco takové řešit pro každého uživatele zvlášť (ale můžeme), použijeme role. Vytvořme si novou roli, ve které povolíme pouze čtení tabulky zákazníků a to pouze sloupečků křestního jména a příjmení.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">CREATE ROLE kontraktor AUTHORIZATION db_datareader; 
+GRANT SELECT ON SalesLT.Customer (FirstName, LastName) TO kontraktor;
+CREATE USER franta WITH PASSWORD = 'Azure123456';
+ALTER ROLE kontraktor ADD MEMBER franta;</pre>
+<p>Připojte se jako uživatel franta a zkuste tento SELECT:</p>
+<p id="sJIVJcn"><img class="img-fluid wp-image-142 " src="/images/2017/img_58834752f12bc.png" alt="" /></p>
+<p>Pokud se pokusíme číst nějaký sloupeček, na který nemáme právo, nepodaří se to.</p>
+<p id="ZIYiqTS"><img class="img-fluid wp-image-143 " src="/images/2017/img_588347e750914.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Přístup k tabulkám a sloupečkům můžete v Azure SQL dobře. Kromě toho máte na výběr celou řadu dalších bezpečnostních funkcí jako je row-level security, AlwaysEncrypted nebo Data Masking. O těch v jiných článcích.</em></p>

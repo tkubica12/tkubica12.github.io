@@ -1,0 +1,119 @@
+---
+layout: post
+status: publish
+published: true
+title: Váš vlastní registr Docker image v Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 969
+wordpress_url: http://tomaskubica.cz/?p=969
+date: '2017-06-28 20:13:09 +0000'
+date_gmt: '2017-06-28 19:13:09 +0000'
+categories:
+tags:
+- Kontejnery
+---
+<p>Pokud si hrajete s kontejnery, určitě používáte Docker Hub - veřejný registr obrazů. Nicméně jakmile se z kontejnerů stane součást vašeho IT určitě budete potřebovat svůj vlastní a to hlavně z bezpečnostních důvodů. Víte, že takový vlastní registr získáte v Azure na kliknutí? A že přihlašování k němu můžete svázat s účty v Azure Active Directory? Vyzkoušejme si to.<!--more--></p>
+<h1>Proč mít vlastní registr pro kontejnerové obrazy</h1>
+<p>Důvodů je poměrně dost. Developer si rád sáhne po hotovém obrazu a nepátrá, co je vlastně uvnitř. To si při reálném provozu těžko můžeme dovolit - potřebujeme mít jistotu, že v obrazu nění žádný malware, že odpovídá bezpečnostním standardům naší firmy a našeho trhu či státu a tak podobně. Kromě toho se v obrazu může nacházet náš vlastní kód, který je duševním vlastnictvím firmy. No a také chceme předejít tomu, že si při testování aplikací lidé zvyknou na veřejný repozitář a omylem tam pošlou image kontejneru, kde už jsou zapsána citlivá data našich klientů z aplikace, kterou zkoušeli.</p>
+<p>Důvodů pro vlastní registr je tedy dost a v Azure ho získáte doslova na kliknutí.</p>
+<h1>Azure Container Registry</h1>
+<p>Dobrá zpráva - tato služba je pro vás zdarma, respektive platíte pouze za obsazenou storage. Navíc je integrovaná se systémem identit Azure Active Directory.</p>
+<p>Nejprve založte nový registr.</p>
+<p id="ubipAeB"><img class="img-fluid wp-image-970 " src="/images/2017/img_594ff4c53e189.png" alt="" /></p>
+<p>Dejte globálně platné jméno. Ve výchozím stavu je povolen pouze přístup přes svět Azure AD, nicméně protentokrát jsem povolil i admin uživatele (jednoho jednoduchého uživatele pro přístup, ale v praxi bych nepoužíval - každý uživatel i Jenkins a podobné automatizátory by měli mít svůj přístup).</p>
+<p id="fWjzpcG"><img class="img-fluid wp-image-971 " src="/images/2017/img_594ff56819708.png" alt="" /></p>
+<p>Po pár vteřinách je náš registr připraven.</p>
+<p id="heYzIzc"><img class="img-fluid wp-image-972 " src="/images/2017/img_594ff608d3a20.png" alt="" /></p>
+<p>Vyzkoušejme nejprve jednoduše integrovaný účet. Nejdřív ve svém Ubuntu s Dockerem stáhnu z veřejného repozitáře image busybox.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ docker pull busybox
+Using default tag: latest
+latest: Pulling from library/busybox
+27144aa8f1b9: Pull complete
+Digest: sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642
+Status: Downloaded newer image for busybox:latest
+</pre>
+<p>Teď se naloguji do našeho privátního Azure registru. Jméno a heslo (nezkoušejte ho, hned po napsání článku jsem vygeneroval jiné) najdete v GUI.</p>
+<p id="JYrLgSE"><img class="img-fluid wp-image-973 " src="/images/2017/img_594ff690861bb.png" alt="" /></p>
+<p>Zalogujte se do registru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ docker login -u registr -p =+/0A+bGZHI1+Rbo2=oG/xvDoKHTKWp3 registr.azurecr.io
+Login Succeeded
+</pre>
+<p>Teď si vezmu image busybox a přepíšu jej do svého registru a použiji push, čímž se nahraje do Azure.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ docker tag busybox registr.azurecr.io/mujbusybox
+tomas@jump:~$ docker push registr.azurecr.io/mujbusybox
+The push refers to a repository [registr.azurecr.io/mujbusybox]
+3a1dff9afffd: Pushed
+latest: digest: sha256:be3c11fdba7cfe299214e46edc642e09514dbb9bbefcd0d3836c05a1e0cd0642 size: 527
+</pre>
+<p>Podívejte se do GUI, určitě tam bude.</p>
+<p id="PHDfNQt"><img class="img-fluid wp-image-974 " src="/images/2017/img_594ff7cf6d0f4.png" alt="" /></p>
+<h1>Service Principal</h1>
+<p>Druhou možností pro přihlašování je použít servisního principála, tedy v Azure AD k vašemu účtu vytvořit aplikaci. Pro zjednodušení to berme jako vytvoření separátního jména a hesla pod vaším Azure AD účtem.</p>
+<p>Jděte do Azure AD a přidejte aplikaci.</p>
+<p id="gbOpgfy"><img class="img-fluid wp-image-975 " src="/images/2017/img_594ffececad7d.png" alt="" /></p>
+<p id="pvrTkJd"><img class="img-fluid wp-image-976 " src="/images/2017/img_594fff015afb1.png" alt="" /></p>
+<p>Application ID berte jako uživatelské jméno.</p>
+<p id="sFtpjEF"><img class="img-fluid wp-image-978 " src="/images/2017/img_594fffe720abd.png" alt="" /></p>
+<p>Jako heslo bude Key - ten si vygenerujte.</p>
+<p id="aeJeZny"><img class="img-fluid wp-image-979 " src="/images/2017/img_5950001ac42aa.png" alt="" /></p>
+<p>Jděte v GUI k vašemu registru a najdeme si nastavení přístupových práv.</p>
+<p id="qjopNLv"><img class="img-fluid wp-image-980 " src="/images/2017/img_595000a8eaa78.png" alt="" /></p>
+<p>Přidejte aplikaci registr jako vlastníka (ale můžete také vytvořit přístup pouze pro čtení, vhodné třeba pro roboty v rámci CI/CD apod.).</p>
+<p><img class="img-fluid wp-image-981 " src="/images/2017/img_595001042bd00.png" alt="" /></p>
+<p>Zkuste se přihlásit účtem principála v Dockeru do vašeho repozitáře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ docker login registr.azurecr.io -u 1b8d4fd9-3808-4371-a35e-06f5dc6d1e94
+Password:
+Login Succeeded
+</pre>
+<h1>Credential helper pro Docker</h1>
+<p>V Dockeru při logování do registru existuje koncept credential helperu, tedy svázání s jiným procesem přihlašování. Aktuálně Azure podporuje toto řešení pro statický účet - tím, že jste přihlášeni v Azure CLI můžete i do Dockeru (na pozadí pro něj CLI získá onen admin login).</p>
+<p>Nainstalujte credential helper pro Docker.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">curl -L https://aka.ms/acr/installaad/bash | sudo /bin/bash</pre>
+<p>Zrušte předchozí login a podívejte se do souboru, kam Docker zaznamenává přístupy do registrů.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ docker logout registr.azurecr.io
+Removing login credentials for registr.azurecr.io
+tomas@jump:~$ cat .docker/config.json
+{
+        "auths": {},
+        "credsStore": "acr-linux"
+}</pre>
+<p>Použijte Azure CLI 2.0 k přihlášení Dockeru, místo klasického docker login.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ az acr login -n registr
+AAD authentication failed with message: Registry 'registr.azurecr.io' does not support AAD login.
+Login Succeeded
+</pre>
+<p>Protože jste přihlášeni v Azure CLI, to vás nalogovalo do Dockeru (tedy nemuseli jste kopírovat klíč pro admin heslo, to pro vás udělalo CLI). Můžete rovnou stahovat bez docker login. Aktuální verze udělá to, že administrátorské jméno a heslo poskytne přímo Dockeru tak, že uživatel ho nevidí. Tzn. kdo má přístup do registru v rámci svého Azure loginu (a je tedy přihlášen tímto do Azure CLI) se dostane i na registr, ale heslo nezná.</p>
+<p>Soudě podle informací na GitHub projektu pro ACR helper se pracuje i na přímé integraci helperu do Azure Active Directory bez nutnosti používat Azure CLI, nicméně pokud správně rozumím jsou tam aktuálně limity na straně Docker login procesu. Jde o to, že Azure AD může používat velmi robustní režim přihlášení včetně dvoufaktorové autentizace a zatím není cesta jak docker login může iniciovat takto komplexní přihlášení. Uvidíme kam se to posune, každopádně už dnes můžete použít login přes jméno a heslo, využít service principal pro každého právoplatného uživatele (včetně podpory read only přístupu například pro Jenkins) nebo integrovat docker login s Azure CLI.</p>
+<h1>Použití Azure Container Registry s Kubernetes</h1>
+<p>Registr obrazů můžete samozřejmě použít i v rámci Kubernetes. Tam to typicky funguje tak, že clusteru uložíte přístupové údaje do vašeho registru přes object Secret. To udeláme takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl create secret docker-registry mujregistr --docker-server registr.azurecr.io --docker-username registr --docker-password sq+f3/+fN22/lOR/+H4NbJYuWXimoIVY --docker-email cokoli@tomaskubica.cz
+</pre>
+<p>Následně při definici například podu použijeme obraz z našeho registru a přidáme informaci o tom, který secret má Kubernetes při stahování image použít.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Pod
+metadata:
+  name: mujtest
+spec:
+  containers:
+    - name: mujtestkontejner
+      image: registr.azurecr.io/mujbusybox
+      command: ["/bin/sh"]
+      args: ["-c", "while true; do echo hello; sleep 10;done"]
+  imagePullSecrets:
+    - name: mujregistr</pre>
+<p>Pak už jen pod spustíte a ujistíte se, že všechno funguje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl create -f mujtest.yaml
+
+tomas@jump:~$ kubectl get pods
+NAME                              READY     STATUS    RESTARTS   AGE
+mujtest                           1/1       Running   0          5s
+</pre>
+<p>&nbsp;</p>
+<p><em>Mít vlastní registr Docker image dává smysl zejména pokud to s kontejnery myslíte vážně. Služba Azure Container Registry je výborný doplněk k Azure Container Service, ale můžete ji samozřejmě využít i samostatně v rámci jakéhokoli vašeho Docker prostředí - z on premises i v cloudu.</em></p>
+<p>&nbsp;</p>

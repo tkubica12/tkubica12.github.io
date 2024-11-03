@@ -1,0 +1,37 @@
+---
+layout: post
+status: publish
+published: true
+title: Vývojáři, už umíte kjů-šarp? Pište pro kvantový počítač z Visual Studio
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1816
+wordpress_url: http://tomaskubica.cz/?p=1816
+date: '2018-01-11 06:07:03 +0000'
+date_gmt: '2018-01-11 05:07:03 +0000'
+categories:
+tags:
+---
+<p><em>Kvantové počítače slibují pro některé úlohy obrovský skok ve výkonu. Simulace v oblasti kvantové mechaniky lze efektivně dělat jen s využitím kvantových efektů. Ale nejen to - je řada matematických problémů, které dokáže kvantový počítač řešit s neuvěřitelnou efektivitou. Microsoft byl vždy zaměřený na vývojáře a tak není divu, že kromě svých obrovských objevů v oblasti hardware a software kvantového počítače na ně Microsoft nezapomíná. Víte, že můžete ve Visual Studio už dnes psát aplikace pro kvantové počítání?</em><!--more--></p>
+<h1>Kvantový počítač</h1>
+<p>Nejsem fyzik, takže je moje představa možná dost naivní, ale chápu to nějak takhle. Částice, například elekton, se nenachází pouze ve stavu 0 nebo 1 (například ve veličině spin), ale ve všech stavech mezi tím. Teprve v okamžiku změření donutíme částici (nebo chcete-li pravněpodobnostní vlnovou funkci) zkolabovat do nějakého měřitelného stavu. Jinak řečeno jedna částice tak z matematického hlediska reprezentuje dvourozměrný vektor. To hlavní přichází v okamžiku, kdy necháte dvě částice spolu interagovat. Protože v té době neměříte, dojde k reakci na úrovni všech možných stavů obou částic (či chcete-li vlnových funkcí) - jinak řečeno jednou operací prozkoumáte všechny varianty stavů. Následně si výsledek přečtete díky kvantové provázanosti fourierovou transformací (stav si teleportujete do jiné sady částic, které změříte). Z datového hlediska jsou dvě interagující částice čtyřrozměrným vektorem.</p>
+<p>Teď praktičtěji. Co částice systému, to qubit, tedy až nekonečná množina stavů mezi 0 a 1. Některé matematické operace, například často používané v některých šifrovacích algoritmech, nelze prolomit jinak, než projít všechny možnosti. Kvantovný počítač má právě tu vlastnost, že jedním průchodem všechny možnosti prozkoumá (vzpomeňte třeba na slavný dvouštěrbinový experiment, kdy světlo prochází dvěma obdelníkovými otvory a na stínítku vzniká interferenční obraz stejně jak reaguje třeba vlna na vodě, kde si to vysvětlíte tím, jak do sebe molekuly naráží; jenže tento efekt se objevuje i pokud vystřelujete fotony po jednom, tedy foton reaguje sám se sebou, jinak řečeno zahrnuje všechny možné dráhy nebo ještě jinak řečeno výsledek odpovídá tomu, pokud by prošel oběma štěrbinami).</p>
+<p>A tím se dostáváme k hlavnímu rozdílu oproti běžnému počítači a také proč simulátor kvantového počítače má tak brutální spotřebu paměti. Na simulaci 30 qubit vám postačí notebook, řekněme 16 GB paměti. 31 qubit má dvojnásobek kombinací, tedy jen na reprezentaci všech stavů potřebujete 32 GB RAM. 36 qubit potřebuje 1 TB RAM, 40 qubit 16 TB RAM a tak dále.</p>
+<h1>K čemu to</h1>
+<p>Pro někoho může být zajímavé nabourání mnoha forem současného šifrování, což je důvod proč výzkumníci Microsoftu i jiných organizací publikovali kvantově-rezistentní šifrovací algoritmy.</p>
+<p>Jedna z velmi zajímavých oblastí jsou simulace přírody. Jakmile potřebujete zahrnou v simulaci kvantové jevy, dostáváte se extrémně rychle mimo možnosti současných počítačů a to už při velmi jednoduchých systémech (tyto jevy mají často superpolynomální složitost, tedy například jediný bit vstupu navíc způsobuje exponenciální nárůst složitosti zpracování).</p>
+<p>Další oblastí, která by extrémně profitovala z kvantového počítání je Cortana - umělá inteligence (AI). Pokud zkrátíte natrénování modelu z měsíce na pár vteřin...tak to bude mazec.</p>
+<h1>Microsoft a kvantový počítač</h1>
+<p>Microsoft Research se kvantovým počítáním zabývá velmi hluboce a už docela dlouho. Samozřejmě, že čekáte angažovanost firmy v oblasti software, operačních systémů a vývoje aplikací pro kvantový počítač. Ale nejen to - Microsoft je aktivní i na poli samotného hardware (mimochodem z velkých IT technologických firem působí v této oblasti Microsoft, IBM a Google a pak také Intel - AWS pokud vím ve výzkumu moc není, nicméně chtějí se stát platformou pro simulátory a z dlouhodobého hlediska samozřejmě budou chtít nabízet kvantové počítače jako IaaS stejně, jako Azure či GCE). Zajímavým počinem je především výzkum v oblasti "topologického qubit". Kvantové počítače se zatím do obýváku příliš nehodí, pakliže nejste zrovna zimní typ (ideální je teplota o trochu nižší, než v prázdném vesmíru, 30 milikelvinů - pokud vím v pokojové teplotě kvantové počítače zatím vydržely jen pár minut, což není nejefektivnější). Ještě horší je, že pokud do kvantového systému nějaká jiná částice šťouchne, je po výpočtu. Topologický qubit je (aniž bych rozumněl tomu jak to safra funguje) stabilnější, než běžné řešení - a to je potřeba. Mimochodem jedna výzkumná skupina v Microsoft Research řeší takový zajímavý problém. Jak zařídit, aby lehce nad absolutní nulou běžel kvantový počítač a přesto dokázal komunikovat s okolím, zejména s tradičním počítačem v pokojové teplotě, který z něj sbírá výsledky.</p>
+<h1>Vývoj pro kvantový počítač</h1>
+<p>A teď k tomu hlavnímu. Víte, že psát aplikace pro kvantový počítač můžete už dnes? Stáhněte si Microsoft Quantum Development Kit: <a href="https://www.microsoft.com/en-us/quantum/">https://www.microsoft.com/en-us/quantum/</a></p>
+<p>Po chvilce zjistíte, že tato vývojová sada a simulátor je plugin do Visual Studio 2017! Jak psát? Seznamte se s kvantovým jazykem Q#. Ostatně obslužný kód píšete v C# a samotné kvantové zpracování v Q#.</p>
+<p id="QGrHhLJ"><img class="img-fluid wp-image-1817 " src="/images/2017/img_5a4604f3164f3.png" alt="" /></p>
+<p>Bylo rovněž oznámeno, že pro simulace až někde kolem 40 qubitů bude sloužit Azure.</p>
+<p>&nbsp;</p>
+<p><em>Nevím jak pro vás, ale pro mne to všechno dřív bylo takové teoretické - velmi velmi zajímavé, ale dost sci-fi. Až do okamžiku, kdy jsem ve svém Visual Studio založil svůj první "kvantový projekt" a stáhnul si kvantový Hello World. Najednou vidím, jak relativně blízko to je. Bohužel nejsem vývojář - ti z vás co jsou, vyzkoušejte to a pochlubte se mi svou první kvantovou aplikací! To by byl záznam do životopisu ... leden 2018 jsem naprogramoval svou první aplikaci pro kvantový počítač :)</em></p>

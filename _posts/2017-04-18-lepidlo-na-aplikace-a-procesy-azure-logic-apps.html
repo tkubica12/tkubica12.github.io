@@ -1,0 +1,33 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Lepidlo na aplikace a procesy: Azure Logic Apps'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 49
+wordpress_url: http://beta.tomaskubica.cz/?p=49
+date: '2017-04-18 04:50:24 +0000'
+date_gmt: '2017-04-18 03:50:24 +0000'
+categories:
+tags:
+- LogicApps
+- Serverless
+---
+<p>Vaše firemní procesy si v naprosté většině případů nevystačí s jedinou aplikací. Klasické řešení (v korporacích poměrně časté) spočívá například v tom, že asistentky každý pátek přes soubor exportují data z jednoho systému do druhého, spočítají se agregované údaje a manažerům obchodních jednotek posílají emailem report za jejich oddělení, takže ti mohou na pondělní poradě náležitě poplácat tým po zádech. Občas jsem se také potkal s tím, že starší aplikace uměla tak akorát zapsat něco každou hodinu do souboru a psal se skript, který si data stáhne, nahraje do nějaké databáze, kde se nad nimi provede nějaké zkoumání. Co třeba situace, kdy týmy používají různé file share služby (DropBox, Box, ...) a v rámci zachování dat je chcete současně nakopírovat do SharePointu nebo OneDrive?</p>
+<p>Tyto scénáře můžete pohodlně řešit přes Logic Apps a to bez programování - použijete grafický designér a proces si namodelujete. <!--more-->Možná chcete zajít ještě dál a v ten okamžik je možné obohatit Logic Apps o Integration Account. Ten vám dá přístup k hlubším enterprise integracím. Můžete například nejen manipulovat se soubory, ale kódovat a dekódovat flat nebo XML soubory, konvertovat XML/JSON, používat formáty X12 nebo AS2 nebo se přímo napojit na SAP.</p>
+<h1>Logic Apps</h1>
+<p>O co jde? Jedná se o integrační, někdo by řekl orchestrační platformu v Azure. Místo psaní skriptu, který třeba v případě, že se objeví nový soubor v nějakém OneDrive adresáři odešle někomu SMS a soubor překopíruje na SharePont, to můžete naklikat pěkně graficky v Logic Apps. Bude to podstatně jednodušší (nemusíte napsat ani řádku kódu), udržitelnější (grafickému flow schématu každý porozumí) a nemusíte se starat o to, kde to běží (dělá to "ten cloud", nemusíte udržovat nějaký server, ve kterém se pravidelně spouští nějaký skript). Na výběr máte hotové integrace do celé řady SaaS aplikací (seznam je tady: <a href="https://docs.microsoft.com/en-us/azure/connectors/apis-list">https://docs.microsoft.com/en-us/azure/connectors/apis-list</a>). Nechybí další Azure služby (DocumentDB, Blob Storage, Azure Functions, Azure ML), Office 365, SharePoint, WordPress (ano, můžete automaticky publikovat článek třeba do interního blogu), Twitter, Facebook, Slack, GitHub, Dynamics nebo Salesforce, file share (DropBox, Box, Google Drive, FTP), Instagram nebo YouTube.</p>
+<p>V Preview je aktuálně další zajímavý konektor - Microsoft kognitivní služby. Můžete například analyzovat sentiment textu, tedy zda vyznívá pozitivně nebo negativně. Logic Apps dovoluje vytvářet větvené rozhodovací stromy. Co kdybychom tedy třeba poslouchali zmínky o firmě na Twitteru, text zpráv kopírovali do DocumentDB pro pozdější analýzu, ihned prozkoumali sentiment textu a v případě negativní nálady přeposlali upozornění včetně textu do vašeho marketingového oddělení? Logic Apps tedy umožňují vícecestné větvení (tedy nejen ano/ne, ale i podle více možností), mohou opakovat operaci pro každý objekt (na vstupu se objeví několik souborů a my zpracujeme každý zvlášť) nebo vytvářet smyčku (opakuj dokud).</p>
+<p>S Logic Apps ovšem nejste odkázáni jen na hotové integrace. Na výběr je pár generických možností, tedy protokolů, které můžete namířit na cokoli - třeba svoje aplikace, API nějaké SaaS služby, která nativně začleněna není apod. Použít můžete HTTP/HTTPS volání a webhooky, FTP/SFTP nebo protokoly SMTP/POP3/IMAP.</p>
+<p>Ptáte se kolik to bude stát? Pokud dostanete kapesné 10 EUR, můžete za něj svůj proces spustit 15000x.</p>
+<h1>Logic Apps vs. Microsoft Flow</h1>
+<p>Slyšeli jste o Flow (<a href="https://flow.microsoft.com/cs-cz/">https://flow.microsoft.com/cs-cz/</a>)? V zásadě dělá skoro totéž. V čem je pak rozdíl? Flow je zaměřeno na koncové uživatele, oni sami si mohou flow sestavit. Je právě pro tu situaci, kdy asistentka chce automatizovat přípravu podkladů pro pondělní meetingy. Grafický designer je stejný. Logic Apps jsou naproti tomu určeny k tomu, aby se o ně staral řekněme IT člověk či vývojář. Jsou vhodné pro kritičtější procesy (integrace byznys aplikací, která je zásadní v rámci firemních procesů), je k dispozici výsledný orchestrační kód (v zásadě JSON soubor, ve kterém jsou kroky popsané - opakovatelnější, možnost použít version control apod.), je tu integrace s Visual Studio a využívá se hluboká bezpečnost v Azure - Security Center, logování, audity.</p>
+<h1>Logic Apps vs. Azure Functions</h1>
+<p>Functions jsou v některých ohledech podobné. Také mají nějaký Trigger a platíte za jednotlivá spuštění. Rozdíl je ale v tom, že ve Functions musíte programovat, zatímco v Logic Apps si klikáte (nebo píšete JSON soubor, ale nemusíte kódovat). Pro příklady uvedené v tomto článku je, pokud tedy nejste developer co si chce pohrát, výhodnější použít Logic Apps. Lidé se v tom lépe vyznají a budete to mít rychleji. Functions jsou ideální pro moderní aplikace, třeba zpracování dat z IoT apod. Výhodné také může být odskočení z Logic Apps do Functions, což je podporované. Pokud v nějakém kroku integrace nevystačíte s možnostmi Logic Apps a potřebujete vlastní kód třeba v F# či JavaScriptu, tohle je způsob jak to pohodlně udělat (a udržet model platba za spuštění, ne za trvale alokované zdroje).</p>
+<p><em>Nevím jak vám, ale mě se takové věci dost líbí. Příště si zkusíme něco opravdu naklikat, uvidíte, že je to snadné.</em></p>

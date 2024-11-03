@@ -1,0 +1,114 @@
+---
+layout: post
+status: publish
+published: true
+title: Více-faktorové ověřování v on-premise díky Azure MFA
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 457
+wordpress_url: http://tomaskubica.cz/?p=457
+date: '2017-03-13 05:51:00 +0000'
+date_gmt: '2017-03-13 04:51:00 +0000'
+categories:
+tags:
+- Security
+- AAD
+---
+<p>V Azure je perfektní prostředí pro moderní řízení a ověřování identit - Azure AD postavená na OAuth 2.0 pro aplikace a podpora velmi bezpečného více-faktorového ověřování (kromě jména a hesla i telefonát, SMS, aplikace v mobilu apod.). Ale co on-premise svět? Váš Exchange s OWA, remote desktop, VPNky, intranet a především lokální Active Directory? Potřebovali byste bezpečnější více-faktorové ověřování, ale s on-premise AD a aplikacemi? Podívejme se, jak s využitím ADFS a MFA Serveru napojit váš on-premise svět na Azure Multi-Factor Authentication.<!--more--></p>
+<h1>Multi-Factor Authentication - proč je bezpečnější</h1>
+<p>Určitě máte na dveřích zámek a klíče v kapse. Ty ovšem můžete s jistou (doufejme ne velkou pravděpodobností) ztratit či vám je někdo sebere a pak se dostane do vašeho bytu či domu. Pomůže vám dát na dveře druhý zámek a klíč od něj dát na stejný svazek jako ten první? Zvyšujete ochranu před někým, kdo nemá klíč, ale sekeru - nicméně pro scénář vytažených klíčů z kapsy jste si nepomohli. Co potřebujete je druhý faktor zabezpečení. Něco jiného, co funguje jinak a neztrácí se současně s klíči. Mohl by to být alarm s kódem. Mít jedno nebo druhé je málo, musíte mít/znát oboje. Pravděpodobnost, že útočník nepozorovaně získá jak klíč, tak kód na alarm, je relativně nízká.</p>
+<p>Více-faktorové ověření (MFA) dělá právě tohle. Kromě tradičního hesla se musíte prokázat ještě jinak. Například vám zavolá robot na váš telefon a vy musíte zadat PIN. Nebo vám pošle jednorázový kód SMSkou. Nebo se robot spojí s autentizační aplikací na vašem mobilu.</p>
+<h1>Azure MFA pro svět cloudu</h1>
+<p>Microsoft službu více-faktorového ověřování v cloudu nabízí. Zdarma je k dispozici pro administrátory Azure subscription, je součástí některých balíčků Office365, je v ceně Azure AD Premium nebo se dá platit po uživatelých. Je velmi dobře integrovaná se systémem ověřování v cloudu, tedy moderním protokolem OAuth 2.0. Ten používá právě Azure Active Directory. Zapnutí MFA pro Office365, správu Azure, webovou aplikaci v App Services či mobilní aplikaci je otázkou zaškrtávátka v portálu případně ve Visual Studio.</p>
+<p>V cloudu je to jasné - moderní protokoly, čistý stůl. Ale jak dostat bezpečnou MFA do on-premise prostředí? Většina firem cílí na hybridní řešení, takže i pro aplikace ve svých datových centrech hledají efektivní MFA. Možná se rozhodnete identity (a hashe hesel) replikovat mezi cloudem a on-prem, ale třeba ze strategických důvodů potřebujete mít účty jen v on-premise Active Directory. I přesto můžete MFA použít a zvýšit tak svou bezpečnost.</p>
+<h1>Jak využít Azure MFA pro klasické on-premise aplikace</h1>
+<p>Ověřování v on-premise světě používá stále řadu klasických protokolů. Windows Login pro intranetové aplikace, LDAP, RADIUS typicky pro VPN a jiné síťové technologie a tak podobně. Active Directory ve Windows Server není o OAuth (jak je tomu u Azure AD), ale naopak o klasických protokolech. Jak tedy na to?</p>
+<p>Prvním krokem je "překládat" on-premise protokoly do světa propojených aplikací, například OAuth. K tomu slouží služba Active Directory Federation Service. Tu typicky nasadíte na separátní server (servery), začleníte do domény a napojíte na Active Directory. Externí systémy (aplikace, partneři) se napojují přes ADFS. Pokud z bezpečnostních důvodů nechcete, aby server začleněný v doméně (byť ne řadič) měl externí přístup, můžete tento oddělit do separátního serveru mimo doménu - ADFS Proxy (ADFS mluví s AD a ADFS Proxy, ale s externím světem mluví jen ADFS Proxy). Tímto krokem se přiblížíme k možnosti nasazení MFA... jak za chvilku uvidíme.</p>
+<h2>Rozjedeme ADFS</h2>
+<p>Nejprve jsem si podle  návodu na webu rozjel AD a ADFS. Pro ten potřebujete certifikát, typicky podepsaný veřejnou autoritou (pokud se chcete federovat s okolím nebo přistupovat ze světa mimo firmu, například z počítačů mimo doménu). Pokud máte všechny stanice ve správě (třeba s MDM jako je Intune) a dostanete do nich interní root CA, pak můžete i s certifikátem od vlastní CA.</p>
+<p>Pro dnešek jsem všechno testoval jen přes přímý web ADFS. Otevřete na klientovi prohlížeč a pošlete ho na váš ADFS server (nebo proxy) na této adrese: https://mfaadfs.mfa.demo/adfs/ls/idpinitiatedsignon</p>
+<p id="yOgKpdr"><img class="img-fluid wp-image-459 " src="/images/2017/img_58c2fca77feca.png" alt="" /></p>
+<p>Vyzkoušejte, že se můžete připojit jménem a heslem doménového uživatele.</p>
+<h2>Napojíme se na Azure MFA</h2>
+<p>Nejprve si v portálu (pozor, v okamžiku kdy tento článek píšu, je tato funkce zatím stále pouze v klasické, tedy starší verzi portálu) založíme MFA providera.</p>
+<p id="JUgTZTH"><img class="img-fluid wp-image-460 " src="/images/2017/img_58c2fd5bcbd91.png" alt="" /></p>
+<p>Já volím platbu per uživatel (v širším nasazení myslím budete volit premiovou službu Azure AD či Office365 balíček obsahující MFA).</p>
+<p id="dOWdfOn"><img class="img-fluid wp-image-461 " src="/images/2017/img_58c2fda26be74.png" alt="" /></p>
+<p>Pokud máte Windows Server 2016, budete to mít docela jednoduché. Ten má totiž už zabudovanou integraci do Azure MFA, kterou stačí nastavit. Protože ale dnes popisuji tradiční on-premise svět, předpokládám tam spíše verzi 2012 R2. Do té musíme doinstalovat MFA Server.</p>
+<p>V portálu u MFA providera klikněte na Manage a následně dáme Download.</p>
+<p id="tmbMINR"><img class="img-fluid wp-image-462 " src="/images/2017/img_58c2fe109b30d.png" alt="" /></p>
+<p>Stáhneme si MFA Server pro náš systém.</p>
+<p id="jPIjLlX"><img class="img-fluid wp-image-463 " src="/images/2017/img_58c2fe23aabee.png" alt="" /></p>
+<p>Začínám instalovat na moje ADFS (pokud používáte i ADFS Proxy, tak tam).</p>
+<p id="cvLHAWZ"><img class="img-fluid wp-image-464 " src="/images/2017/img_58c2fe335aa73.png" alt="" /></p>
+<p>K dispozici je průvodce nastavením různých integrací (většinu si probereme až v jiném článku), který ale doporučuji zatím přeskočit (jinak rozjedete mraky konfigurací a mě to mate, raději chci jít krok za krokem a ověřovat si, že jsem to stále ještě nerozbil).</p>
+<p id="xSZrtrC"><img class="img-fluid wp-image-465 " src="/images/2017/img_58c2fea02a58a.png" alt="" /></p>
+<p>V portálu, kde jsme stáhli MFA Server, si vygenerujeme login. To jsou credentials, jakými se moje on-premise prostředí prokáže mému Azure MFA.</p>
+<p id="ueWRhvu"><img class="img-fluid wp-image-466 " src="/images/2017/img_58c2fecdacd0d.png" alt="" /></p>
+<p>Údaje zadám do instalátoru MFA Server.</p>
+<p id="gkMYPOP"><img class="img-fluid wp-image-467 " src="/images/2017/img_58c2fee865dc5.png" alt="" /></p>
+<p>Takových serverů můžete mít z důvodu redundance víc a různě je združovat, ale u mě v labu to nepotřebuji.</p>
+<p id="fJykKMZ"><img class="img-fluid wp-image-468 " src="/images/2017/img_58c2ff0d38d35.png" alt="" /></p>
+<p>Všimněte si ale, že vícero serverů si replikuje nastavení, takže HA se dobře spravuje.</p>
+<p id="THMrlnw"><img class="img-fluid wp-image-469 " src="/images/2017/img_58c2ff342e194.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Nainstalováno máme, pojďme dál.</p>
+<h1>Napojíme ADFS</h1>
+<p>Všechno je připraveno, teď už musíme jen začlenit MFA do různých služeb. Dnes si zkusíme jen jednu - ADFS.</p>
+<p>V MFA Serveru klikněte na ADFS a nainstalujte adaptér.</p>
+<p id="oYYITLW"><img class="img-fluid wp-image-471 " src="/images/2017/img_58c2ffa0776b3.png" alt="" /></p>
+<p id="YWYpBqK"><img class="img-fluid wp-image-472 " src="/images/2017/img_58c2ffb261267.png" alt="" /></p>
+<p>Až to bude, zapneme si možnost výběru ověření apod.</p>
+<p id="msaIGbf"><img class="img-fluid wp-image-474 " src="/images/2017/img_58c2ffe1b7367.png" alt="" /></p>
+<p>Teď musíme AD FS říct, že má adaptér používat. Spusťte tento skript a následně restartujte ADFS službu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">C:\Program Files\Multi-Factor Authentication Server\Register-MultiFactorAuthenticationAdfsAdapter.ps1
+</pre>
+<p>ADFS a adaptér jsou propojeny a my tak můžeme v ADFS nastavit používání našeho MFA Serveru.</p>
+<p id="ASxwBGy"><img class="img-fluid wp-image-475 " src="/images/2017/img_58c3003fe7237.png" alt="" /></p>
+<p>Výchozí stav je takový, že pokud u uživatele je evidován druhý faktor, bude se po něm chtít. Pokud není, postačí jednofaktor (heslo). To můžete změnit a zakázat explicitně jednofaktorový přístup třeba pro skupinu uživatelů, při komunikaci z externího světa nebo z neznámých zařízení (typicky při integraci s MDM).</p>
+<p id="gAZqXPk"><img class="img-fluid wp-image-476 " src="/images/2017/img_58c300a55b02a.png" alt="" /></p>
+<h1>Založíme MFA uživatele a vyzkoušíme</h1>
+<p>V on-premise Active Directory mi existuje uživatel tom. Pojďme teď pro něj ručně založit druhý faktor (jiné varianty jsou samoobslužná registrace nebo třeba import z AD či souboru apod.).</p>
+<p id="BNcgpfn"><img class="img-fluid wp-image-477 " src="/images/2017/img_58c300ff1bd55.png" alt="" /></p>
+<p>Zadal jsem mu tam můj telefon a nastavil PIN (jak vidíte možností ověření je víc).</p>
+<p id="bacKmaY"><img class="img-fluid wp-image-478 " src="/images/2017/img_58c30124cab32.png" alt="" /></p>
+<p>Ještě jsem mu nastavil, že ověřovací telefonát či SMSka bude v češtině. Mimochodem máte nejen standardní nahrávku od nějaké české herečky, ale můžete si natočit hlasové zprávy svoje! To se dělá v portálu a zkusíme si někdy jindy.</p>
+<p id="EAoCHod"><img class="img-fluid wp-image-479 " src="/images/2017/img_58c301754c47b.png" alt="" /></p>
+<p>Jdu na klienta a otevřu přímo login stránku ADFS.</p>
+<p id="lcxIXpf"><img class="img-fluid wp-image-480 " src="/images/2017/img_58c3018c06f61.png" alt="" /></p>
+<p>Zadám jméno a heslo uživatele tom.</p>
+<p id="uUGqhNz"><img class="img-fluid wp-image-481 " src="/images/2017/img_58c301a06b661.png" alt="" /></p>
+<p>Jenže to nestačí. Vybírám tedy jako druhý faktor telefonát.</p>
+<p id="dmhwZyH"><img class="img-fluid wp-image-482 " src="/images/2017/img_58c301c591dea.png" alt="" /></p>
+<p>Volá mi nahraná česká paní a vyzvala mě k zadání PIN. Hned jak to udělám, okno automaticky skočí do přihlášeno.</p>
+<p id="ayIDOGf"><img class="img-fluid wp-image-483 " src="/images/2017/img_58c301f0b243d.png" alt="" /></p>
+<h1>Samoobslužný portál pro správu druhého faktoru</h1>
+<p>MFA Server podporuje webový portál, kam se uživatel přihlásí jménem a heslem a může si tam založit druhý faktor (typicky by například tato stránka byla dostupná jen z vnitřní sítě). Musíme si to rozchodit.</p>
+<p id="HVDxgbZ">V Users Portal ho nejprve nainstalujte (on si sám řekne o další návaznosti, konkrétně IIS na tomto serveru).</p>
+<p id="JFKYmcC"><img class="img-fluid wp-image-485 " src="/images/2017/img_58c3026ac4885.png" alt="" /></p>
+<p>Tady zadáváme URL budoucího portálu.</p>
+<p id="HdxCtXr"><img class="img-fluid wp-image-486 " src="/images/2017/img_58c3028381951.png" alt="" /></p>
+<p>Uživatelský portál vyžaduje HTTPS, takže ho musíme na IIS zapnout.</p>
+<p id="fimMZLk"><img class="img-fluid wp-image-487 " src="/images/2017/img_58c302a018c00.png" alt="" /></p>
+<p>Zapněte možnost rolování uživatelů portálem.</p>
+<p id="AFXUFco"><img class="img-fluid wp-image-488 " src="/images/2017/img_58c302b78255c.png" alt="" /></p>
+<p>V on-premise AD mám uživatele tom2. Založím si ho v MFA Serveru (nebo naimportuji apod.), ale tentokrát k němu nic dalšího neuvedu - druhý faktor nezaložím.</p>
+<p id="IlNreIT"><img class="img-fluid wp-image-489 " src="/images/2017/img_58c302e9efedf.png" alt="" /></p>
+<p>Na klientovi jdu do samoobsluhy, v mém případě na https://mfaadfs.mfa.demo/multifactorauth/</p>
+<p>Přihlásím se jako tom2 a uvedu své heslo.</p>
+<p id="jKwnUUU"><img class="img-fluid wp-image-490 " src="/images/2017/img_58c3031953e1f.png" alt="" /></p>
+<p>A teď už si registruji druhý faktor, třeba telefonní číslo. Vyzkoušejte si třeba mobilní aplikaci Authenticator (v okamžiku ověření se s ním Azure spojí a ověří se, že telefon máte a s ověřením souhlasíte).</p>
+<p id="ZLSCrDW"><img class="img-fluid wp-image-491 " src="/images/2017/img_58c3038b0d7fe.png" alt="" /></p>
+<h1>Na co se dá Azure MFA v on-premise použít?</h1>
+<p>Na to se podíváme detailněji někdy příště. Aktuálně jsme si rozjeli ADFS, takže naše klasické AD jsme zpřístupnili v moderní OAuth 2.0 a propojili s Azure MFA. Můžeme tedy například ověřovat moderní webové aplikace, ať už běžící on-premise nebo v Azure App Services nebo kdekoli jinde. Jde o nejuniverzálnějí a velmi moderní metodu.</p>
+<p>Kromě toho ale MFA Server nabízí specifické integrace na klasičtější protokoly. Integrace do RADIUS umožňuje dvou-faktorově ověřovat VPN přístupy (z libovolného klienta). Je také možné mít plugin do vašeho IIS (tedy nemusíte jít do plně aplikační roviny, ale využít službu ve web serveru). Specifická je také integrace do Exchange OWA nebo Windows ověřování pro tradiční aplikace. Na některé z těchto možností se podívám někdy příště.</p>
+<p>&nbsp;</p>
+<p><em>Azure Multi-Factor Authentication dokáže zlepšit zabezpečení vašeho on-premise světa. Využijete ho i u aplikací a systémů, které do cloudu migrovat nechcete. Vaše lokální AD, lokální web servery, OWA, VPN koncentrátor, aplikace a přesto vám cloud razantně zvýšil bezpečnost. Díky tomu můžete k tradičnějším aplikacím dát s klidným svědomím i přístup "zvenku", uspokojit tak palčivou poptávku uživatelů a aplikace přepsat do cloud-native podoby později, až budete připraveni.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

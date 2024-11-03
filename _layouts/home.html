@@ -1,0 +1,68 @@
+---
+layout: default
+pagination:
+enabled: true
+---
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('/images/front.jpg'); background-size: cover; background-position: center center;">
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="page-heading mx-auto" style="padding-top: 120px; padding-bottom: 80px;">
+          <h2>{{ site.title }}</h2>
+          {% if site.description %}
+          <span class="subheading">{{ site.description }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+
+      {{ content }}
+
+      <!-- Home Post List -->
+      {% for post in site.posts limit : 5 %}
+
+      <article class="post-preview">
+        <a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">
+          <h2 class="post-title">{{ post.title }}</h2>
+          {% if post.subtitle %}
+          <h5 class="post-subtitle">{{ post.subtitle }}</h5>
+          {% else %}
+          <h5 class="post-subtitle">{{ post.excerpt | strip_html | truncatewords: 50 }}</h5>
+          {% endif %}
+        </a>
+        <p class="post-meta">
+          {{ post.date | date: '%-d. %-m. %Y' }}
+        </p>
+        <p>
+          <h5 class="font-family: 'Lora', 'Times New Roman', serif; font-weight: 300; font-size: 18px;">
+            Téma:&nbsp;
+            {% for tag in post.tags %}
+            {% capture tag_name %}{{ tag }}{% endcapture %}
+            <a href="/tag/{{ tag_name | slugify }}/">
+              <nobr>{{ tag_name }}</nobr>&nbsp;
+            </a>
+            {% endfor %}
+          </h5>
+        </p>
+      </article>
+
+      <hr>
+
+      {% endfor %}
+
+      <!-- Pager -->
+      <div class="clearfix">
+        <a class="btn btn-primary float-right" href="{{"/posts/page/2/" | relative_url }}">Další příspěvky &rarr;</a>
+      </div>
+
+    </div>
+  </div>
+</div>

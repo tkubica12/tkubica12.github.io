@@ -1,0 +1,300 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: zrod, život a smrt kontejnerů'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2265
+wordpress_url: http://tomaskubica.cz/?p=2265
+date: '2018-07-12 05:06:24 +0000'
+date_gmt: '2018-07-12 04:06:24 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Azure Kubernetes Service se o vaše kontejnery krásně postára, to už víte. Zkoušíte si jak to krásně funguje s demo příklady a pak tam dáte svojí aplikaci. V ten okamžik je na čase podívat se na životní cyklus kontejnerové instance. Jak řešit iniciační procesy? Jak kontrolovat health aplikace? Jak signalizovat přetížení nebo to, že startujete a ještě nejste připraveni? Jak korektně umírat?<!--more--></p>
+<h1>Monitoring dostupnosti s liveness probe</h1>
+<p>Pro následující dvě kapitoly jsem připravil tuto jednoduchou webovou aplikaci v Python s použitím Flask frameworku, abychom si mohli ukázat sledování dostupnosti a připravenosti.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="python">from flask import Flask
+import time
+import os
+import signal
+
+app = Flask(__name__)
+
+ready = True
+alive = True
+
+@app.route('/')
+def hello():
+    if (alive and ready):
+        time.sleep(5)
+        return "OK\n"
+    elif (alive):
+        time.sleep(15)
+        return "OK\n"
+    else:
+        while True:
+            x = 12345678 * 8765432
+
+@app.route('/hang')
+def hang():
+    global alive
+    alive = False
+    return "Will hang\n"
+
+@app.route('/kill')
+def kill():
+    os._exit(1)
+
+@app.route('/setReady')
+def ready():
+    global ready
+    ready = True
+    return "Ready\n"
+
+@app.route('/setNotReady')
+def notready():
+    global ready
+    ready = False
+    return "Not ready\n"
+
+@app.route('/health')
+def health():
+    if (alive):
+        return "OK\n"
+    else:
+        while True:
+            x = 12345678 * 87654321
+
+@app.route('/readiness')
+def readiness():
+    if (ready):
+        return "OK\n"
+    else:
+        return "Not ready\n", 503
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0')</pre>
+<p>Tu jsem si zabalil do kontejneru použitím tohoto Dockerfile:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">FROM python:3-alpine
+RUN pip3 install flask
+COPY app.py /opt/app.py
+CMD ["python3", "/opt/app.py"]</pre>
+<p>Pokud chcete, můžete použít ten, co jsem publikoval na Docker Hub jako tkubica/lifecycleweb</p>
+<p>Smyslem aplikace je simulovat zatížení, havárii či zamrznutí. Nejprve si nasadíme tento Deployment a Service:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: lf
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: lf
+    spec:
+      containers:
+      - name: lf-container
+        image: tkubica/lifecycleweb
+        ports:
+        - containerPort: 5000</pre>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Service
+apiVersion: v1
+metadata:
+  name: lf
+spec:
+  selector:
+    app: lf
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000</pre>
+<p>Co se stane, pokud aplikaci sestřelíme zavoláním URL servicepublicip/kill? Hlavní proces kontejneru (PID 1) tím havaruje, Kubernetes do zjistí a kontejner zrestartuje. Výborně. Zkuste ale zavolat servicepublicip/hang. Tohle volání simuluje zamrznutí aplikace. Proces zůstane nahoře, ale web přestane odpovídat. Co s tím?</p>
+<p>Tuto situaci vyřešíme použitím liveness probe. Jejím cílem je právě sledovat stav kontejneru, a pokud není provozuschopný jej restartovat. V naší aplikaci tohle řešíme vystavením monitorovacího api na servicepublicip/health. Když je vše v pořádku, odpovídáme tam. Kubernetes může toto API sledovat v zadaném intervalu a po zadaném počtu selhání kontejner otočit. Pokud vám kontejner s aplikací delší dobu nabíhá, prodlužte si úvodní delay, ať vám Kubernetes neotáčí aplikaci ještě než stihne naběhnout.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: lf
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: lf
+    spec:
+      containers:
+      - name: lf-container
+        image: tkubica/lifecycleweb
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 3
+          periodSeconds: 2</pre>
+<p>A co když vaše aplikace API vystavit nemůže? Třeba je to kontejner pro rendering snímků, web API nepoužívá a přidávat se vám ho nechce? Druhou možností je použití scriptu. Kubernetes periodicky provádí spuštění tohoto skriptu (defacto totéž co dělá kubectl exec) a podle výsledku bude případně reagovat. Pokud aplikace píše svůj stav do logu, dobrý způsob jak liveness probe implementovat.</p>
+<h1>Připravenost odbavovat požadavky s readiness probe</h1>
+<p>Liveness probe pomáhá identifikovat odumřelé kontejnery a restartovat je. Kontejner ale nemusí být kandidátem na restart, přesto není  vhodné mu posílat požadavky klientů. Jedním typickým případem je inicializace. Proces je nastartovaný, health kontrola odpovídá kladně, ale vy ještě nechcete oblsuhovat klienty. Možná si po startu chcete naplnit cache, aby uživatelé nezaznamenali výkonnostní problémy. Druhá situace může vznikat v průběhu života. Možná si v aplikace sledujete nějakou metriku, podle které poznáte, že jste přetíženi. Co v takové situaci chceme udělat je dál makat na existujících požadavcích, ale signalizovat přetížení ven, takže nebudeme dostávat nové requesty. Jakmile vše odbavíme, pošleme signál, že jsme připraveni přijímat další.</p>
+<p>Právě ten druhý případ si vyzkoušíme. Naše Python aplikace vrací odpověď za 5 vteřin. Nicméně pokud ji přepneme do stavu simulace přetížení, bude jí odpověď trvat celých 15 vteřin. Naše aplikace na to reaguje tím, že začne na /readiness vracet chybu 503.</p>
+<p>Nasadíme si náš Deloyment a tentokrát ve dvou replikách.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: lf
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: lf
+    spec:
+      containers:
+      - name: lf-container
+        image: tkubica/lifecycleweb
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 3
+          periodSeconds: 2</pre>
+<p>Použiju simulaci uživatelů ve Visual Studio Team Services. 20 uživatelů po dobu 2 minut s tím, že po prvních 30 vteřinách pošlu na service /setNotReady. To způsobí, že jedna z instancí začne vykazovat přetížení. Jakých výsledků dosáhneme?</p>
+<div style="direction: ltr; border-width: 100%;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 7.9527in;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 7.9527in;">
+<p id="AkvGdCo"><img class="img-fluid wp-image-2273 " src="/images/2018/img_5b390a1d51bf0.png" alt="" /></p>
+<p>Průměrná odpověď byla vyšší, než očekávaných 5 vteřin. Bližší pohled ukazuje významný nárůst latence.</p>
+<div style="direction: ltr; border-width: 100%;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 4.4881in;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 4.4881in;">
+<p id="ymygPwp"><img class="img-fluid wp-image-2274 " src="/images/2018/img_5b390a50b668c.png" alt="" /></p>
+<p>V našem případě jsme nedokázali reagovat na přetížení a stále jsme posílali provoz i na přetíženou instanci.</p>
+<p>Pojďme test zopakovat s tím, že v definici Deploymentu budeme specifikovat readiness probe. Díky tomu bude instance schopná signalizovat přetížení a Service ji vyřadí z balancovacího poolu (a případně zařadí zpět, pokud aplikace po uvolnění situace začne znova vracet 200 na rediness probe).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: lf
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: lf
+    spec:
+      containers:
+      - name: lf-container
+        image: tkubica/lifecycleweb
+        ports:
+        - containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 3
+          periodSeconds: 2
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 5000
+          initialDelaySeconds: 3
+          periodSeconds: 1
+          failureThreshold: 1</pre>
+<p>Pustíme identický test a tady jsou výsledky.</p>
+<div style="direction: ltr; border-width: 100%;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 7.9048in;">
+<div style="direction: ltr; margin-top: 0in; margin-left: 0in; width: 7.9048in;">
+<p id="cgKgpNW"><img class="img-fluid wp-image-2276 " src="/images/2018/img_5b3920e465c7b.png" alt="" /></p>
+<p>Díky readiness probe jsme přestali posílat na přetíženou instanci. Samozřejmě náš příklad je jednoduchá simulace, ale pokud dokážete dobře signalizovat přetížení svých instancí, výsledky to opravdu může dramaticky pozitivně ovlivnit. Zejména v kombinaci s horizontálním škálováním, kdy řídíte celkový výkon služby (škálování počtu Podů) a současně bráníte nadměrným latencím signalizací přetížení individuální instance.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<h1>Inicializace Podu s init kontejnerem</h1>
+<p>Možná při startu Podu potřebujete provést nějakou inicializaci před tím, než se rozjede vaše aplikace. Někdy může stačit pohrát si s readiness probe, zejména pokud máte kód plně pod kontrolou, přesto občas bude lepší situace řešit speciálním inicializačním kontejnerem. Proč se to může hodit? Možná potřebujete počkat, než se ověří dostupnost nějaké dependence (například pokud aplikace naběhne a DB není dostupná, může to zkoušet a nakonec vzdát a bez restartu už se neprobudit). Možná před startem potřebujete natáhnout nějaký obsah či dodatečný kód třeba z Gitu nebo naplnit cache. Nebo pro aplikaci potřebujete ještě před startem vyrobit konfigurační soubor a z bezpečnostních důvodů nemůžete použít ConfigMap nebo Secret (například taháte tajnosti z hardwarového HSM trezoru jako u Azure Key Vault).</p>
+<p>Může to vypadat nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Pod
+metadata:
+  name: initdemo
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - name: shared-data
+      mountPath: /usr/share/nginx/html
+    ports:
+      - containerPort: 80
+  initContainers:
+  - name: downloader
+    image: tutum/curl
+    volumeMounts:
+    - name: shared-data
+      mountPath: /pod-data
+    command: ["/bin/bash"]
+    args: ["-c", "curl https://en.wikipedia.org/wiki/Single-page_applicatio -o /pod-data/index.html; sleep 5"]
+</pre>
+<p>Před tím, než spustím NGINX, nechám jiný kontejner stáhnout obsah (a ještě chvilku spím, ať se to dobře ukazuje). Když to pustíte, uvidíte něco takového:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f initDemo.yaml &amp;&amp; kubectl get pods -w
+pod "initdemo" created
+NAME       READY     STATUS             RESTARTS   AGE
+initdemo   0/1       Init:0/1           0          8s
+initdemo   0/1       PodInitializing    0         10s
+initdemo   1/1       Running            0         12s</pre>
+<p>initContainers jsou tedy speciální v tom, že dokud plně nedoběhnou, hlavní kontejnery nenastartují.</p>
+<h1>Korektní smrt a reakce na SIGTERM</h1>
+<p>Pokud dojde k hardwarovému selhání, bude agent a potažmo Pod přerušen velmi násilně. Obvykle ale daleko častěji budete mít situaci, kdy to není tak horké a Podu lze dát nějaký čas na korektní ukončení toho co dělá. Pokud provedete kubectl delete Podu, seškálujete repliky na nižší číslo nebo něco podobného, bude do kontejneru poslán signál SIGTERM. Začne také běžet perioda, která je ve výchozím stavu 30 vteřin, ale můžete ji v konfiguraci Podu klidně změnit. Pokud do té doby nedojde k ukončení hlavního procesu, bude následovat SIGKILL a násilné ukončení.</p>
+<p>To je důležité. Vaše aplikace by měla SIGTERM poslouchat a reagovat na něj. Typicky okamžitě překlopit readiness probe a právě zpracovávané požadavky ještě řádně dokončit (případně provést další práce pro zachování konzistence nebo urychlení recovery - předání řízení jinému uzlu v DB clusteru, flush všech dat na perzistentní disk apod.).</p>
+<p>Vyzkoušejme si to na jednoduché aplikaci v Python:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="python">import time
+import signal
+
+running = True
+
+# def sigterm(x, y):
+#     global running
+#     print("SIGTERM received, flag instance as not ready")
+#     running = False
+
+# signal.signal(signal.SIGTERM, sigterm)
+
+if __name__ == '__main__':
+    while True:
+        time.sleep(1)
+        if (running):
+            print('Running...')
+        else:
+            print('Cleaning up...')
+
+</pre>
+<p>Uděláme jednu verzi, kde je zakomentovaná registrace SIGTERM (tedy aplikace ho nechytá) a druhou, kde to odkomentujeme. Z toho jsem vytvořil dva kontejnery: tkubica/sigterm:no a tkubica/sigterm:handled. Podívejme se na rozdíl.</p>
+<p>Postím variantu, která si SIGTERM neregistruje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl run sigterm-no -it --image tkubica/sigterm:no 
+</pre>
+<p>Uvidíme, jak každou vteřinu vypisuje Running... V jiném okně provedu sestřelení Podu. Vrátíme se zpátky a aplikace bude pořád tisknout Running. SIGTERM vesele ignoruje a v okamžiku kdy přijde SIGKILL jednoduše zmizí.</p>
+<p>Udělejme totéž s verzí, která si SIGTERM zaregistruje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl run sigterm-handled -it --image tkubica/sigterm:handled 
+</pre>
+<p>Píše Running... Jakmile Pod sestřelíme použitím kubectl delete pod, okamžitě začně psát Cleaning up... Aplikace ví, že může dodělat co potřebuje, ale je na čase se ukončit. Po 30 vteřinách přijde SIGKILL. Ještě lepší by bylo po přijetí SIGTERM zahájit čistící práce a pokud je vše hotové a žádné nezpracované požadavky zde nejsou ukončit hlavní proces (ať se na timeout nečeká zbytečně).</p>
+<p>Občas může dávat smysl timeout dramaticky změnit. Představte si, že Deployment má za úkol vyzobávat grafická či výpočetní data, něco s nimi udělat (řekněme, že to trvá 5 minut), zapsat výsledek a vzít si další v řadě. Dává smysl počet replik měnit podle délky takové fronty. V okamžiku scale down ale nechceme násilně ukončovat instance a přicházet o rozpracované úlohy. Klidně můžeme dát kontejnerům na SIGTERM k dispozici 5 minut, ať dodělají na čem pracují. V takovém scénáři už není timeout zanedbatelný, tak se ubezpečte, že proces ukončíte hned, jak bude výsledek hotový. Mimochodem tento scénář lze také řešit vytvořením vždy nového Podu pro každý kousek dat s využitím Jobů ... ale o tom jindy.</p>
+<p>&nbsp;</p>
+<p><em>Kubernetes funguje krásně a může se zdát, že to je magie. Je dobré ale jeho chování znát, protože správným vyladěním a podporou ve vašich aplikacích dokážete získat ještě lepší výsledky. Poznat nestandardní situace s liveness probe, signalizovat přetížení s readiness probe, promyslet inicializaci vašich aplikací i korektně reagovat na ukončení. Zkuste si Azure Kubernetes Service, cluster máte za pár minut nahoře.</em></p>

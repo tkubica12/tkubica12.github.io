@@ -1,0 +1,91 @@
+---
+layout: post
+status: publish
+published: true
+title: Just-in-time access bezpečnost s Azure Security Center
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1125
+wordpress_url: http://tomaskubica.cz/?p=1125
+date: '2017-07-27 05:45:58 +0000'
+date_gmt: '2017-07-27 04:45:58 +0000'
+categories:
+tags:
+- Security
+---
+<p>Většina administrátorů chce mít možnost připojit se do VM v případě, že se děje něco špatného a ručně zasáhnout. Proto vyžaduje síťově otevřený přístup na SSH, RDP, VNC nebo WinRM port. Tomu velmi rozumím, ale proč nechávat port otevřený i při běžném provozu zbytečně a vystavovat se riziku pokusů o průnik? Co kdyby ho váš firewall blokoval, ale když ho opravdu potřebujete, tak vám ho virtuální síťový kolega třeba na hodinu povolí a pak zas uzavře?</p>
+<h1>Just in time access v Azure Security Center</h1>
+<p>Bezpečnostní centrum v Azure disponuje celou řadou monitorovacích a zabezpečovacích mechanismů a just in time access je novinkou. Je to vlastně velmi jednoduché. V Azure není firewall nějaká externí krabice od které má klíče jen vyvolený síťař či bezpečák, ale jde o objekt spravovaný jako všechny ostatní zdroje v Azure Resource Manager. Služba Azure Security Center tedy může jednoduše automatizovat firewallová pravidla na VM a jednoduše povolit na omezený čas přístup do VM na vyžádání.</p>
+<p>Azure Security Center má základní verzi zdarma, ta ale neobsahuje funkci just in time access. Můžete si ji vyzkoušet v 60 denním trial nebo pořídit kompletní Azure Security Center včetně threat intelligence, behaviorální analýzy, detekce anomálií a dalších funkcí za 12,65 EUR za VM a měsíc.</p>
+<p>Vytvoříme si VM se výchozím firewallem (NSG), který povoluje management přístup (v mém případě s Linux na port 22 čili SSH, u Windows na port 3389, tedy RDP).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group create -n jit -l westeurope
+$ az vm create -n jitvm -g jit --image UbuntuLTS --authentication-type password --admin-username tomas --admin-password MojeHeslo123</pre>
+<p>SSH přístup k této VM bude fungovat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ssh 23.97.217.128
+tomas@23.97.217.128's password:</pre>
+<p>Nastavíme si Just in time access. Jde o funkci, která je součástí Azure Security Center.</p>
+<p id="biCuMPm"><img class="img-fluid wp-image-1127 " src="/images/2017/img_5978944d9e214.png" alt="" /></p>
+<p>V centru zabezpečení klikněte na Just in time.</p>
+<p id="pHLrmZU"><img class="img-fluid wp-image-1126 " src="/images/2017/img_5978942969843.png" alt="" /></p>
+<p>Povolíme Just in time přístup pro tuto VM.</p>
+<p id="pOaGnTC"><img class="img-fluid wp-image-1130 " src="/images/2017/img_5978aff52f8b6.png" alt="" /></p>
+<p>V následném dialogu nastavíme politiku pro zpřístupňování portů - typicky to budou ty pro správu jako je SSH, RDP, WinRM apod. U každého můžeme nastavit několik parametrů. Jedním z nich je filtrace podle zdrojové adresy, kde můžeme zadat konkrétní rozsah (například pro vnitřní privátní adresy nebo blok veřejných IP vaší firmy) nebo použít konkrétní zdrojovou IP z požadavku. Dále také zadáme maximální čas otevření portu pro jeden požadavek.</p>
+<p id="uSKXgpR"><img class="img-fluid wp-image-1131 " src="/images/2017/img_5978b08abf430.png" alt="" /></p>
+<p>V tento okamžik Azure automaticky zavřel SSH přístup do VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ssh 23.97.217.128
+ssh: connect to host 23.97.217.128 port 22: Resource temporarily unavailable</pre>
+<p>Podívejme se na network security group přiřazenou na VM. Azure Security Center přidalo Deny pravidla pro nastavené porty.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">"securityRules": [
+   {
+     "access": "Deny",
+     "description": "ASC JIT Network Access rule for policy 'default' of VM 'jitvm'.",
+     "destinationAddressPrefix": "10.0.0.4",
+     "destinationPortRange": "22",
+     "direction": "Inbound",
+     "etag": "W/\"3d41b84b-6610-4dbe-b49c-92b238b1314b\"",
+     "id": "/subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/jit/providers/Microsoft.Network/networkSecurityGroups/jitvmNSG/securityRules/SecurityCenter-JITRule_-1058539234_CECD5346BB6D4380AA484CE870B283EE",
+     "name": "SecurityCenter-JITRule_-1058539234_CECD5346BB6D4380AA484CE870B283EE",
+     "priority": 1000,
+     "protocol": "*",
+     "provisioningState": "Succeeded",
+     "resourceGroup": "jit",
+     "sourceAddressPrefix": "*",
+     "sourcePortRange": "*"
+   },
+</pre>
+<p>Požádáme teď o otevření přístupu.</p>
+<p id="rehvBaD"><img class="img-fluid wp-image-1132 " src="/images/2017/img_5978d2beb40a9.png" alt="" /></p>
+<p>Zvolím pouze port 22 a stačí mi na jednu hodinu.</p>
+<p id="dvZSYgt"><img class="img-fluid wp-image-1133 " src="/images/2017/img_5978d2e1050c9.png" alt="" /></p>
+<p>Po chvilce máme port otevřený.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ssh 23.97.217.128
+tomas@23.97.217.128's password:</pre>
+<p>Security Center totiž změnilo příslušné pravidlo v NSG na Allow (všimněte si také, že tam je specificky moje zdrojová IP adresa) a teprve po vypršení stanovené doby to automaticky vrátí zpět na Deny.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">"securityRules": [
+    {
+      "access": "Allow",
+      "description": "ASC JIT Network Access rule created by an initiation request for policy 'default' of VM 'jitvm'.",
+      "destinationAddressPrefix": "10.0.0.4",
+      "destinationPortRange": "22",
+      "direction": "Inbound",
+      "etag": "W/\"4ae8c174-3af1-4f27-8fad-4551169d3a9d\"",
+      "id": "/subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/jit/providers/Microsoft.Network/networkSecurityGroups/jitvmNSG/securityRules/SecurityCenter-JITRule--1058539234-21FC05A217E044D59AB6A0D394376920",
+      "name": "SecurityCenter-JITRule--1058539234-21FC05A217E044D59AB6A0D394376920",
+      "priority": 100,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "jit",
+      "sourceAddressPrefix": "90.181.122.97",
+      "sourcePortRange": "*"
+    },</pre>
+<p>Zažádat o přístup můžete nejen z GUI, ale také v PowerShellu. Stačí mít poslední verzi AzureRM commandletů a nainstalovat Azure Security Center modul:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Install-Module -Name Azure-Security-Center</pre>
+<p>Pak otevřete přístup k VM takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Invoke-ASCJITAccess -ResourceGroupName jit -VM jitvm -Port 22</pre>
+<p>&nbsp;</p>
+<p><em>Azure díky softwarově definovaným principům a schopnosti automatizace umožňuje použít metody a techniky, které by v běžné infrastruktuře byly nepraktické. Jednou z nich je just in time přístup do VM. Vyskoušejte si i další vlastnosti Azure Security Center.</em></p>

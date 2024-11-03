@@ -1,0 +1,70 @@
+---
+layout: post
+status: publish
+published: true
+title: Co přinesl rok 2017 v Azure v aplikačních platformách
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1827
+wordpress_url: http://tomaskubica.cz/?p=1827
+date: '2018-01-08 06:14:41 +0000'
+date_gmt: '2018-01-08 05:14:41 +0000'
+categories:
+tags:
+- AzureFunctions
+- AppService
+---
+<p>Rok je v cloudu dlouhá doba. V této sérii zpětných pohledů se pokouším ohlédnout za největšími novinkami, které rok 2017 přinesl. Co se dělo v aplikačních platformách (PaaS) jako jsou App Services nebo Azure Functions?<!--more--></p>
+<p>Upřímně řečeno zatím se příliš neorientuji v oblasti mobilních aplikací, tak je ze svého přehledu s dovolením vynechám. Také se dnes nebudu soustředit na vývojové nástroje jako je Visual Studio a VSTS - ty si jistě zaslouží samostatný článek. Já se zaměřím na aplikační platformy, řešení, která doslova čekají na váš kód a postarají se o jeho dokonalý běh. Bez nutnosti starat se o infrastrukturu, patchovat VM, hrát si s balancery, SSL akcelerací a tak podobně.</p>
+<h1>Azure Application Services</h1>
+<p>Nejoblíbenější PaaS nabídkou v Azure jsou jednoznačně Application Services. Tato služba je k dispozici už několik let a její vývoj v tradičním režimu (s Windows jako managed OS pod kapotou) je tak spíše evoluční. Drobných vylepšení bylo tolik, že je nezvládám zapisovat, ale přišlo i pár dost zásadních novinek, o kterých chci pár vět napsat.</p>
+<h3>Application Services Isolated (ASE v2)</h3>
+<p>Tradiční App Service je platformní služba a jako taková běží na public endpointu. Dokážete ji protunelovat do VNETu, ale jen ve směru Web App -&gt; VM ve VNET (například pro přístup do databáze ve VM). Nicméně aplikace samotná je na public endpointu - samozřejmě s balancerem a firewallem, který je její součástí a s DDoS ochranou. Nicméně někteří enterprise zákazníci vyžadují deployment web aplikací pouze na privátních adresách a navíc s předřazením vlastních síťových komponent jako je WAF. To standardní PaaS nenabízí, ale v roce 2015 přišlo Application Services Environment - možnost deploymentu kompletní platformy jen pro vás do vašeho VNETu. To je samozřejmě dražší (musíte mít i svoje balancovací a proxy zdroje, deployment zdroje a tak podobně), ale hlavně trochu komplikovanější - místo jednoduchého škálování aplikace jste museli současně řešit i škálování worker nodů. Nákladově to bylo složitější na počítání a tak podobně. V červnu 2017 přišel nový model - App Service Isolated. Ten je jednak výkonější (je postaven na Dv2 mašinách), ale hlavně je tak jednoduchý jak PaaS samotná. Teď můžete mít jednoduchou a plnohodnotnou PaaS uvnitř vašeho VNETu na privátních adresách a model platby je jednoduchý (platíte paušál za podpůrné služby + jednotlivé instance v App Service Isolated tieru).</p>
+<h3>Application Services for Linux</h3>
+<p>U PaaS by vás nemělo moc zajímat jaký OS je pod kapotou (v tom tradičním pojetí je to Windows). Přesto jsou situace kdy to jedno není a napadají mě minimálně dvě. Jednou je podpora Ruby - tento programovací jazyk skutečně není pro Windows vhodný. Druhou je podpora pro Linux Docker kontejnery, pokud si chcete svou aplikaci zabalit do image sami. App Service v roce 2017 přišla s novou variantou s Linux jako OS pod kapotou což přineslo jednak podporu kontejnerů (viz ohlédnutí na téma kontejery) a nativní podporu jazyků Ruby (a v této variantě můžete mít i PHP, Node.JS a .NET core, které jsou tak v nabídce pro Windows i Linux verzi).</p>
+<h3>Application Services Premium v2</h3>
+<p>Nejdražší tier pro App Service je Premium a nová verze (v2) přinesla v červnu navýšení výkonnosti díky přechodu na Dv2 co do infrastrukturního podkladu (oproti předchozí verzi App Service to znamená dvojnásobek paměti a rychlejší CPU) při zachování stávající ceny. V high-end tier tedy App Service v roce 2017 přinesla víc muziky za stejně peněz.</p>
+<h3>Application Services for Azure Stack</h3>
+<p>Přestože Azure Stack se pro střední Evropu v roce 2017 do nabídky nedostal, v jiných částech světa už k dispozici je. Tento kousek cloudu fyzicky snesený do vašeho datového centra od konce roku 2017 podporuje i App Services.</p>
+<h3>Application Services Diagnostics</h3>
+<p>Díky tomu, že jsou App Services relativně starou a stabilní službou (považte, že ve své moderní formě existuje už tři roky a její podmnožina Web App žije v Azure už od roku 2012 ... v cloudu opravdový dědeček) má za ta léta už velmi vychytané možnosti troubleshootingu, sběru logů apod. Přesto tam byl prostor pro zlepšení zejména s ohledem na strojové učení, automatizaci a konsolidaci. Nová záložka diagnostiky vám od roku 2017 nabízí nesmírně přehledný a poloautomatizovaný modul pro analýzu vaší aplikace.</p>
+<h3>Snapshot debugger</h3>
+<p>Debugovat aplikaci přímo v App Service? To je s Visual Studio možné už docela dlouho, ale rozhodně to chcete dělat jen u neprodukční verze. Nechcete přece nastavit breakpoint abyste prozkoumali stav proměnných v tomto momentu a zastavit tak aplikaci pro další uživatele, nebo ano? V květnu 2017 zavedl Microsoft velmi zajímavou novinku - snapshot debugger. Funguje to tak, že přímo v produkci můžete nastavit breakpoint, ale ten aplikaci pouze pozastaví na strašlivě malý okamžik. Platforma pouze rychle uloží debug informace jako je obsah proměnných a rychle aplikaci zase pustí. Následně si ve Visual Studio tento snapshot otevřete a vypadá to prakticky stejně, jako běžný breakpoint naživo. Můžete tak provést debug přímo v produkčním prostředí - perfektní pro situace, kdy problém nedokážete replikovat bez reálných uživatelů.</p>
+<h1>Azure Functions</h1>
+<p>Serverless, sexy moderní způsob jak provozovat aplikační kód tak, že se nemusíte starat o kapacitní plánování, škálování či balancing (jako je tomu u App Service) a samozřejmě ani o OS, runtime, infrastrukturu nebo síťařinu (to má společné s App Service). Azure Functions, Microsoft serverless platforma, byly uvedeny do ostrého provozu v listopadu 2016 a od té doby se toho hodně stalo. Technicky jsou základem Functions právě dříve zmíněné App Services, ale k tomu jsou přidány triggery, consumption plán a další změny, které z toho dělají serverless platformu.</p>
+<h2>Nový runtime v2</h2>
+<p>První functions koncept spočíval v App Service s Windows jako podkladovou technologií a serverless nadstavbou napsanou v .NET (spouštěč na zákadě událostí a tak podobně). Azure Functions ale mají velké plány na expanzi mimo public cloud. Chtějí nabídnout lokální debugging a vývoj pro Windows i Linux a Mac, ale především přenést runtime (platformu samotnou) na prostředí jako je Azure Stack, ale i non-Azure technologie (generické VM kdekoli potřebujete). Navíc tento programovací model je velmi zajímavý pro IoT zařízení, kdy se část logiky (například jednoduchý machine learning model) může nahrát do zařízení nebo IoT brány přímo na kraj sítě. Podpora Linux a Docker je pro takové situace zásadní. Proto v roce 2017 přichází (zatím jako preview) runtime v2.</p>
+<h3>Lokální vývoj a samostatný engine do libovolného cloudu i IoT</h3>
+<p>Nový runtime je postaven na orchestračním kódu v .NET Core (funguje tedy i v Linux a Mac) a nezávislé worker nody mohou být jak klasicky Windows tak i Linux Docker kontejnery. To umožnilo přenést runtime kamkoli - do lokálního prostředí pro vývoj, do jiných cloudů, do on-premises s Azure Stackem i bez něj a v neposlední řadě v rámci IoT Edge strategie přímo do koncových zařízení a IoT brán. Jeden programovací model tak může vládnout vašemu cloudu, on-premises i IoT zařízením.</p>
+<h3>Custom worker v Docker</h3>
+<p>Nový runtime také umožnil tvorbu vlastních worker nodů v Dockeru. Platforma potřebuje worker (prostředí, třeba IIS kontejner s .NET nebo Docker kontejner s Node.JS apod.), do kterého si nahraje kód a jako reakci na událost (trigger) tento kód spustí. Novinkou v2 je možnost vytvořit si custom kontejner. Pokud dodržíte interface obslužného kódu (tedy to co umí převztít řízení a tak podobně) můžete mít v kontejneru následně cokoli. Tak například jazyk Go nepodporují Azure Functions nativně, ale tímto způsobem si ji můžete dodělat. Univerzálnost řešení tak dramaticky vzrostla ... a nezapomínejme na důležitost speciálně vyladěných prostředí pro výkonově omezená IoT zařízení.</p>
+<h2>Nové integrace</h2>
+<p>Základem Functions jsou samozřejmě integrace - triggery, vstupy a výstupy. Co nového se přidalo v roce 2017?</p>
+<h3>Zavolání ze Stream Analytics</h3>
+<p>Velmi zajímavá mi přijde možnost zavolat Function ze Stream Analytics. Proud dat, například hlášení z IoT senzorů, budete typicky nabírat v Event Hub či IoT Hub. Následně je možná potřebujete prohnat právě Stream Analytics, která nad nimi v reálném čase provede nějaká vyhodnocení. Výsledkem takových zkoumání může být potřeba zavolat nějaký aplikační kód a Azure Functions jsou ideální volba. Celý řetězec - Event Hub, Stream Analytics, Function je tak kompletně "serverless".</p>
+<h3>Cosmos DB včetně change feed</h3>
+<p>Cosmos DB (pokračovatel původní Document DB) umožňuje napojit se na change feed, tedy nechat se informovat o změnách v datech v reálném čase. Na to můžeme chtít reagovat no a jak jinak, než aplikačním kódem - spuštění Azure Function na základě change feed z Cosmos DB tak dává velký smysl. Ostatně stejně jako schopnost z této databáze číst a zapisovat do ni jako výstup vaší funkce - jednoduše, bez klíčů a SDK. To přesně integrace Functions a Cosmos DB umožnila.</p>
+<h3>Application Insights</h3>
+<p>Azure nástroj pro monitoring aplikací, jejich výkonu, logování, chybovosti i dostupnosti se v roce 2017 naučil hezky sledovat Azure Functions. To, že naprogramujete aplikaci jako serverless neznamená, že přijdete o cenné možnosti monitoringu.</p>
+<h3>MS Graph</h3>
+<p>Relativně novou integrací (myslím, že je stále v preview) je napojení na Microsoft Graph. Jde o pěkné ucelené API k SaaS produktům typu Office 365 či Azure Active Directory. Nově mohou Functions toto API přímo využívat bez nutnosti řešit separátní SDK a autentizace.</p>
+<h2>Durable Functions</h2>
+<p>Zatím jsem stále nedokázal přesně docenit tuhle novinku z konce roku 2017. Funkce jsou v principu bezestavové - tedy mají nějaké vstupy, píší do nějakých výstupů či volají další funkce, ale v zásadě jsou spuštěny, něco udělají a ukončí se. Pokud se událost opakuje, spustí se jiná instance a udělá co je potřeba. Pokud chcete držet nějaký globální aplikační stav, musí to být mimo funkce - třeba v Cosmos DB apod. Nově ale existují tzv. Durable Functions. Jde o speciální funkci, která se například může chovat jako singleton (vyskytovat se pouze v jedné stavové instanci pro celou aplikaci - všechny uživatele, všechny objekty, volání apod.) čehož se dá využít například pro stavovou orchestraci jiných functions (v zásadě modelovat složitější workflow typu když něco vrátí něco, spusť tohle nebo tohle, podle odpovědi pokračuj takhle ...). Nevím proč raději pro službu tohoto typu nepoužít klasickou App Service, ale pokud chcete zůstat od začátku do konce ve Functions, tady je jak na to.</p>
+<h2>Java</h2>
+<p>Osobně si nemyslím, že Java je ideální jazyk pro serverless, nicméně poptávka po něčem takovém je. Azure Functions se na konci 2017 naučily pracovat i s Java.</p>
+<h1>Azure Application Insights</h1>
+<p>V oblasti monitoringu aplikací se objevilo mnoho drobných vylepšení, které nebudu všechny popisovat. Schopnost propsání dat do dashboardu v OMS, přepracované možnosti vizualizace pro metriky a tak podobně. Zmíním tři z mého pohledu nejzásadnější novinky.</p>
+<h3>User behavior</h3>
+<p>Application Insights jsou od svého vzniku zaměřeny primárně na backend - logování, výkon, dependency graph, tracing a tak podobně. Myslím, že už v roce 2016 tu byla podpora Javascript SDK pro možnost logování událostí z klientské strany. Nicméně produkt nijak nevytěžoval uživatelské chování a klienskou stranu aplikace. Věci typu kdo stránky navštěvuje, jak často se lidé vrací, jak dlouho se zdrží, kolik toho nakoupí či podrobnosti typu nejčastější uživatelská flow (kde na web přijdou, kudy jdou, kde ho opouští). Tyto informace jsou naprosto zásadní pro aplikační vlastníky a produktové manažery. Dokáží vám totiž nejen říct, jak je aplikace úspěšná, ale především jak ji lidé využívají, které funkce mají rádi, o jakých vůbec neví a která místa je naštvou natolik, že web opustí. Tyto vlastnosti získalo Application Insights v květnu 2017.</p>
+<h3>Podpora Node.JS</h3>
+<p>Application Insights má z logických důvodů perfektní podporu pro svět .NET a velmi silné je také zaměření na Java. Podpora ostatních jazyků včetně oblíbeného PHP samozřejmě také vždy byla, ale ne tak podrobná a hlubková.  Nicméně pro Node.JS se řešení postupně propracovalo až na velmi detailní podporu s příchodem SDK 1.0 pro tuto platformu v říjnu 2017.</p>
+<h3>Podpora kontejnerů</h3>
+<p>V květnu 2017 se Application Insights naučili plně podporovat kontejnery.</p>
+<p>&nbsp;</p>
+<p><em>Pokud jste vývojářsky zaměřeni a nechcete se babrat v infrastrukturních detailech (ať už těch klasických VM nebo kontejnerech a jejich orchestrátorech) jsou pro vás myslím aplikační platformy v Azure ideální volba - ať už jako App Service pro klasičtější aplikace nebo ve formě Functions coby serverless platformy. Jak vidíte rok 2017 přinesl velké množství vylepšení a nemyslím, že se to v roce 2018 zastaví - spíše naopak. A jak je to se síťařinou, kontejnery,  infrastrukturou, správou nebo datovými službami? Čtěte další články na tomto blogu a vyzkoušejte Azure ještě dnes!</em></p>
+<p>&nbsp;</p>

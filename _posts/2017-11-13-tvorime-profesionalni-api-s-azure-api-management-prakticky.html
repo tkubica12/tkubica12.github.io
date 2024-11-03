@@ -1,0 +1,220 @@
+---
+layout: post
+status: publish
+published: true
+title: Tvoříme profesionální API s Azure API Management prakticky
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1597
+wordpress_url: http://tomaskubica.cz/?p=1597
+date: '2017-11-13 07:27:25 +0000'
+date_gmt: '2017-11-13 06:27:25 +0000'
+categories:
+tags:
+- Apps
+---
+<p>V minulém článku jsem mluvil o celkovém pohledu na API, jeho správu a vývoj. Dnes už si vyzkoušíme první jednoduchá API a tranformace.<!--more--></p>
+<h1>Připravme si backend</h1>
+<p>V dnešní ukázce budu používat čtyři odlišné backend systémy. Budou jinak implementované a některé i ne zrovna korektní (například si nebudou lámat hlavu s hlavičkami).</p>
+<h2>REST s JSON implementovaný v Azure Function</h2>
+<p>První backend API bude simulované řešení, které bude na základě dotazu na jméno dávat dodatečné informace o osobě. Řešení postavím na Azure Function (serverless) ve formě HTTP trigger a s navrácenou odpovědí.</p>
+<p id="okwIuSE"><img class="img-fluid wp-image-1598 " src="/images/2017/img_59fc663ede10c.png" alt="" /></p>
+<p>Budu používat GET a očekávam parametr v URL se jménem "name". Kód bude jen staticky vracet hodnotu pro osobu Tomas, pro ostatní řetězce oznámí, že záznam nebyl nalezen a vrátí kód 404. Pokud bude v dotazu chybět klíč name, vrátíme chybu 400.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">module.exports = function (context, req) {
+    if (req.query.name) {
+        if (req.query.name == "Tomas") {
+            context.res = {
+                body: {"person": {'name': 'Tomas', 'Employer': 'Microsoft'}}
+            }
+        } else {
+            context.res = {
+                status: 404,
+                body: 'Person not found'
+            }
+        };
+    }
+    else {
+        context.res = {
+            status: 400,
+            body: 'Please pass a name in the request body as {"name": "RequestedName"}'
+        };
+    }
+    context.done();
+};</pre>
+<p>&nbsp;</p>
+<p>Funkčnost API si otestuji přímo z GUI.</p>
+<p id="ueaQVNq"><img class="img-fluid wp-image-1646 " src="/images/2017/img_59febbb49539b.png" alt="" /></p>
+<p>Přístup ke službě je na základě znalosti přístupového kódu. Ten zjistíme jednoduše:</p>
+<p id="TpNxBEi"><img class="img-fluid wp-image-1647 " src="/images/2017/img_59febbdb85e86.png" alt="" /></p>
+<p id="mRViQAM"><img class="img-fluid wp-image-1602 " src="/images/2017/img_59fc6771242c4.png" alt="" /></p>
+<p>Tím máme zjištěnou i URL. Pojdmě na další backend.</p>
+<h2>REST s XML implementovaný v Azure Function</h2>
+<p>V druhé funkci uděláme něco podobného (budeme vracet zboží na skladě), ale záměrně jinak. Opět použijeme GET a to na co se ptáme budeme dávat přímo do URL cesty. To v Azure Function uděláme jako routing template:</p>
+<p id="SbUYxXa"><img class="img-fluid wp-image-1603 " src="/images/2017/img_59fc6ac7d91d5.png" alt="" /></p>
+<p>Kód bude nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">module.exports = function (context, req) {
+    var product = context.bindingData.product;
+    if (product) {
+        xml ='&lt;?xml version="1.0" encoding="UTF-8" ?&gt;&lt;root&gt;&lt;product&gt;%&lt;/product&gt;&lt;stock&gt;38&lt;/stock&gt;&lt;/root&gt;'
+        xmlres = xml.replace('%', product);
+        context.res = {
+            body: xmlres
+        };
+    }
+    else {
+        context.res = {
+            status: 400,
+            body: "Please pass a product within URL: /stock/{product}"
+        };
+    }
+    context.done();
+};</pre>
+<p>Můžeme si otestovat.</p>
+<p id="lQrYuUp"><img class="alignnone wp-image-1604 " src="/images/2017/img_59fc6b089a3b0.png" alt="" width="418" height="725" /></p>
+<p>A na závěr si opět vezmeme URL a bezpečnostní kód.</p>
+<p id="DmreMWE"><img class="img-fluid wp-image-1605 " src="/images/2017/img_59fc6b4987470.png" alt="" /></p>
+<h2>Azure Service Bus</h2>
+<p>Představme si, že do našehu systému zadáváme dlouhodobé úlohy zapsáním do fronty jako je Azure Storage Queue nenbo Azure Service Bus. Pokud tohle budeme chtít zpřístupnit bude asi vhodné napsat mikroslužbu, která poslouchá na REST a založí zprávu ve frontě (z té si třeba další systém může část AMQP prokolem v případě Service Bus). To samé ale můžeme vyřešit rovnou v rámci API managementu, tedy publikovat fasádní API pro příjem zprávy a to poslat na frontu (podporuje totiž HTTP protokol). Proč uvádím takový příklad? Jde o to, že budeme mít zase jiný způsob autentizace backendu a také budeme potřebovat machinace s hlavičkami.</p>
+<p>Vytvořte si Azure Service bus a založte v něm frontu.</p>
+<p id="LHBbFWu"><img class="img-fluid wp-image-1607 " src="/images/2017/img_59fc6d9a459f1.png" alt="" /></p>
+<p>Poznamenejte si klíče, vrátíme se k nim později.</p>
+<h2>Klasické SOAP API</h2>
+<p>Stavět klasický SOAP se mi nechtělo, tak využijme některou z veřejně dostupných služeb. Použiji SOAP službu pro geolokaci IP adresy (<a href="http://www.webservicex.net/New/Home/ServiceDetail/64">http://www.webservicex.net/New/Home/ServiceDetail/64</a>). Poznamejme si její definici, tedy http://www.webservicex.net/geoipservice.asmx?WSDL</p>
+<h1>Vytvořme si fasádu, propojení na backend a politiky</h1>
+<p>API můžeme importovat ze Swaggeru a v případě Azure Function bychom také mohli jít rovnou. Ze studijních důvodů to ale teď uděláme ručně.</p>
+<p id="ZCqdWHX"><img class="img-fluid wp-image-1608 " src="/images/2017/img_59fc6f0f346ef.png" alt="" /></p>
+<p>Založíme naše pardání API a rovnou ho zařadíme do předpripraveného produktu Unlimited (o balíčkování API nabídek jindy).</p>
+<p id="qgYvuNr"><img class="img-fluid wp-image-1609 " src="/images/2017/img_59fc6fae59be0.png" alt="" /></p>
+<h2>První volání: osoby v Azure Functions</h2>
+<p>Pro naše první backend API si přidáme první operaci.</p>
+<p id="SHSGpkI"><img class="img-fluid wp-image-1610 " src="/images/2017/img_59fc6fe1602fe.png" alt="" /></p>
+<p>Náš backend reaguje na /person, ale to je z historických důvodů (nebyl to dobrý nápad), pro fasádu bych tomu raději říkal /user.</p>
+<p id="irMAVch"><img class="img-fluid wp-image-1635 " src="/images/2017/img_59fe07f12764e.png" alt="" /></p>
+<p>Na jednotlivých záložkách budeme definovat jak vypadá dotaz, jaké mají být hlavičky, jaké odpovědi budeme dávat apod. To slouží především z důvodu automatického generování dokumentace pro developerský web a také generování WADL či openAPI specifikací, které tam vzniknout ke stažení. Můžeme tedy popsat co požadujeme v body jako vstup a dát příklad.</p>
+<p id="DbkBxne"><img class="img-fluid wp-image-1645 " src="/images/2017/img_59fe0c9ccffcc.png" alt="" /></p>
+<p>Pojďme zdokumentovat naši odpověď. Nejprve nadefinujeme odpověď 200.</p>
+<p id="YrtwQOl"><img class="img-fluid wp-image-1648 " src="/images/2017/img_59febc3f7fe3c.png" alt="" /></p>
+<p>Přidáme 404 a 400.</p>
+<p id="CZxBgYf"><img class="img-fluid wp-image-1617 " src="/images/2017/img_59fc7fdd2d598.png" alt="" /></p>
+<p id="xEHfshs"><img class="img-fluid wp-image-1618 " src="/images/2017/img_59fc7ff971971.png" alt="" /></p>
+<p>Uložíme a tímto máme nadefinovanou fasádu. Z přehledného GUI je dobře vidět, že teď můžeme přidat vstupní politiky (machinace s hlavičkou, přidávání a odebírání atributů, rate limit apod.), nastavit backend volání a v opačném směru přidat výstupní politiku (například převod z XML do JSON).</p>
+<p id="vDZilMy"><img class="img-fluid wp-image-1639 " src="/images/2017/img_59fe08fa7395e.png" alt="" /></p>
+<p>Při volání backendu je tento zabezpečen kódem, který nám Function vygenerovala. Pokud se podíváte na URL tak vypadá nějak takhle: https://tomasfunction.azurewebsites.net/api/person?code=KkZxxxxxxxwqg==</p>
+<p>Potřebujeme tedy provést dvě věci. Naše fasáda má operaci na /user, zatímco backend na /person. Druhá věc je, že potřebujeme přidat parametr code se správnou hodnotou (uživatel fasády samozřejmě nemusí a vlastně ani nesmí vědět jak a kam se dostáváme na backendu). Klikněte na tuštičku u Inbound procession a nastavíme si to.</p>
+<p id="EgOnOmC"><img class="img-fluid wp-image-1637 " src="/images/2017/img_59fe089d3e828.png" alt="" /></p>
+<p>Uložíme. Poslední, co potřebujeme v tomto API ještě udělat, je definovat správný backend. Zadáme tam tedy hlavní URL naší Azure Function.</p>
+<p id="oBplggl"><img class="img-fluid wp-image-1640 " src="/images/2017/img_59fe091b00d46.png" alt="" /></p>
+<p>V mém případě to bude https://tomasfunction.azurewebsites.net/api/</p>
+<p id="DqeypEG"><img class="img-fluid wp-image-1624 " src="/images/2017/img_59fcbff356d6c.png" alt="" /></p>
+<p>Já myslím, že máme hotovo můžeme si vyzkoušet. K přístupu k fasádnímu API je samozřejmě potřeba být zaregistrovaný a získat kód pro používání. GUI nám ale umožní rovnou použít kód administrátora.</p>
+<p id="fkZrjxc"><img class="img-fluid wp-image-1625 " src="/images/2017/img_59fcc05c33015.png" alt="" /></p>
+<p>Všimněte si hlaviček - v příštích dílech nás budou docela zajímat.</p>
+<p id="naSBBIk"><img class="img-fluid wp-image-1626 " src="/images/2017/img_59fcc07de8ac7.png" alt="" /></p>
+<p>Vyplnil se nám to rovnou ten příklad, co jsme zadávali při definici API, ale můžete ho klidně změnit.</p>
+<p id="MubwpeC"><img class="img-fluid wp-image-1627 " src="/images/2017/img_59fcc0a4528ea.png" alt="" /></p>
+<p>Funguje!</p>
+<p id="iTbsaMp"><img class="img-fluid wp-image-1628 " src="/images/2017/img_59fcc0ba2a1af.png" alt="" /></p>
+<p>Podívejte se na trace. Protože jsme administrátoři a flag jsme zapnuli v hlavičce máme pro účely ladění možnost vidět kompletní trace - jak systém přijímá, modifikuje zprávy, přepisuje URL, kontaktuje backend, co ten vrací a tak dále.</p>
+<p id="CxjIHqn"><img class="img-fluid wp-image-1629 " src="/images/2017/img_59fcc14052d53.png" alt="" /></p>
+<p>Poslední věc - celé politiky může dělat v GUI, ale stejnak pokročilejší věci tam dostaneme jen v textovém konfiguračním formátu. Podívejte se na jeho obsah tak, jak to odpovídá naklikání v GUI.</p>
+<p id="WiZlGgR"><img class="img-fluid wp-image-1641 " src="/images/2017/img_59fe0972c3a65.png" alt="" /></p>
+<p>Takhle to vypadá - jedná se o XML a na pravé straně máte konfigurační snipplety.</p>
+<p id="GreJMjB"><img class="img-fluid wp-image-1631 " src="/images/2017/img_59fcc25e586cd.png" alt="" /></p>
+<p>Podívejme se ještě také jak tohle API vypadá v developerském portálu.</p>
+<p id="cDQVZzj"><img class="img-fluid wp-image-1632 " src="/images/2017/img_59fcc29aeeeef.png" alt="" /></p>
+<p>&nbsp;</p>
+<p id="LnNelHU"><img class="img-fluid wp-image-1642 " src="/images/2017/img_59fe099e3fc94.png" alt="" /></p>
+<p id="dfhwfVu"><img class="img-fluid wp-image-1634 " src="/images/2017/img_59fcc31d7b3ed.png" alt="" /></p>
+<p>Detaily jak pracovat s developerským portálem probereme jindy.</p>
+<h1>Druhé API: přístup ke stock s konverzí z XML</h1>
+<p>Druhý backend bohužel pro nás funguje jinak a určitě chceme chování sjednotit tak, aby bylo na fasádě stejné, jako to pro /user. Vytvořte si API postupem, který už známe - zaměříme se jen na rozdíly. Musíme vyřešit dvě věci. Jednak fasáda bude specifikovat produkt v rámci query, ale naše backend služba používá produkt v rámci URL. Druhá věc k řešení je to, že backend vrací XML, ale my chceme ve fasádě dávat JSON. Takhle vypadá výsledná politika graficky:</p>
+<p id="suWfhzv"><img class="img-fluid wp-image-1649 " src="/images/2017/img_59fef1706acdc.png" alt="" /></p>
+<p>Nejprve tedz vyřešíme zadání dotazu v query a konverzi na URL cestu. V inbound processing tedy kromě přidání code atributu jako minule specifikujeme rewrite URI na z /stock na / (důvodem je, že si pohrajeme s nastavení backend URL, takže nic nepotřebujeme přidávat nebo jinak přepisovat). To daleko důležitější je nastavení našeho backendu:</p>
+<p id="aSMEamd"><img class="img-fluid wp-image-1650 " src="/images/2017/img_59fef1f821808.png" alt="" /></p>
+<p>Použijeme tohle místo URL:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">@("https://tomasfunction.azurewebsites.net/api/stock/" + context.Request.Url.Query.GetValueOrDefault("product"))</pre>
+<p>Co to je? Je to C# kód, byť jen jeho velmi jednoduché použití. V rámci vašich politik můžete použít i daleko složitější manipulace, které zapíšete ve formě kódu. V mém případě jde jen o to, že vezmu začátek URL jako řetězec a přidám k němu hodnotu řetězce, který je v GET dotazu jako hodnota klíče product. Tímto jednoduchým způsobem jsem konvertovat query na URL cestu.</p>
+<p>Druhým úkolem je konverze XML na JSON. K tomu budeme definovat outbound politiku a tato nemá přímo reprezentaci v grafickém prostředí. Otevřeme si tedy kódový editor a můžeme použít snipplety na pravé straně (nebo psát přímo co potřebujeme). Výsledný kód všech politik vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="xml">&lt;policies&gt;
+    &lt;inbound&gt;
+        &lt;base /&gt;
+        &lt;set-query-parameter name="code" exists-action="override"&gt;
+            &lt;value&gt;kE0XPBBBU9zDzWjKj2sO1UFnLC3qgnXah04d6jkzxMhkEGIvUWIdFg==&lt;/value&gt;
+        &lt;/set-query-parameter&gt;
+        &lt;set-backend-service id="apim-generated-policy" base-url="@("https://tomasfunction.azurewebsites.net/api/stock/" + context.Request.Url.Query.GetValueOrDefault("product"))" /&gt;
+        &lt;rewrite-uri id="apim-generated-policy" template="/" /&gt;
+    &lt;/inbound&gt;
+    &lt;backend&gt;
+        &lt;base /&gt;
+    &lt;/backend&gt;
+    &lt;outbound&gt;
+        &lt;xml-to-json kind="direct" apply="always" consider-accept-header="false" /&gt;
+        &lt;base /&gt;
+    &lt;/outbound&gt;
+    &lt;on-error&gt;
+        &lt;base /&gt;
+    &lt;/on-error&gt;
+&lt;/policies&gt;
+</pre>
+<p>Není to složité, že? Pojďme otestovat.</p>
+<p id="RzVsdPK"><img class="img-fluid wp-image-1651 " src="/images/2017/img_59fef30ed21d6.png" alt="" /></p>
+<p id="EFvNLpo"><img class="img-fluid wp-image-1652 " src="/images/2017/img_59fef33ec9a79.png" alt="" /></p>
+<h1>Třetí API: přímé zadání požadavku do Azure Service Bus</h1>
+<p>Už jsme si vytvořili Azure Service Bus. Do něj lze přistupovat jednak AMQP protokolem, ale také přes HTTP. Pochopitelně to vyžaduje nějakou autentizaci (konkrétně přes SAS), kterou nechceme zpřístupnit ven. Pojďme tedy vytvořit fasádu, která nám umožní vytvořit task ve frontě, aniž by tyto podrobnosti musel vývojář znát.</p>
+<p>Nejprve potřebujeme vygenerovat SAS token - to se vytváří z klíčů, které najdete v GUI Service Bus. Token si můžete spočítat sami nebo použijte třeba tento nástroj: <a href="https://danvy.tv/sas-token-generator.html">https://danvy.tv/sas-token-generator.html</a></p>
+<p>Abych mohl sledovat zprávy v Service Bus aniž bych musel psát kód, stáhnul jsem si Azure Service Bus explorer: <a href="https://github.com/paolosalvatori/ServiceBusExplorer">https://github.com/paolosalvatori/ServiceBusExplorer</a></p>
+<p>Potřebujeme tedy především do hlaviček přidat potřebné autorizační informace. Výsledná politiky vypadá takhle:</p>
+<p id="FpvLmiJ"><img class="img-fluid wp-image-1653 " src="/images/2017/img_59fef619d47b0.png" alt="" /></p>
+<p>Bohužel musel jsem zadávat výhradně v kódu, protože autentizační token obsahuje znak &amp;, který se enginu na tvorbu politik nelíbí - musíme ho překonvertovat na URL bezpečný &amp;amp; To ale při načtení do GUI systém interpretuje a amp; odstraní, takže v tomto specifickém případě musíme zůstat na úrovni kódového zobrazení. To vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;policies&gt;
+    &lt;inbound&gt;
+        &lt;base /&gt;
+        &lt;set-backend-service id="apim-generated-policy" base-url="https://tomasbus.servicebus.windows.net/myqueue/" /&gt;
+        &lt;rewrite-uri id="apim-generated-policy" template="/messages" /&gt;
+        &lt;set-header name="Authorization" exists-action="override"&gt;
+            &lt;value&gt;SharedAccessSignature sig=HyZDBEYfXXXXXXXXXXN8BhJuYfLyJulnF7QTok%2f6hA%3d&amp;amp;se=1543576641&amp;amp;skn=RootManageSharedAccessKey&amp;amp;sr=https%3a%2f%2ftomasbus.servicebus.windows.net%2fmyqueue&lt;/value&gt;
+        &lt;/set-header&gt;
+        &lt;set-header name="Content-Type" exists-action="override"&gt;
+            &lt;value&gt;application/atom+xml;type=entry;charset=utf-8&lt;/value&gt;
+        &lt;/set-header&gt;
+        &lt;set-header name="BrokerProperties" exists-action="override"&gt;
+            &lt;value&gt;{}&lt;/value&gt;
+        &lt;/set-header&gt;
+    &lt;/inbound&gt;
+    &lt;backend&gt;
+        &lt;base /&gt;
+    &lt;/backend&gt;
+    &lt;outbound&gt;
+        &lt;base /&gt;
+    &lt;/outbound&gt;
+    &lt;on-error&gt;
+        &lt;base /&gt;
+    &lt;/on-error&gt;
+&lt;/policies&gt;</pre>
+<p>Vyzkoušejme.</p>
+<p id="mQxOrbe"><img class="img-fluid wp-image-1654 " src="/images/2017/img_59fef6feef483.png" alt="" /></p>
+<p id="UrecKdz"><img class="img-fluid wp-image-1655 " src="/images/2017/img_59fef71658344.png" alt="" /></p>
+<p>V Service Bus Exploreru vidím svoje zprávy úspěšně založené!</p>
+<p id="WzFRudc"><img class="img-fluid wp-image-1656 " src="/images/2017/img_59fef7864bab8.png" alt="" /></p>
+<h1>Konverze staršího SOAP na REST</h1>
+<p>Na závěr dnešní ukázky si zkusíme vystavět REST fasádu k nějakému staršímu SOAP API. Jak už víme použijeme SOAP v Internetu pro geolokaci IP adresy jehož schéma je zde: http://www.webservicex.net/geoipservice.asmx?WSDL</p>
+<p>Přidejme nové API z WDSL.</p>
+<p id="sIumjCd"><img class="img-fluid wp-image-1658 " src="/images/2017/img_59ff52170e507.png" alt="" /></p>
+<p>Nasměrujeme na jeho definici, vybereme Interface, pojmenujeme.</p>
+<p id="cupgSJF"><img class="img-fluid wp-image-1660 " src="/images/2017/img_59ff52dd45052.png" alt="" /></p>
+<p>To je všechno! Azure API Management pro nás potřebnou REST fasádu vygeneroval.</p>
+<p id="SmBzmDb"><img class="img-fluid wp-image-1661 " src="/images/2017/img_59ff530bdd2de.png" alt="" /></p>
+<p>Přidejte toto API do výchozího produktu Unlimited a vyzkoušíme.</p>
+<p id="FAQkkjB"><img class="img-fluid wp-image-1662 " src="/images/2017/img_59ff535587dd7.png" alt="" /></p>
+<p id="rjvChmH"><img class="img-fluid wp-image-1663 " src="/images/2017/img_59ff53db74c68.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p><em>Dnes jsme si ukázali vytvoření fasády pro různé formy backendového API a použili jsme i nějaké "středně složité" tranformace jako je query na URL, XML na JSON, nebo ze SOAP do REST. API Management toho ale umí daleko víc - někdy příště se podíváme na caching, verzování a mocking, importy a exporty API, produkty a kvóty, pokročilé zabezpečení či úprava developerského portálu. Vracejte se pro další. Azure API Management je skutečně mocný nástroj ať už váš backend běží v cloudu nebo u vás. API je dnes klíčem k inovacím i novým obchodním vztahům a jeho správa je hodně důležitá. Vyzkoušejte si to v Azure.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

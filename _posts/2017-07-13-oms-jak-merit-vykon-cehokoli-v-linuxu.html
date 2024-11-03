@@ -1,0 +1,81 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Log Analytics: jak měřit výkon čehokoli v Linuxu'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 931
+wordpress_url: http://tomaskubica.cz/?p=931
+date: '2017-07-13 04:53:50 +0000'
+date_gmt: '2017-07-13 03:53:50 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Log Analytics (OMS) dokáže sbírat výkonnostní ukazatele z Linuxu. Nativně je OMS agent schopen získávat několik systémových čitačů a má také přímou podporu pro monitoring Apache a MySQL. Nicméně sledovat můžete cokoli, tedy i různé další aplikace, díky integraci s CollectD. Podívejme se dnes jak Log Analytics sbírá performance countery z Linuxu a jak přidat další.<!--more--></p>
+<h1>Nativní sběr ukazatelů</h1>
+<p>Jak už padlo v úvodu Log Analytics dokáže nativně sbírat řadu výkonnostních ukazatelů v tomto okruhu - procesor, disk, síťová karta, procesy, paměť a systém.</p>
+<p>Ty nejpoužívanější můžete přidat doslova jedním kliknutím.</p>
+<p id="ZixuoHX"><img class="img-fluid wp-image-932 " src="/images/2017/img_594a8cf279e39.png" alt="" /></p>
+<p>Můžete si nastavit jaké instance (výskyty, třeba jádra) chcete sledovat a v jakém intervalu.</p>
+<p id="ZuzCunF"><img class="img-fluid wp-image-933 " src="/images/2017/img_594a8d47540ff.png" alt="" /></p>
+<p>Četnost sběru se odrazí na celkově spotřebě prostoru v Log Analytics - zhruba můžete počítat, že při desetivteřinovém intervalu zabere jedna instance counteru asi 1MB denně. Logicky tedy pokud pro některé ukazatele zvednete četnost odečtu na 100 vteřin, sníží se potřebný úložný prostor na 0,1MB. V GUI můžete provádět nastavení, které se zapíše do všech Linux strojů. Pokud potřebujete selektivně zapnout různé country pro různé stroje, je to možné, ale pak jde o nastavení v konfiguračním souboru konkrétního agenta a centrální konfiguraci z GUI vypnete (a v tomto článku se do toho pouštět nebudeme).</p>
+<p>OMS agent nativně pozná, když je v serveru Apache a umožní vám jednoduše přidat tyto ukazatele:</p>
+<p id="uFcabSg"><img class="img-fluid wp-image-934 " src="/images/2017/img_594a8e5e6a819.png" alt="" /></p>
+<p>Podobně je to s MySQL, ale tam musíte nastavit v OS příslušná oprávnění (o tom asi jindy):</p>
+<p id="gNyNsvv"><img class="img-fluid wp-image-935 " src="/images/2017/img_594a8e84d6dc5.png" alt="" /></p>
+<p>Jednotlivé metriky můžete přímo vyhledávat a vizualizovat v Log Search.</p>
+<p id="WPwsyUa"><img class="img-fluid wp-image-961 " src="/images/2017/img_594b7073eb30e.png" alt="" /></p>
+<p>Můžeme také vystavět například konkrétní graf nějakého counteru. Použiji například toto query, které zobrazí zatíženost procesoru:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Type=Perf TimeGenerated&gt;NOW-2HOUR ObjectName=Processor InstanceName=_Total CounterName="% Processor Time" Computer="mojeoms-linux" | measure avg(CounterValue) by Computer interval 5minute</pre>
+<p><img class="img-fluid wp-image-962 " src="/images/2017/img_594b7c5a9e2b7.png" alt="" /></p>
+<p>Pokud chcete, můžete si udělat grafy přímo na dashboard - stačí použít příslušná query ve view designeru.</p>
+<p id="zBaNWdo"><img class="img-fluid wp-image-963 " src="/images/2017/img_594b7d94e6c34.png" alt="" /></p>
+<h1>Sbírejte cokoli s CollectD</h1>
+<p>Systémové čitače, MySQL a Apache dokáže OMS agent sbírat nativně a určitě se budou další aplikace v budoucnu přidávat. Nicméně možná potřebujete sbírat už teď něco jiného, třeba request v nginx. Vyzkoušejme si to na mém Ubuntu 16.04.</p>
+<p>Nejprve nainstalujte nginx.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo apt-get install nginx</pre>
+<p>Upravíme si konfigurační soubor /etc/nginx/sites-available/default</p>
+<p>Do něj přidáme možnost reportovat status - do sekce s vašim location / přidejte tohle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">location /nginx_status {
+    stub_status on;
+    access_log off;
+    allow 127.0.0.1;
+    deny all;
+}</pre>
+<p>Restartujte nginx a může vyzkoušet curl http://127.0.0.1/nginx_status.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo /etc/init.d/nginx restart</pre>
+<p>Výborně. Teď nainstalujeme CollectD.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo apt-get install collectd</pre>
+<p>Potřebujeme zapnout a nakonfigurovat nginx plugin. Vytvoříme tento soubor s tímto obsahem:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo nano /etc/collectd/collectd.conf.d/nginx.conf
+
+LoadPlugin nginx
+&lt;Plugin "nginx"&gt;
+    URL "http://localhost/nginx_status"
+&lt;/Plugin&gt;</pre>
+<p>CollectD typicky reportuje host (což se v OMS objeví jako Computer) s FQDN, což nemusí být jak identifikuje stroj OMS agent. Pro jistotu změňte toto jméno v konfiguraci CollectD (/etc/collectd/collectd.conf):</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Hostname mojeoms
+FQDNLookup false
+</pre>
+<p>Teď už potřebujeme jen propojit CollectD a OMS agenta. Povídat si spolu budou interně na portu 26000 (ale to můžete změnit). OMS má pro nás připravenou konfigurace pluginu do CollectD, takže tu stačí jen nakopírovat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo cp /etc/opt/microsoft/omsagent/sysconf/omsagent.d/oms.conf /etc/collectd/collectd.conf.d/oms.conf
+</pre>
+<p>Tím máme nastaveno, že CollectD posílá data do OMS agenta. Ten je bude přijímat a konvertovat do formátu vhodného pro OMS. Zbývá nám tedy tuto funkci v OMS agentovi zapnout. Opět je pro vás připraven hotový konfigurační soubor a stačí ho nakopírovat. V adresářové cestě je workspace ID - to u vás bude jiné (OMS agent dokáže reportovat do vícero workspaců, takže pokud je to váš případ vyberte si ty, kam chcete CollectD metriky posílat).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo cp /etc/opt/microsoft/omsagent/sysconf/omsagent.d/collectd.conf /etc/opt/microsoft/omsagent/5bf60783-28f2-4524-9c86-8610b4c1f18f/conf/omsagent.d/
+sudo chown omsagent:omiusers /etc/opt/microsoft/omsagent/5bf60783-28f2-4524-9c86-8610b4c1f18f/conf/omsagent.d/collectd.conf
+</pre>
+<p>Na závěr restartujte CollectD i OMS agenta.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo /etc/init.d/collectd restart
+sudo /opt/microsoft/omsagent/bin/service_control restart</pre>
+<p>Výborně - podívejme se do OMS a můžeme začít sledovat například nginx otevřené spojení nebo requesty za vteřinu.</p>
+<p id="EljwpEQ"><img class="img-fluid wp-image-967 " src="/images/2017/img_594c9429be1f0.png" alt="" /></p>
+<p>Stejně jako u nativních counterů můžete na základě takto sesbíraných dat zobrazovat různé grafy, tabulky a tak podobně.</p>
+<p>&nbsp;</p>
+<p><em>Jak vidíte Log Analytics nabízí vysokou míru flexibility. Linux OMS agent dokáže nativně sbírat systémová měření, ale i Apache a MySQL. Nicméně pokud vám něco chybí využijte propojení s CollectD, které přichází s velkým množstvím pluginů pro různé aplikace - a jeslti nějaká chybí, můžete si ho dopsat.</em></p>

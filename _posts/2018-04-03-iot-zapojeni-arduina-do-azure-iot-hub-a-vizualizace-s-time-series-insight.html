@@ -1,0 +1,66 @@
+---
+layout: post
+status: publish
+published: true
+title: 'IoT: Zapojení Arduina do Azure IoT Hub a vizualizace s Time Series Insight'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2012
+wordpress_url: http://tomaskubica.cz/?p=2012
+date: '2018-04-03 04:41:59 +0000'
+date_gmt: '2018-04-03 03:41:59 +0000'
+categories:
+tags:
+- IoT
+---
+<p>Začínám si trochu hrát s IoT, ale nečekejte něco bůh ví jak sofistikovaného. Pokud také začínáte, vezměme Azure do hrsti a pojďme do toho společně. Dnes si vezmeme IoT senzor, připojíme na Azure IoT Hub a posbírané údaje nahrneme do vizualizační platformy Time Series Insights.<!--more--></p>
+<h1>Kde vzít senzor</h1>
+<p>Já začínám s IoT DevKit AZ3166 od MXCHIP. Je to "Azure Ready" destička postavená na Arduinu a má na sobě rovnou krásně připravené senzory teploty, vlhkosti, tlaku, magnetometr, gyroskop a akcelerometr. Kromě toho i rozhranní jako je audio čip a k němu patřící mikrofon a výstup na sluchátka, WiFi modul a modul na infračervenou komunikaci. Dvě uživatelská tlačítka, diody a pěkný OLED displej.  Na zařízení mrkněte zde: <a href="https://microsoft.github.io/azure-iot-developer-kit/">https://microsoft.github.io/azure-iot-developer-kit/</a></p>
+<p>Na stránkách projektu najdete mnoho hezkých příkladů, ale já jsem si chtěl do toho taky šáhnout a žádný mi nevyhovoval přesně. Chtěl jsem odesílat data ze všech senzorů a tlačítkama si moci volit interval odesílání. Navíc u akcelerometru mi dávalo smysl dělat odečty relativně často o odesílat maximum (největší naměřené zrychlení v rámci intervalu) a průměrné zrychlení v rámci intervalu. Nezbylo, než zkusit v tom Céčku něco nabastlit.</p>
+<p>Začněte návodem na stránkách projektu a stažením kompletní sady nástrojů včetně Visual Studio Code a modulů do něj: <a href="https://microsoft.github.io/azure-iot-developer-kit/docs/get-started/">https://microsoft.github.io/azure-iot-developer-kit/docs/get-started/</a></p>
+<p>Pro svoje příklady budu používat tento můj pokus - pokud chcete, nahrajte si ho do zařízení: <a href="https://github.com/tkubica12/iot-demo-arduino">https://github.com/tkubica12/iot-demo-arduino</a></p>
+<h1>Napojení na IoT Hub</h1>
+<p>IoT Hub je řešení pro příjem dat ze senzorů, obousměrnou komunikaci, správu zařízení včetně autentizace a umí toho ještě víc. Data přijímá buď na HTTP API nebo AMQP protokol či MQTT. Já použil přímo IoT Hub SDK pro Arduino a při provisioningu credentials jsem postupoval dle návodu na GitHubu DevKitu.</p>
+<p>Takhle můj IoT Hub vypadá po připojení senzoru.</p>
+<p id="zOJBBuH"><img class="img-fluid wp-image-2013 " src="/images/2018/img_5abd3724d8c33.png" alt="" /></p>
+<p>Data nám do něj vesele padají a můžeme je zpracovávat. Já chci ale začít jednoduše, takže využiji hotovou platformní službu na vizualizaci. Ta bude mít nastarost si z Event Hub data vysosat, parsovat je, dlouhodobě uložit, vizualizovat a agregovat. Takové hotové řešení se jmenuje Time Series Insights.</p>
+<h1>Vizualizace dat s Time Series Insights</h1>
+<p>Pro vizualizaci prakticky čehokoli je nesmírně oblíbené Power BI, které o parník vede v příslušných studiích Gartneru. Můžete ho samozřejmě velmi dobře použít i pro IoT, ale data mu potřebujete trochu připravit - agregovat, zakulatit. Time Series Insights je zaměřena jen a čistě na datové řady. Nemusíte nic moc znát, připojíte na IoT Hub (typicky data ze senzorů) nebo Event Hub (například click stream z obchodní aplikace) a už si prohlížíte obrázky.</p>
+<p>Vytvořme si Time Series Insights.</p>
+<p id="DUhJPRC"><img class="img-fluid wp-image-2015 " src="/images/2018/img_5abd3829757dd.png" alt="" /></p>
+<p>Přidáme IoT Hub jako zdroj dat.</p>
+<p id="WApoqAv"><img class="img-fluid wp-image-2016 " src="/images/2018/img_5abd38d8d146c.png" alt="" /></p>
+<p id="VmxTfae"><img class="img-fluid wp-image-2017 " src="/images/2018/img_5abd390381834.png" alt="" /></p>
+<p>Jednodušší to snad být nemůže. Ze záložky Overview skočte do Time Series Insights GUI a rovnou uvidíme naše události.</p>
+<p id="xOFudFw"><img class="img-fluid wp-image-2018 " src="/images/2018/img_5abd393633a45.png" alt="" /></p>
+<p>V menu uvidíme vyparsovaná data tak, jak je ze senzoru posílám.</p>
+<p id="GpucsWV"><img class="img-fluid wp-image-2019 " src="/images/2018/img_5abd396e48240.png" alt="" /></p>
+<p>Udělal jsem nejjednoduší experiment co mě napadl. Nechal jsem destičku ležet a pak ji vzal do ruky a dal zase zpět. Chtěl bych vědět, zda tohle bude v grafech vidět. První co uděláme je, že si do grafu dáme údaje z magnetometru (řekněme kompasu) ve všech třech dimenzích. To zvednutí destičky rukou je dost jasně vidět.</p>
+<p id="XRmuhpz"><img class="img-fluid wp-image-2020 " src="/images/2018/img_5abd39d942d30.png" alt="" /></p>
+<p>Nejen změna polohy vůči kompasu, ale uvedení destičky do pohybu by mělo vykazovat zrychlení. Podívejme na grafy s hodnotou maximálního zrychlení v průběhu intervalu (posílám po 2 vteřinách, v krabičce odečítám asi 5x za vteřinu).</p>
+<p id="tIlBUte"><img class="img-fluid wp-image-2021 " src="/images/2018/img_5abd3a12c74a1.png" alt="" /></p>
+<p>Ještě další důkaz? Krabičku jsem určitě vzal do ruky tak, že se změnila jeji orientace vůči zemi (naklonil jsem ji nějak). Podívejme se na údaje z gyroskopu.</p>
+<p id="ohPDKpz"><img class="img-fluid wp-image-2022 " src="/images/2018/img_5abd3a86ade2e.png" alt="" /></p>
+<p>Co se podívat trochu blíž. Označím si část s tím výkyvem a přizoomuji.</p>
+<p id="eOaBKMn"><img class="img-fluid wp-image-2023 " src="/images/2018/img_5abd3aafd5f9b.png" alt="" /></p>
+<p>Možná by stálo za to si prohlédnou vstupní data.</p>
+<p id="GGgHWBI"><img class="img-fluid wp-image-2024 " src="/images/2018/img_5abd3ad2dfde9.png" alt="" /></p>
+<p id="VYeEKGy"><img class="img-fluid wp-image-2025 " src="/images/2018/img_5abd3ae36b4d6.png" alt="" /></p>
+<p>Systém nám ukáže i nějaký vhled do dat, statistické zastoupení hodnot apod.</p>
+<p id="youdnPE"><img class="img-fluid wp-image-2026 " src="/images/2018/img_5abd3b150a82c.png" alt="" /></p>
+<p>Někdo rád graf, někdo tabulku, ale někdo třeba heat mapu.</p>
+<p id="dlQDqOG"><img class="img-fluid wp-image-2027 " src="/images/2018/img_5abd3b306d3f9.png" alt="" /></p>
+<p>Já mám jen jeden senzor, ale představte si, že máte hromady senzorů, továren apod. Přímo v GUI můžete snadno shlukovat/agregovat údaje podle nějakého kritéria.</p>
+<p id="TJBnLsa"><img class="img-fluid wp-image-2028 " src="/images/2018/img_5abd3b6853b8b.png" alt="" /></p>
+<p>Všimněte si, že surová data mám po dvou vteřinách, ale vlevo je ovládací prvek, který přímo v reálném čase provede zahlazení grafu agregací třeba po 10 vteřinách. Křivka je lépe čitelná. Abych ale nepřišel o případné extrémní údaje, je možné do obrázku promítnout i maxima a minima.</p>
+<p id="HDFhPxD"><img class="img-fluid wp-image-2029 " src="/images/2018/img_5abd3bb908bac.png" alt="" /></p>
+<p>Jakmile se vám obrázek líbí, můžete si ho uložit a nakonec si poskládat pěkný dashboard.</p>
+<p id="aMUawlc"><img class="img-fluid wp-image-2030 " src="/images/2018/img_5abd3bd9ebb0a.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Jakmile jste měl Arduino napojené na IoT Hub, během chvilky jsem se dostal ke schopnosti při obrovské škále data posbírat, parsovat, uložit a dělat krásné interaktivní grafy. Zkuste si to v Azure i Vy.</em></p>
+<p><em>Příště už začneme s daty něco dělat a na pomoc si vezmeme Azure Stream Analytics.</em></p>

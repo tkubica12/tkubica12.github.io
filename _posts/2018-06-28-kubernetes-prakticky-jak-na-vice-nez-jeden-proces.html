@@ -1,0 +1,243 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: jak na více než jeden proces'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2261
+wordpress_url: http://tomaskubica.cz/?p=2261
+date: '2018-06-28 05:24:01 +0000'
+date_gmt: '2018-06-28 04:24:01 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Jste zvyklí spouštět u své aplikace více, než jeden proces, třeba pro vzdálený přístup, debugovací proces či pattern typu adaptér nebo ambasador? Jak na to v Kubernetes? Mám mít víc procesů v kontejneru a pokud ano, jak to udělat? Nebo mám mít každý proces ve svém, ale dát je do jednoho Podu? Nebo použít víc Podů a umístit je na stejný server? Podívejme se na možnosti.<!--more--></p>
+<p>Používání víc nezávislých procesů v jednom kontejneru bych doporučoval omezit nebo vyloučit. Samozřejmě je v pořádku, když si proces aplikace vytváří vlákna, mluvím spíše o přidání druhého procesu bokem - třeba SSH nebo tak něco.</p>
+<p>Pro adaptér a ambasador paterny stejně tak jako pomocné nástroje doporučuji koncept side-car, tedy umístit to do samostatného kontejneru, ale ten dát do stejného Podu. Může jít o zálohovadlo databáze, stahovač dat třeba z Gitu, odesílač logů či monitoring. V těchto případech jsou ale kontejnery uvázané k sobě a spolu škálují. Tak například pokud potřebujete globální distribuovanou (vzájemně synchronizovanou) cache co nejblíž aplikaci, můžete použít Redis slave v každém Podu (a jeden master jinde). Appka pak zapisuje do masteru, ale číst může lokálně - tedy extrémně rychle. Perfektní. Ale svázali jste škálování obou komponent. Když budete potřebovat aplikační komponentu spustit 50x, protože vám jede marketingová kampaň a o službu je zájem, budete mít i Redis s 50 slave a replikační režije vás zabije.</p>
+<p>Další strategií tedy může být používat oddělené Pody, ale pohrát si s schedulerem tak, aby každý aplikační Pod měl k dispozici cache Pod na stejném nodu.</p>
+<p>No a samozřejmě je tu ta základní varianta to neřešit a dvě mikroslužby prostě nasadit s Deployment a Service a nechat Kubernetes, ať si je dá kam chce - on si cestu samozřejmě najde, jen to možná bude se síťovým hopem, ale to přeci mezi dvěma API nevadí.</p>
+<h1>Víc procesů v jednom kontejneru naivně</h1>
+<p>Kontejner, podobně jako operační systém, začíná spuštěním procesu. Jakmile tento skončí, končí i kontejner a Kubernetes ho v závislosti na nastavení restartuje, restartuje jen když proces vrátí nenulový kód a nebo nerestartuje a nechá ho vypnutý. Typicky budeme chtít spustit právě jeden proces s naší aplikací a ta pokud chce, ať si klidně dělá vlákna. Na rozdíl od běžné VM se tady moc neočekávají současně běžící nezávislé procesy (například pro monitoring, logování, podpůrné práce, další služby) - pokud takové požadavky máte, měl by to být spíš další kontejner (o tom brzy).</p>
+<p>Nicméně občas se něco takového může hodit, zejména ve vývoji. Třeba kromě aplikace můžete chtít v kontejneru mít i SSH, aby se do něj dalo připojit po síti bez kubectl exec (ale ne že tam budete něco měnit v produkci! ... kontejner má být immutable). Možná tam potřebujete nějaký debug proces. Jak na to?</p>
+<p>První (naivní) pokus by mohl být takový, že spustíte bash skript a v něm nastartujete první proces na pozadí a pak nějaký proces na popředí. Tím vám poběží oba dva. Vypadat to bude třeba takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: multiprocessbash
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["/bin/bash"]
+      args: ["-c", "tail -f /dev/null &amp; sleep infinity"]</pre>
+<p>Pro jednoduchou demonstraci mám dva procesy, které mají běžet. tail a sleep. To se taky povedlo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f multiProcessBash.yaml
+
+kubectl exec -it multiprocessbash -- bash
+
+root@multiprocessbash:/# ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.0  0.0  18376  2932 ?        Ss   13:02   0:00 /bin/bash -c tail -f /dev/null &amp; sleep infinity
+root          5  0.0  0.0   4568   844 ?        S    13:02   0:00 tail -f /dev/null
+root          6  0.0  0.0   4532   784 ?        S    13:02   0:00 sleep infinity
+root          7  0.0  0.0  18508  3340 ?        Ss   13:26   0:00 bash
+root         18  0.0  0.0  34400  2756 ?        R+   13:26   0:00 ps aux
+</pre>
+<p>No jo. Ale co když nám teď tail proces spadne?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">root@multiprocessbash:/# kill 5
+root@multiprocessbash:/# ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.0  0.0  18376  2932 ?        Ss   13:02   0:00 /bin/bash -c tail -f /dev/null &amp; sleep infinity
+root          6  0.0  0.0   4532   784 ?        S    13:02   0:00 sleep infinity
+root          7  0.0  0.0  18508  3340 ?        Ss   13:26   0:00 bash
+root         19  0.0  0.0  34400  2840 ?        R+   13:27   0:00 ps aux</pre>
+<p>Proces je pryč a nikdo o tom neví. Kubernetes na to nijak nezareagoval a nám nefunguje co má. Je to tím, že tail jsme vytvořili z bash (PID 1) a hodili na pozadí, takže ukončení tail (PID 5) nemá na bash vliv. Kontejner začíná vytvořením PID 1 a s jeho zánikem také končí a v tento moment k tomu nemá důvod. Samozřejmě pokud sestřelíme sleep (PID 6), tak se kontejner zrestartuje (bash čeká na sleep a ten je u konce, takže se ukončí i bash skript).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">root@multiprocessbash:/# kill 6
+root@multiprocessbash:/# command terminated with exit code 137
+</pre>
+<p>Tento přístup není moc dobrý - procesy nám mohou havarovat a nikdo se je nepokusí restartovat.</p>
+<h1>Víc procesů v jednom kontejneru se supervisord</h1>
+<p>Pokud už tedy nutně chceme víc procesů v kontejneru, měli bychom se k němu chovat alespoň trochu podobně, jako OS. V takovém případě berme první proces za zavaděč a ten nechť spustí naše dva procesy a stará se o ně (restartuje je, když se zastaví). Mohli bychom samozřejmě použít třeba systemd tak, jak to dělá dnešní Linux, ale to je zbytečně složité. Použijeme velmi malý a jednoduchý spouštěč supervisord. Ten potřebuje konfigurační soubor, ve kterém napíšeme co má držet spuštěné. Pojďme na to.</p>
+<p>Nejdřív si připravíme konfiguraci supervisord:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">[supervisord]
+nodaemon=true
+ 
+[program:tail]
+command= tail -f /dev/null
+autorestart=true
+ 
+[program:sleep]
+command= sleep infinity
+autorestart=true</pre>
+<p>Syntaxe je velmi jednoduchá a zadali jsme dva programy ke spuštění - tail a sleep.</p>
+<p>Následně si potřebuji vytvořit kontejner s nainstalovaným supervisord a s mým konfiguračním souborem (ten ale samozřejmě také můžeme místo toho v Kubernetes namapovat jako Volume, resp. držet ho v ConfigMap a namountovat). Dockerfile bude takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">FROM ubuntu
+RUN apt update &amp;&amp; apt install -y supervisor
+RUN mkdir -p /var/log/supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+CMD ["/usr/bin/supervisord"]</pre>
+<p>Kontejner si vybuduji a pošlu do registru (docker build a pak docker push).</p>
+<p>Vytvořme si následující Pod v Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: supervisord
+spec:
+  containers:
+    - name: ubuntu
+      image: tkubica/multiprocess</pre>
+<p>Pošleme to tam a podíváme se, jak to dopadlo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f multiProcessSupervisord.yaml
+
+kubectl exec -it supervisord -- bash
+
+root@supervisord:/# ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.2  0.4  47788 18260 ?        Ss   18:58   0:00 /usr/bin/python /usr/bin/supervisord
+root         11  0.0  0.0   4416   692 ?        S    18:58   0:00 tail -f /dev/null
+root         12  0.0  0.0   4384   820 ?        S    18:58   0:00 sleep infinity
+root         13  0.0  0.0  18248  3304 ?        Ss   18:59   0:00 bash
+root         24  0.0  0.0  34428  2872 ?        R+   19:00   0:00 ps aux</pre>
+<p>Procesy nám běží. Sestřelme tail (PID 11).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">root@supervisord:/# kill 11
+root@supervisord:/# ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.1  0.4  47976 18276 ?        Ss   18:58   0:00 /usr/bin/python /usr/bin/supervisord
+root         12  0.0  0.0   4384   820 ?        S    18:58   0:00 sleep infinity
+root         13  0.0  0.0  18248  3304 ?        Ss   18:59   0:00 bash
+root         25  0.0  0.0   4416   700 ?        S    19:00   0:00 tail -f /dev/null
+root         26  0.0  0.0  34428  2864 ?        R+   19:00   0:00 ps aux</pre>
+<p>Supervisord nám proces nahodil znovu. Sestřelme sleep (PID 12).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">root@supervisord:/# kill 12
+root@supervisord:/# ps aux
+USER        PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root          1  0.1  0.4  47976 18280 ?        Ss   18:58   0:00 /usr/bin/python /usr/bin/supervisord
+root         13  0.0  0.0  18248  3324 ?        Ss   18:59   0:00 bash
+root         25  0.0  0.0   4416   700 ?        S    19:00   0:00 tail -f /dev/null
+root         27  0.0  0.0   4384   752 ?        S    19:00   0:00 sleep infinity
+root         28  0.0  0.0  34428  2920 ?        R+   19:00   0:00 ps aux</pre>
+<p>A i tentokrát to supervisord vyřešil. Pokud tedy musíte mít v kontejneru proces navíc (já to rád nemám, ale někdy se to hodit může), doporučuji na to jít takhle.</p>
+<h1>Víc kontejnerů v jednom Podu</h1>
+<p>Techniky uvedné výše bych do produkce moc netahal. Pokud je potřeba k vašim procesům přidat nějaké pomocníky, nechť jsou v samostatném kontejneru, ale sdílí stejný Pod. Typicky se tomu říká sidecar pattern. Tady je pár příkladů, kdy to dává smysl.</p>
+<p>Možná potřebujete ambassador pattern, tedy situaci, kdy pro vaší aplikaci chcete zajistit nějakou složitější komunikační logiku a nechcete (nestíháte nebo máte vícero programovacích jazyků) nebo nemůžete (nemáte zdrojáky nebo právo) ji dát přímo do kódu.  Aplikace umí třeba jednoduché API volání nebo call do DB a vy chcete přidat end-to-end TLS šifrování, implementovat retry pattern, ošálit službu mock implementací nebo implementovat sharding logiku. Sidecar kontejner bude fungovat jako proxy. Aplikační kontejner komunikuje přes loopback (127.0.0.1), kde druhý kontejner poslouchá a ve jménu aplikace (proxy) komunikuje s okolním světem.</p>
+<p>Druhý typický scénář je adapter pattern. Máte různé mikroslužby a z historických důvodů nebo protože chcete použít něco hotového co nemáte pod kontrolou mají možná některé interface jinak, než očekáváte. Dejme tomu, že vaše aplikace na URL /status publikují třeba délku neodbavené fronty, což používáte pro autoškálování. Jenže jedna z aplikací to tak nedělá a místo toho píše délku fronty do status souboru. Co potřebujete je adaptér. Status soubor bude ve Volume a váš sidecar kontejner ho bude číst a nahoru poskytovat /status API, na které jste zvyklí. Podobně můžete chtít třeba měnit formát logů, změnit jména atributů, předělat způsob přihlašování nebo dotazování.</p>
+<p>Dalšími příklady může být sidecar, který připravuje obsah pro váš hlavní kontejner. Například něco, co bude poslouchat na webhook a při změnách vám automaticky stáhne nová data (třeba z Git repozitáře) a poskytne je hlavnímu kontejneru. Nebo tahle můžeme řešit dynamické nastavování aplikace - sidecar vystaví interface na dynamickou konfiguraci a podle toho pořeší konfigurační soubory. Třeba může jít o sidecar odpovědnou za zálohování.</p>
+<p>Vyzkoušejte si tenhle příklad. Jedná se o hlavní kontejner, ve kterém je webová stránka nad NGINX. Sidecar bude sloužit k tomu, že stáhne HTML stránku a tu potom bude NGINX servírovat. Představte si třeba, že z různých důvodů (včetně třeba bezpečnost) pro blog nechcete běžné CMS ala WordPress, ale statický obsah. K tomu použijete generátor statického obsahu jako je Jekyll. V ten okamžik budete potřebovat poměrně často obsah nahrávat a sidecar může být řešení.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Pod
+metadata:
+  name: sidecar
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - name: shared-data
+      mountPath: /usr/share/nginx/html
+    ports:
+      - containerPort: 80
+  - name: downloader
+    image: tutum/curl
+    volumeMounts:
+    - name: shared-data
+      mountPath: /pod-data
+    command: ["curl"]
+    args: ["https://en.wikipedia.org/wiki/Single-page_application", "-o", "/pod-data/index.html"]</pre>
+<p>Díky sdílenému Volume jednoduše dostaneme stažený soubor do NGINX. Můžete si vyzkoušet. Připojíme svůj notebook na cluster a na lokálním portu otestujeme přítomnost stažené stránky.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f multiContainerVolume.yaml
+
+kubectl port-forward pod/sidecar :80
+Forwarding from 127.0.0.1:1219 -&gt; 80</pre>
+<p>Mám pro vás druhý příklad a tentokrát je to krůček k ambasador modelu. Vaše aplikace přistupuje na API a třeba potřebujeme nějakou logiku. Třeba pro začátek udělat mock (API ještě není hotové) a pak třeba implementovat retry logiku. Použijeme tedy sidecar, ve kterém bude NGINX poslouchající na loopbacku (127.0.0.1). Nebudeme tento port poskytovat nikam ven (komunikace nemůže opustit Pod). Vaše aplikace bude mluvit na loopback a je tak odstíněna od implementace zbytku. Sidecar bude nejdřív vracet mock a pak třeba přidá retry logiku nebo TLS šifrování. Z pohledu hlavní aplikace se ale nic nemění - ta stále mluví na 127.0.0.1.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Pod
+metadata:
+  name: sidecar2
+spec:
+  containers:
+  - name: app
+    image: tutum/curl
+    command: ["tail"]
+    args: ["-f", "/dev/null"]
+  - name: ambassador
+    image: nginx</pre>
+<p>Vytvoříme Pod a vyzkoušíme, že z app kontejneru můžeme komunikovat s ambassador kontejnerem přes loopback.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f multiContainerNet.yaml
+
+kubectl exec -c app sidecar2 -- curl 127.0.0.1</pre>
+<h1>Víc Podů na stejném nodu</h1>
+<p>Často ale přeci jen chceme běžet dvě věci v nezávislých Podech a současně zajistit, že jsou na stejném hostiteli (agent VM) a IP komunikace mezi nimi tak bude mít nízkou latenci (půjde jen přes lokální stack, ne přes síť). Umístění Podů můžeme velmi efektivně ovlivňovat. Na detaily práce s Kubernetes schedulerem se podíváme někdy jindy, ale teď použijeme jednu z jeho funkcí. Konkrétně PodAffinity. Budu mít jeden Pod, který bude první, bude mít label a představme si třeba, že v něm běží nějaký stav (například databáze).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: first
+  labels:
+    app: first
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]</pre>
+<p>Pokud bych měl druhý Pod (v něm bude třeba aplikace využívající databázi) udělaný třeba takhle, nemůžu se spolehnout, že se objeví na stejném nodu jako první.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: second
+  labels:
+    app: second
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]</pre>
+<p>Můj cluster má 5 nodů, takže šance není velká.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get pods -o wide
+NAME       READY     STATUS        RESTARTS   AGE       IP            NODE
+first      1/1       Running       0          1m        10.244.4.2    aks-nodepool1-40944020-4
+second     1/1       Running       0          50s       10.244.1.2    aks-nodepool1-40944020-2</pre>
+<p>Zkusíme to jinak a tentokrát si to pojistíme. Detaily uvedených funkcí si rozebereme jindy, ale teď alespoň rámcově. Použijeme PodAffinity a budeme chtít, aby scheduler našel ty nody, na kterých se vyskytují Pody s labelem app: first. To je co potřebujeme. Chci svůj druhý Pod přímo na ten Node, kde je ten první, takže jako topologický klíč zvolím hostname Nodu (řekneme si příště). Poslední věc pro dnešek - svoje pravidlo mohu definovat jako required (pokud to nebude možné, Kubernetes Pod nenasadí) nebo preffered (Kubernetes bude preferovat dodržení podmínek, ale když to třeba z kapacitních důvodů nedopadne, pustí to alespoň jinde).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: second-affinity
+  labels:
+    app: second-affinity
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - first
+        topologyKey: kubernetes.io/hostname
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]</pre>
+<p>Pošleme to tam a ubezpečíme se, že je Pod first a second-affinity skutečně na stejném nodu. Pokud nevěříte (mohli jsme mít jen štěstí) párkrát to smažte a udělejte znovu. Není to náhoda.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f secondPodAffinity.yaml
+
+kubectl get pods -o wide
+NAME              READY     STATUS    RESTARTS   AGE       IP           NODE
+first             1/1       Running   0          13m       10.244.4.2   aks-nodepool1-40944020-4
+second            1/1       Running   0          13m       10.244.1.2   aks-nodepool1-40944020-2
+second-affinity   1/1       Running   0          15s       10.244.4.3   aks-nodepool1-40944020-4</pre>
+<p>&nbsp;</p>
+<p><em>Kubernetes vám dává víc metod spouštění více věcí najednou. Pro debug a speciální situace můžete dát víc procesů do jednoho kontejneru. Pro jiné situace bude velmi praktické použití Podu s vícero kontejnery - to je koncept s kterým přišel právě Kubernetes jako první (ostatní orchestrátory to neměly). No a třeba nechcete spojit životní cyklus obou a necháte je v samostatných Podech, jen si poštelujete scheduler tak, aby je dal co nejblíž k sobě. Kubernetes toho umí opravdu hodně a Azure Kubernetes Service, plně spravovaný cluster s master nody zdarma, je nejjednodušší způsob jak ho využít. Zkuste to ještě dnes.</em></p>

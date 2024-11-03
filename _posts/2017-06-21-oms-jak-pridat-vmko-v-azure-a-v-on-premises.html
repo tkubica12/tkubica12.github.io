@@ -1,0 +1,124 @@
+---
+layout: post
+status: publish
+published: true
+title: 'OMS: Jak přidat VMko v Azure a v on-premises'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 830
+wordpress_url: http://tomaskubica.cz/?p=830
+date: '2017-06-21 05:50:13 +0000'
+date_gmt: '2017-06-21 04:50:13 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Microsoft Operation Management Suite, nástroj pro hybridní správu od operačních systémů přes síťařinu, middleware a bezpečnost až po aplikace, využívá agentů v Windows nebo Linux. Pojďme dnes projít začátkem. Zprovozníme celé OMS a připojíme po jedné Windows a Linux mašině v Azure i v on-premises.<!--more--></p>
+<h1>Založení OMS prostoru</h1>
+<p>Celé OMS je postaveno na analýze přijímaných zpráv, tedy základem je Azure Log Analytics. Pro vytvoření OMS prostoru (workspace) tedy potřebujeme založit Log Analytics. Tu najdete v Azure portálu:</p>
+<p><img class="img-fluid wp-image-832 " src="/images/2017/img_5946363883174.png" alt="" /></p>
+<p>Vytvoříme si svůj prostor a dáme mu unikátní jméno. Musíme také zvolit jak chceme tento prostor financovat. Pokud si chcete do začátku jen pohrát, můžete zvolit Free - ten má omezení na počet přijímaných zpráv a zajímavé nadstavby například v oblasti bezpečnosti dostanete v 60 denním trial. Další možností je standalone řešení, pokud si chcete koupit jen analýzu logů bez OMS samotného. Nejčastější variantou pak bude jistě per Node OMS ať už ve formě funkčních celků nebo jako hotové balíčky E1 nebo E2.</p>
+<p><img class="img-fluid wp-image-833 " src="/images/2017/img_59463726732d1.png" alt="" /></p>
+<p>Po pár vteřinách bude váš Log Analytics připraven.</p>
+<p><img class="img-fluid wp-image-834 " src="/images/2017/img_5946382346059.png" alt="" /></p>
+<p>Teď stačí jen kliknout na dlaždici OMS Portal nebo přímo zadat URL vašeho nového prostoru, v mém případě https://mojeoms.portal.mms.microsoft.com</p>
+<p><img class="img-fluid wp-image-835 " src="/images/2017/img_59463871e11f2.png" alt="" /></p>
+<p>Výborně, to je všechno - můžeme začít přidávat VMka.</p>
+<h1>Přidáme Windows a Linux Azure VM</h1>
+<p>OMS využívá agenta v operačním systému (některé služby navíc vyžadují ještě dalšího speciálního agenta, ale o tom jindy - většinu funkcí dělá OMS agent). Potřebujeme tedy nainstalovat agenta a říct mu, kde je naše instance OMS, resp. Log Analytics. To ale můžete v případě Azure udělat zcela automaticky na kliknutí - Azure přes VM Extension nainstaluje vše potřebné a VM zaregistruje.</p>
+<p>Jednoduše jděte v Azure na váš Log Analytics a najděte datové zdroje typu VM. Mám dvě VM, které chci do tohoto OMS prostoru napojit.</p>
+<p id="WjxMFGD"><img class="img-fluid wp-image-837 " src="/images/2017/img_5946b73668fae.png" alt="" /></p>
+<p>Klikntěte na VM a připojte ji. Totéž udělejte pro všechny další, které chcete v OMS prostoru mít.</p>
+<p id="hynyQoa"><img class="img-fluid wp-image-838 " src="/images/2017/img_5946b7752996c.png" alt="" /></p>
+<p>Chvilku počtejte.</p>
+<p id="JPNjfPd"><img class="img-fluid wp-image-839 " src="/images/2017/img_5946b794981dd.png" alt="" /></p>
+<p>Po krátké době budou naše VM napojeny.</p>
+<p id="aftdJUu"><img class="img-fluid wp-image-840 " src="/images/2017/img_5946b868b2882.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>V OMS GUI může ještě pár minut trvat, než se VM objeví, ale po nějaké době je tam určitě najdete. Poznáme to podle počtu připojených zdrojů.</p>
+<p id="KSdvZfw"><img class="img-fluid wp-image-841 " src="/images/2017/img_5946ba3930d11.png" alt="" /></p>
+<p>Jděte do obchodu s řešeními.</p>
+<p id="eUZAqHV"><img class="img-fluid wp-image-842 " src="/images/2017/img_5946ba7e8c5a2.png" alt="" /></p>
+<p>Najděte a přidejte tuhle aplikaci:</p>
+<p id="KsuktNY"><img class="img-fluid wp-image-843 " src="/images/2017/img_5946ba9d88003.png" alt="" /></p>
+<p>Objeví se vám na hlavní ploše.</p>
+<p id="gFXoOEy"><img class="img-fluid wp-image-844 " src="/images/2017/img_5946baed5b2c1.png" alt="" /></p>
+<p>Rozklikněte a podívejte se.</p>
+<p id="hNtTfGV"><img class="img-fluid wp-image-845 " src="/images/2017/img_5946bb2ec2b4f.png" alt="" /></p>
+<h1>Přidáme on-premises Linux</h1>
+<p>Jděte v OMS GUI do nastavení.</p>
+<p id="BSHETnD"><img class="img-fluid wp-image-847 " src="/images/2017/img_5946c217db14c.png" alt="" /></p>
+<p>Jděte na datové zdroje a Linux.</p>
+<p id="PtdrLGA"><img class="img-fluid wp-image-849 " src="/images/2017/img_5946c39cbb93b.png" alt="" /></p>
+<p>Najdete tam odkaz na stažení agenta, ID vašeho workspace a klíče. Níže ale uvidíte také jediný příkaz pro spuštění a nastavení agenta. Ideální je samozřejmě stáhnout samostatně a ověřit SHA otisk, ale já pro dnešek jednoduše použiji jednoduchou instalaci jedním příkazem. Výstup jsem trochu sestříhal. Je v něm vidět, že instalátor si získává přístup k syslogu a kontroluje, zda na systému jsou služby, pro které má specifické moduly - konkrétně Apache, MySQL a Docker.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Updating OMS agent ...
+----- Checking package: omsagent (omsagent-1.3.5-127.universal.x64) -----
+Checking for ctypes python module ...
+----- Checking package: omsconfig (omsconfig-1.1.1-535.x64) -----
+Extracting...
+Updating cross-platform agent ...
+----- Upgrading package: omi (omi-1.2.0-35.ulinux.x64) -----
+Creating omiusers group ...
+Generating a 2048 bit RSA private key
+................+++
+......................................................................................................................................................+++
+writing new private key to '/etc/opt/omi/ssl/omikey.pem'
+-----
+Configuring OMI service ...
+Created symlink from /etc/systemd/system/multi-user.target.wants/omid.service to /usr/lib/systemd/system/omid.service.
+----- Upgrading package: scx (scx-1.6.3-212.universal.x64) -----
+Generating certificate with hostname="onprem-linux", domainname="biq1d0a4nqretgp2k0wnjtbmrg.ax.internal.cloudapp.net"
+----- Updating bundled packages -----
+Checking if Apache is installed ...
+  Apache not found, will not install
+Checking if MySQL is installed ...
+  MySQL not found, will not install
+Preparing...                          ################################# [100%]
+...
+Updating / installing...
+   1:omsagent-1.3.5-127               ################################# [ 50%]
+info    Reading onboarding params from: /etc/omsagent-onboard.conf
+info    Generating certificate ...
+info    Agent GUID is e3249739-8d5a-4cd3-a7c4-182cc690c9fc
+info    Onboarding success
+Configuring rsyslog for OMS logging
+Restarting service: rsyslog
+Configuring OMS agent service ...
+-bash: /opt/microsoft/omsconfig/Scripts/OMS_MetaConfigHelper.py: No such file or directory
+info    Configured omsconfig
+System appears to have SELinux installed, attempting to install selinux policy module for logrotate
+  Trying /usr/share/selinux/packages/omsagent-logrotate/omsagent-logrotate.pp ...
+Checking for ctypes python module...
+   2:omsconfig-1.1.1-535              ################################# [100%]
+...
+Successfully configured omsconfig.
+----- Updating bundled packages -----
+Checking if Docker is installed...
+  Docker not found. Docker agent will not be installed.
+Shell bundle exiting with code 0
+</pre>
+<p>Po nějaké době se naše onpremises VM objeví v OMS.</p>
+<p id="rQdlXDn"><img class="img-fluid wp-image-850 " src="/images/2017/img_5946c887a66da.png" alt="" /></p>
+<h1>Přidáme on-premises Windows</h1>
+<p>Jděte v OMS GUI do nastavení.</p>
+<p id="BSHETnD"><img class="img-fluid wp-image-847 " src="/images/2017/img_5946c217db14c.png" alt="" /></p>
+<p>Jděte na datové zdroje a Windows.</p>
+<p id="CzAZwPR"><img class="img-fluid wp-image-848 " src="/images/2017/img_5946c2424f120.png" alt="" /></p>
+<p>Na stránce je odkaz na stažení agenta také důležité údaje pro připojení - ID vašeho workspace a klíč. Stáhněte si instalačku a spusťte ve vaší VM.</p>
+<p id="ltmWiRf"><img class="img-fluid wp-image-851 " src="/images/2017/img_5946c98cc9710.png" alt="" /></p>
+<p>Vaše onpremises VM může reportovat buď do OMS (náš případ) nebo do System Center (a to pak napojíte na OMS).</p>
+<p id="JJGDTep"><img class="img-fluid wp-image-852 " src="/images/2017/img_5946c9d40b8e0.png" alt="" /></p>
+<p>Zadejte údaje pro registraci do vašeho OMS prostoru.</p>
+<p id="nvTRkrS"><img class="img-fluid wp-image-853 " src="/images/2017/img_5946ca01d8f65.png" alt="" /></p>
+<p>Dokončete instalaci. Agent se objeví ve vašem Control Panelu.</p>
+<p id="srEHePF"><img class="img-fluid wp-image-854 " src="/images/2017/img_5946cc67989e5.png" alt="" /></p>
+<p>Na závěr ověřte, že v OMS vidíme všechny čtyři servery. Jeden Windows a Linux (použil jsem Ubuntu) v Azure a Windows a Linux (v mém případě CentOS) v onpremises.</p>
+<p id="KPRaeSs"><img class="img-fluid wp-image-855 " src="/images/2017/img_5946cccebe876.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Jak vidíte vytvořit OMS prostor a připojit Windows i Linux operační systém je velmi jednoduché - v Azure i odkudkoli jinde.</em></p>
+<p>&nbsp;</p>

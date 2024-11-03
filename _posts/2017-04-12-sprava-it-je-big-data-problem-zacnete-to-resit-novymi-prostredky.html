@@ -1,0 +1,52 @@
+---
+layout: post
+status: publish
+published: true
+title: Správa IT je Big Data problém - začněte to řešit novými prostředky
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 573
+wordpress_url: http://tomaskubica.cz/?p=573
+date: '2017-04-12 05:50:19 +0000'
+date_gmt: '2017-04-12 04:50:19 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Byly doby, kdy bylo těžké zjistit co se s IT děje, protože nebyla data. Dnes je to jinak. Naprosto běžně vašich pár set VM a aplikací dokáže vygenerovat několik milionů hlášek a měření za jediný den - a to tradičním produktům způsobuje šok vedoucí k jejich pomalosti až nepoužitelnosti. Moderní nástroje pro správu jsou jiné. Jsou postaveny na Big Data systémech, Machine learning a umělé inteligenci. Dokáží v reálném čase nahlížet do ohromného množství dat, korelovat, analyzovat, vnášet řád a inteligentně aplikovat znalostní bázi. Místo komplikované instalace a pravidelných gigabajtových dobrodružných aktualizací jsou vám k dispozici ve formě služby (SaaS). Přesně takové je Microsoft OMS - Operations Management Suite pro hybridní správu světa Azure i on-premise, Windows i Linux, Hyper-V i VMware.<!--more--></p>
+<p>Operations Management Suite je nástroj pro správu nabízený jako SaaS, tedy o jeho vysokou dostupnost, dostatek zdrojů, aktualizace a ladění se stará Microsoft, takže se můžete soustředit na to hlavní - jeho přínos pro vás. Díky své architektuře s ním můžete spravovat VM a aplikace kdekoli - v Azure či jiném cloudu, ve Windows i Linux, on-premise či v hostingu a na jakémkoli hypervisoru nebo fyzickém serveru. Tento nástroj řeší moderní pohled na správu IT a nemusí nutně nahrazovat všechny funkce klasických nástrojů - ostatně ty se do něj dají napojit, samozřejmě System Center, ale i Nagios resp. Zabbix a další. Na OMS se na tomto blogu zaměřím a podíváme se detailně na mnoho jeho vlastností.</p>
+<p>Začněme dnes základním pohledem na to, co vlastně s OMS můžu dělat.</p>
+<h1>Sbírejte informace odkudkoli</h1>
+<p>Nejdůležitějším vstupem dat pro OMS jsou Windows a Linux agenti v OS. To má několik zásadních výhod. To nejdůležitější je, že nejste vázáni na konkrétní infrastrukturu. Vaše výsledky nezáleží na dodavateli hypervisoru, nepotřebujete konkrétní síťové prvky, firewally nebo servery a tedy funguje to stejně v Azure i on-premise nebo třeba v hostingu nebo konkurenčním veřejném cloudu. S tím souvisí druhá podstatná výhoda - OMS nepotřebuje znát privilegované přístupy do vašich systémů a prvků, nemusíte nikam do OMS dávat svoje hesla ani vytvářet účty pro správu!</p>
+<p id="tHtjfbX"><img class="img-fluid wp-image-574 " src="/images/2017/img_58edaf785ad20.png" alt="" /></p>
+<h1>Analyzujte události v reálném čase</h1>
+<p>Všechny logy a naměřené údaje padají do obrovského datového prostoru, o který se pro vás stará Microsoft a drží vaše informace striktně oddělené od jiných zákazníků. Nad tímto prostorem potom můžete provádět dotazy v reálném čase. Na tom je postavené celé OMS, na faktu, že nad miliony hlášek jste schopni položit složitý analytický dotaz a získat téměř okamžitou odpověď. Žádné předchroupávání, nemusíte dopředu vědět, na co se budete chtít zeptat. Všechny nativní dashboardy a grafy stejně jako vaše vlastní, které si vyrobíte, fungují právě takhle. Query do velkých dat.</p>
+<p id="aRryMer"><img class="img-fluid wp-image-575 " src="/images/2017/img_58edafa5d76e6.png" alt="" /></p>
+<h1>Monitorujte kvalitu síťových spojení i strukturu komunikace bez koukání do sítě</h1>
+<p>Agenti reportují informace o síťovém provozu a konečně se tak údaje o kvalitě sítě, využívání různých protokolů a jejich kontribuce k zatížení, DNS dotazy a typické destinace, dostávají k administrátorům prostředí, aplikací a širší infrastruktury. Tohle jsou data, která si obvykle drží síťaři svými prostředky a moc je nesdílí. S OMS můžete zjistit které VM se baví s kterým (až na úroveň procesů uvnitř a vykreslení mapy vztahů a interakcí, to je něco, co ze sítě samotné nezjistíte - ta procesy nevidí), jak vypadá struktura provozu ve VM nebo skupině VM, můžete měřit kvalitu spojení a latenci - například mezi Azure a on-premise. A to všechno bez nutnosti přístupu do speciálního drahého vybavení a politických tanečků - bez koukání do WAN akcelerátoru, balanceru, firewallu, netFlow v routerech, bez monitorovacích sond a až na úroveň spuštěných procesů uvnitř VM ať je kdekoli.</p>
+<p id="GXLxuav"><img class="img-fluid wp-image-576 " src="/images/2017/img_58edafe3b6175.png" alt="" /></p>
+<p id="nXdAqZO"><img class="img-fluid wp-image-577 " src="/images/2017/img_58edaffa42c5d.png" alt="" /></p>
+<h1>10 let zkušeností ze supportu vytrénovalo umělou inteligenci v OMS</h1>
+<p>Kolem produktů jako je Microsoft SQL nebo Active Directory existuje mnoho let zkušeností a velká znalostní báze. OMS používá umělou inteligenci. Robota, který analyzuje například chování vašeho SQL serveru či Azure SQL a doporučuje vám zlepšení v oblastech vysoké dostupnosti, zabezpečení nebo ladění výkonu. Supportní organizace, vývojáři i produktové týmy tohoto robota učili … a naučili. Tak například OMS bude sledovat na pozadí dotazy do vašeho SQL serveru a může vám doporučit založení indexu na políčku, podle kterého často hledáte. Řekne vám o co jde, k čemu je to dobré, dá vám podrobný postup jak to nastavit a odkazy na další informace.</p>
+<p id="qmmHqJd"><img class="img-fluid wp-image-578 " src="/images/2017/img_58edb037eea27.png" alt="" /></p>
+<h1>Máte zabezpečeno? Získejte odpověď ať vaše aplikace běží kdekoli a na čemkoli</h1>
+<p>OMS je silně zaměřeno na bezpečnost a jednotlivé funkce si na tomto blogu rozebereme detailně. Například si vytváří otisk vašeho obyčejného dne a je schopno poznat významnou odchylku - jinak řečeno dá vám vědět, že se děje něco divného, něco je jinak. Kromě toho jde i po konkrétních věcech. Eviduje změny, ke kterým v OS došlo (přidané aplikace, upgradované služby, nové soubory). Zkoumá anti-malware a reportuje incidenty. Identifikuje a koreluje události, například vám dá vědět, když se někdo pokouší prolomit vaše heslo přes RDP. Reportuje VM, které se snaží komunikovat se známými vládci zla (databázi IP a DNS těch špatných v Internetu držíme online, máte takřka okamžité informace).</p>
+<p id="RNzmbvU"><img class="img-fluid wp-image-579 " src="/images/2017/img_58edb06437997.png" alt="" /></p>
+<h1>Monitorujte aplikaci, ne jen infrastrukturu</h1>
+<p>OMS se integruje s Application Insight a to vám umožní sledovat nejen infrastrukturu a OS, ale získat vhled do chování aplikace. Jak vypadá struktura volání aplikace a kdo na ni přistupuje, z jaké země a co požaduje. Jaká je aplikační odezva za jednotlivá volání. Nemáme mrtvé části aplikace? Application Insight se umí napojit přímo na váš kód běžící v Azure App Services nebo v IIS kdekoli včetně on-premise.</p>
+<p id="UPvyupp"><img class="img-fluid wp-image-580 " src="/images/2017/img_58edb0a6a88a0.png" alt="" /></p>
+<h1>Namalujte si svoje živé pohledy</h1>
+<p>Všechny ty nádherné grafy jsou v principu vizualizace dotazů do Big Data engine pod kapotou. Jednoduše si přidáte svoje. Řeknete jak mají vypadat a přidáte Query. A mimochodem - informace z datové základny můžete naimportovat i do PowerBI a tam pokračovat v komplikovaných vizualizacích.</p>
+<p id="aDRYwpo"><img class="img-fluid wp-image-581 " src="/images/2017/img_58edb0cfa1650.png" alt="" /></p>
+<h1>Zálohujte a mějte krizový plán</h1>
+<p>Součástí některých balíčků OMS je i Azure Backup a Azure Site Recovery, tedy prostředky na zálohování do cloudu a to jak uvnitř Azure tak z on-premise s použitím nástroje Microsoft DPM. ASR je výborný způsob pro vyřešení disaster recovery, protože nemusíte dopředu platit za CPU, RAM, místo v datovém centru apod. Jednoduše replikujete svoje VMware či Hyper-V virtuální stroje do Azure, kde se pouze ukládají - platíte tedy za službu ASR a za použitou storage. Když vaše datové centrum vezme voda, můžete svoje VM rozjet jinde. Například v jiné vaší on-premise site (ASR pak zorchestruje všechno potřebné) nebo si celé své prostředí spustit v Azure. Teprve v ten okamžik začnete platit za CPU a RAM. Disaster Recovery je vlastně takové vaše krizové pojištění. V cloudu vychází na rozhodně menší peníze, než v druhé on-premise lokalitě.</p>
+<p id="vwWSikd"><img class="img-fluid wp-image-582 " src="/images/2017/img_58edb17240deb.png" alt="" /></p>
+<h1>Automatizujte, budete přesnější a rychlejší</h1>
+<p>Další komponentou některých OMS plánů je přístup do Azure Automation a PowerShell DCS. Dokážete vytvářet komplexní workflow a automatizovat celé úlohy od vyhodnocení situace přes vytváření či modifikaci infrastruktury až po instalaci aplikačních komponent s PowerShell DCS.</p>
+<p id="nhzCAhI"><img class="img-fluid wp-image-583 " src="/images/2017/img_58edb1bee7b4b.png" alt="" /></p>
+<p><em>Operations Management Suite je moderní systém pro správu IT - zkuste ho a posuňte se do nové éry. Na tomto blogu se o OMS ještě hodně dočtete, vracejte se pro už konkrétnější příklady a návody.</em></p>

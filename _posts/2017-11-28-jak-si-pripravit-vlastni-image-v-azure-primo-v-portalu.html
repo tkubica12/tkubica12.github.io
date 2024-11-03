@@ -1,0 +1,72 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak si připravit vlastní image v Azure přímo v portálu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1670
+wordpress_url: http://tomaskubica.cz/?p=1670
+date: '2017-11-28 06:23:17 +0000'
+date_gmt: '2017-11-28 05:23:17 +0000'
+categories:
+tags:
+- Compute
+---
+<p>Nastartovat základní image v Azure, přidat si tam co potřebuji a následně z toho udělat můj vlastní custom image a používat při tvorbě dalších VM - to je něco, co je samozřejmě v PowerShell a CLI možné od cloudové nepaměti. Všimli jste si ale, že tento proces můžete také kompletně dělat v GUI? Podívejme se jak.<!--more--></p>
+<h1>Připravíme si image</h1>
+<p>Nejprve jsem si udělal resource group s názvem images a v té jsem klasickým postupem spustil dvě VM ze základního Azure image - jedno s Windows, jednu s Linuxem. Jak už určitě víte základní image neobsahuje žádné natvrdo nastavené přihlašovací údaje - při vytváření VM specifikujete jméno a heslo (případně SSH klíč u Linuxu), takže cloud nám uživatele založí, udělá mu home adresář apod. To je důležitá vlastnost, protože z bezpečnostního hlediska není dobré mít v image nějaké existující credentials. Tuto funkci budeme chtít zachovat, ale o tom později.</p>
+<p>Moje resource group aktuálně vypadá takhle:</p>
+<p id="sdmfOxv"><img class="img-fluid wp-image-1671 " src="/images/2017/img_5a0292b8cd2aa.png" alt="" /></p>
+<p>Ve svém Linux stroji udělám co potřebuji ve svém vlastním image mít. V mé ukázce to bude jednoduché založení nějakého souboru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@mujlinux:~$ sudo touch /opt/byl-jsem-tu
+tomas@mujlinux:~$ ls /opt/
+byl-jsem-tu</pre>
+<p>Něco podobného udělám ve Windows.</p>
+<p id="XniwRNa"><img class="img-fluid wp-image-1672 " src="/images/2017/img_5a02932f64346.png" alt="" /></p>
+<h1>Generalizace image a jeho zachycení</h1>
+<p>Pokud bychom teď zachytili image tak jak ho máme, zůstanou v něm například naše přihlašovací údaje a některé další nastavení (například cache DHCP adresy). To nechci (a navíc nenastartuje). Rád bych, aby se image choval stejně jako ty základní, tedy nic takového ať tam není a při deploymentu si určíme jiné jméno a heslo. Potřebujeme tedy image tzv. generalizovat.</p>
+<p>V Linuxu zadejte tento příkaz:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@mujlinux:~$ sudo waagent -deprovision+tomas
+WARNING! The waagent service will be stopped.
+WARNING! Cached DHCP leases will be deleted.
+WARNING! root password will be disabled. You will not be able to login as root.
+WARNING! /etc/resolvconf/resolv.conf.d/tail and /etc/resolvconf/resolv.conf.d/original will be deleted.
+Do you want to proceed (y/n)y</pre>
+<p>Teď už se strojem nic nedělejte a v GUI ho vypněte.</p>
+<p id="gQwXnFw"><img class="img-fluid wp-image-1673 " src="/images/2017/img_5a0293ef8e6a1.png" alt="" /></p>
+<p>Stejný postup použijeme v případě Windows. V cmd použijte spusťte tuto malou aplikaci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">cd %windir%\system32\sysprep
+sysprep.exe</pre>
+<p>Vyplňte tak jak to mám já.</p>
+<p id="oMhqUjP"><img class="img-fluid wp-image-1674 " src="/images/2017/img_5a02946ecdcc7.png" alt="" /></p>
+<p>Stejně jako u Linuxu proveďte zastavení (dealokaci) v GUI.</p>
+<p id="CnDliQg"><img class="img-fluid wp-image-1675 " src="/images/2017/img_5a029555e82cf.png" alt="" /></p>
+<p>Přistupme k zachycení našeho diskového obrazu.</p>
+<p id="UhWFNjB"><img class="img-fluid wp-image-1676 " src="/images/2017/img_5a02957ea8d2f.png" alt="" /></p>
+<p>Pojmenujte si tento image a uložíme si ho do nové resource group, kde si budeme naše vlastní image schovávat. VM nechte zničit - protože je generalizovaná, už ji stejně nemůžeme používat.</p>
+<p id="fyNPJYD"><img class="img-fluid wp-image-1677 " src="/images/2017/img_5a029608cd369.png" alt="" /></p>
+<p>Opakujte postup i pro druhou mašinu a následně můžeme vymazat celou resource group images se zbytky našich strojů (síť a tak).</p>
+<h1>Deployment VM z mých image</h1>
+<p>Naše vlastní diskové obrazy najdeme v resource group.</p>
+<p id="AiOPVGY"><img class="img-fluid wp-image-1678 " src="/images/2017/img_5a0297c2d6647.png" alt="" /></p>
+<p>Na image můžeme kliknout a dát Create VM.</p>
+<p id="XCzpSbp"><img class="img-fluid wp-image-1679 " src="/images/2017/img_5a0297e825bcf.png" alt="" /></p>
+<p>To nás hodí do průvodce, kterého už jistě dobře znáte.</p>
+<p id="aRaHepN"><img class="img-fluid wp-image-1680 " src="/images/2017/img_5a029802c0757.png" alt="" /></p>
+<h1>Managed image z našeho vlastního VHD</h1>
+<p>To s čím jsme v tomto článku pracovali je tzv. managed image. Nemusíme starat o nějakou storage, ve které je uložen, nevidíme konkrétní VHD soubor. Existuje samozřejmě možnost unmanaged image, kdy jde o VHD soubor v Azure storage. To použijete například v okamžiku, kdy si image připravíte ve svém vlastním prostředí, nainstalujete do něj potřebného agenta (například waagent v Linuxu) a uploadnete do Azure Storage. Pokud ale chcete, aby ho uživatelé mohli pohodlně používat bez PowerShellu, CLI či ARM šablon, udělejme z něj managed image.</p>
+<p>Najděte objekt Image v marketplace.</p>
+<p id="axpPHqe"><img class="img-fluid wp-image-1681 " src="/images/2017/img_5a0298d00f9b2.png" alt="" /></p>
+<p>Najdeme si VHD v naší storage a managed image jednoduše vytvoříme.</p>
+<p id="CACuIaa"><img class="img-fluid wp-image-1682 " src="/images/2017/img_5a02993e05c3f.png" alt="" /></p>
+<p>Po chvilce ho najdeme v našem katalogu.</p>
+<p id="QSlCmqz"><img class="img-fluid wp-image-1683 " src="/images/2017/img_5a02996cdbe2b.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Práce s vlastními image v Azure před pár lety byla pro ty, kteří vládli své klávesnici v prostředí PowerShell, CLI či ARM šablon. Dnes ale můžete vlastní image vytvářet a používat jednoduše přímo z GUI. Je to snadné.</em></p>
+<p>&nbsp;</p>

@@ -1,0 +1,54 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak nastavit HPE VM Explorer pro zálohování do Azure Storage
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 331
+wordpress_url: http://tomaskubica.cz/?p=331
+date: '2017-02-16 06:28:29 +0000'
+date_gmt: '2017-02-16 05:28:29 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Zálohování je jak známo důležité. Nejen, že vám mohou on-premise zdroje havarovat a je dobré mít jejich kopii, ale také můžete chytnout ransomware nebo omylem smazat něco důležitého a pak se budete chtít vrátit v čase. Zálohování vašich on-premise zdrojů do cloudu dává obrovský smysl. Podívejme se, jak některé zálohovací nástroje napojit na Azure Storage. Dnes to bude HPE VM Explorer.<!--more--></p>
+<h1>V čem je kouzlo</h1>
+<p>Data dostanete mimo svou serverovnu a nejsou tak závislá na tom, co se v u vás stane. Azure pro vás na pozadí drží tři kopie vašich dat v ceně služby a můžete zvolit i dražší řešení replikované přes dva regiony (pak máte všechna data 6x). Máte prakticky neomezenou storage a platíte pouze za reálné použití, ne za krabice. Neřešíte, jak systémy postavit, propojit, napájet, patchovat nebo upgradovat. Pokud chcete, může Azure všechna vaše data transparentně šifrovat. Vezmete-li v úvahu robustnost řešení zjistíte, že je cenově velmi výhodné - například pokud držíte 1TB dat a měsíčně 500GB zapíšete a 100GB přečtete, vyjde vás to celé asi na 10 EUR měsíčně.</p>
+<h1>Nativní storage vs. virtuální appliance</h1>
+<p>Jedna z možností je, že dodavatel zálohovacího software v cloudu vytvoří VM se svým kódem a on-premise na ni napojí. Tím může zajistit některé zajímavé funkce, ale řešení používá dražší zdroje. Pokud vám jde o nízkou cenu, je ideální schopnost nativního zápisu rovnou do Azure Storage bez ničeho dalšího. Tam si můžete vybrat mezi Hot variantou (když očekáváte časté čtení) nebo (a to je pro zálohování výhodnější) Cool verzí, která je podstatně levnější, pokud hlavně zapisujete a čtete méně.</p>
+<h1>HPE VM Explorer</h1>
+<p>Vyzkoušel jsem řešení HPE VM Explorer pro zálohování VM, v mém případě běžící na Hyper-V serveru. Tento software podporuje nativní přístup do Azure storage.</p>
+<p>Po instalaci jsem kliknul na přidat server.</p>
+<p><img class="img-fluid wp-image-332 " src="/images/2017/img_58a4a3be74480.png" alt="" /></p>
+<p>Používám Hyper-V server, ale stejně dobře můžete namířit VM Explorer na VMware.</p>
+<p id="ybDuqlo"><img class="img-fluid wp-image-333 " src="/images/2017/img_58a4a3e24efe5.png" alt="" /></p>
+<p>Po vyplnění názvu serveru a hesel se mi vše připojilo.</p>
+<p id="PoIEYHG"><img class="img-fluid wp-image-334 " src="/images/2017/img_58a4a4367e6a8.png" alt="" /></p>
+<p>V Azure jsem si vytvořil nový storage account. Zvolil jsem Blob storage v režimu Cool, která je cenově velmi výhodná pro situace, kdy se více zapisuje, než čte.</p>
+<p id="YlILUuV"><img class="img-fluid wp-image-336 " src="/images/2017/img_58a4a4f4ceafa.png" alt="" /></p>
+<p>Ve storage vytvořím kontejner pro moje zálohování.</p>
+<p id="jxhcyRx"><img class="img-fluid wp-image-339 " src="/images/2017/img_58a4a60d7f68c.png" alt="" /></p>
+<p>&nbsp;</p>
+<p id="cwKntBo"><img class="img-fluid wp-image-340 " src="/images/2017/img_58a4a62e047f3.png" alt="" /></p>
+<p>Pak jsem šel do záložky Access keys, abych získal klíč (řekněme takové heslo do storage).</p>
+<p><img class="img-fluid wp-image-337 " src="/images/2017/img_58a4a59f26dcd.png" alt="" /></p>
+<p>Jdu zpět do VM Exploreru a přidám svojí Azure Storage.</p>
+<p><img class="img-fluid wp-image-335 " src="/images/2017/img_58a4a46e25dcc.png" alt="" /></p>
+<p>Vyplním její název a klíč.</p>
+<p id="KbMEpbj"><img class="img-fluid wp-image-338 " src="/images/2017/img_58a4a5cf340c1.png" alt="" /></p>
+<p>Všechno proběhlo hladce.</p>
+<p id="HnAHvvo"><img class="img-fluid wp-image-341 " src="/images/2017/img_58a4a64f35eb6.png" alt="" /></p>
+<p>Máme vše připravené pro provedení zálohy. Spustím ji pro ručně a VM v mém Hyper-V serveru zazálohuji do Azure.</p>
+<p id="bujHHOF"><img class="img-fluid wp-image-342 " src="/images/2017/img_58a4a6dd1fe6c.png" alt="" /></p>
+<p>Když teď rozklikneme Azure, najdeme tam zálohu mé VM a může se do ní podívat, začít obnovovat a dělat další kouzla, která VM Explorer nabízí.</p>
+<p id="TaqMFpa"><img class="img-fluid wp-image-343 " src="/images/2017/img_58a4a725232b0.png" alt="" /></p>
+<p>Abych si byl jist, že data ve storage opravdu jsou, podíval jsem se do svého kontejneru zalohy.</p>
+<p><img class="img-fluid wp-image-344 " src="/images/2017/img_58a4a757f3c96.png" alt="" /></p>
+<p><em>Jak vidno všechno je velmi jednoduché a snadno se nastaví. Začněte zálohovat do cloudu, HPE VM Explorer a Azure jdou dobře dohromady. Příště si vyzkoušíme další zálohovací nástroje.</em></p>

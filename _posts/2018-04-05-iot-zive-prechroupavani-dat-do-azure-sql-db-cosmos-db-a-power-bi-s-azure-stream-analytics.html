@@ -1,0 +1,105 @@
+---
+layout: post
+status: publish
+published: true
+title: 'IoT: živé přechroupávání dat do Azure SQL DB, Cosmos DB a Power BI s Azure
+  Stream Analytics'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2033
+wordpress_url: http://tomaskubica.cz/?p=2033
+date: '2018-04-05 05:36:58 +0000'
+date_gmt: '2018-04-05 04:36:58 +0000'
+categories:
+tags:
+- SQL
+- CosmosDB
+- IoT
+---
+<p>Pokračuji v seznamování se s IoT v Azure a dnes budu chtít surová data z IoT Hubu kontinuálně přechroupávat, trochu filtrovat, trochu agregovat a hlavně posílat na dlouhodobé uložení v Azure SQL DB, Azure Cosmos DB, Azure Blob Storage a také do real-time vizualizace s Power BI. Zní to složitě? Ve skutečnosti to bylo snadné.<!--more--></p>
+<h1>Proč Stream Analytics</h1>
+<p>S daty z IoT bude většinou potřeba něco dělat. Proč to ale nepodniknout rovnou na vstupu? Nebo proč to naopak nenechat až po uložení do databáze?</p>
+<p>Možná máte senzory, které posílají teplotu v jiných jednotkách (nějaký v Celsius, jiný ve Fahrenheit), jiné škále (nějaký v milionech, jiný v tisících), jiném formátu (jeden v Avro, druhý v JSON a políčko teploty označuje temparature, třetí sicé také v JSON, ale teplotu označuje temp) nebo v jiném intervalu (nějaký každých 10 vteřin, jiný každou minutu). Potřebujete tedy data upravit a je s tím nějaká práce, má to nezanedbatelnou náročnost na zpracování.</p>
+<p>Druhý aspekt může být nutnost reagovat v reálném čase. Vždy je skvělé se důkladně zamyslet nad uloženými daty s dvacetiletou historií a spustit komplikované algoritmy, ale někdy je důležitější mít informaci rychle i za cenu, že je to samozřejmě méně přesné. Třeba potřebujeme zabránit výbuchu v přetlakovaných trubkách nebo odmítnout podezřelou platební transakci.</p>
+<p>Třetí věc k zamyšlení je zda surová data nejsou pro naše účely nesmyslně podrobná. Možná hledáme agregované pohledy s hodinovými trendy a analytiku postavenou nad relační strukturou, ne nutnost zvlášť zkoumat každou vteřinu dat. Nebo zařízení posíla data z víc senzorů a nás zajímají zatím jen některé. Surová data je fajn si uložit co nejlevnějším způsobem třeba do Blob storage pro případ, že se do podrobností budeme chtít někdy podívat, ale do relační databáze nám stačí třeba minutové pohledy.</p>
+<p>Všechny tři situace myslím ukazují důležitost Stream Analytics. Funkce zpracování dat nechceme dávat přímo do systému pro příjem dat, protože bychom dramaticky ovlivnili jeho škálovatelnost. IoT Hub (stejně jako Event Hub) musí být jednoduchý a neuvěřitelně škálovatelný, být schopen přijmout cokoli a fungovat jako buffer pro další zpracování; pokud by při příjmu prováděl nějaký složitější kód, data by nestíhal přijímat, timeouty by způsobovaly ztrátu dat, rozpad komunikace se zařízeními nebo dlouhé čekací doby vedoucí k větší spotřebě zařízení. Zpracování tedy chceme oddělit od příjmu. Strategie nějakým jednoduchým způsobem data pouze dostat do databáze a teprve pak je upravovat by také nebyla nejefektivnější. Docházelo by jednak ke ztrátě schopnosti reagovat co nejblíže reálnému času (místo predikce výbuchu továrny tak jak data proudí bychom čekali na jejich uložení a pak je nějakými SELECTy zkoumali) a také bychom mohli zbytečně zatěžovat cílový systém daty, která ve skutečnosti nepotřebujeme (představte si kolik výkonu relační DB bychom zbytečně spotřebovali, pokud bychom do ní uložili surová data, nad nimi teprve udělali tabulky minutových agregací a surová data pak exportovali do Blobu).</p>
+<h1>Moje první Query a odkládání do Blob storage</h1>
+<p>Začněme tím, že si vytvoříme Azure Stream Analytics.</p>
+<p id="fWkGAfM"><img class="img-fluid wp-image-2034 " src="/images/2018/img_5ac1296f69bcf.png" alt="" /></p>
+<p>Základem pro škálování výkonu je počet jednotek. Velmi zajímavá je v Preview možnost použít stejnou technologii mimo cloud na IoT bráně. To souvisí se strategií Intelligent Edge, kdy Microsoft nabízí Azure Machine Learning, Azure Stream Analytics nebo Azure Functions ve formě spustitelné na takových zařízeních.</p>
+<p id="evGgDez"><img class="img-fluid wp-image-2035 " src="/images/2018/img_5ac12a3921052.png" alt="" /></p>
+<p>Následně si přidáme vstup. Jak už padlo půjde v mém případě o Azure IoT Hub, podporovaný je i Azure Event Hub (zajímavé pro jednosměrné scénáře, třeba sběr clickstreamu a jiných událostí z vaší webové aplikace s cílem analyzovat chování uživatele v reálném čase a udržet ho na stránce co nejdéle) nebo Blob Storage.</p>
+<p id="GANXICd"><img class="img-fluid wp-image-2036 " src="/images/2018/img_5ac12a9739ca7.png" alt="" /></p>
+<p>Můj IoT DevKit z minulého dílu seriálu je připojen a posílá data. Abychom si mohli Query odladit, můžeme si v GUI nahrát vzorek dat nebo ještě lépe si ho zachytit z právě přicházejících dat.</p>
+<p id="OPsHhpc"><img class="img-fluid wp-image-2037 " src="/images/2018/img_5ac12ad2e0c35.png" alt="" /></p>
+<p>Jazyk Stream Analytics je velmi podobný SQL. To je z mého pohledu perfektní scénář. K proudu dat se tak syntakticky mohu chovat jako k databázi včetně věcí jako WHERE, GROUP BY nebo JOIN. Nemusím se tedy učit příliš mnoho nové terminologie. Začnu tak, že si vezmu všechno ze vstupu a pošlu na výstup. Kliknu na Test, abych viděl co to udělá.</p>
+<p id="qTsSseP"><img class="img-fluid wp-image-2038 " src="/images/2018/img_5ac12b427083b.png" alt="" /></p>
+<p>Výborně. Co kdybych pro zjednodušení chtěl ve svém Query pracovat pouze s vlhkostí?</p>
+<p id="eFzmeTo"><img class="img-fluid wp-image-2039 " src="/images/2018/img_5ac12b624f560.png" alt="" /></p>
+<p>Pojďme si teď tenhle výstup nechat ukládat do Blob storage. Přidáme tedy nový Output.</p>
+<p>&nbsp;</p>
+<p id="uTcvSFs"><img class="img-fluid wp-image-2040 " src="/images/2018/img_5ac12b7e99cdd.png" alt="" /></p>
+<p>Pro mne bude nejpříjemnější vytvářet ve storage JSON soubor, ale můžete zvolit i CSV nebo Avro.</p>
+<p id="oofzIis"><img class="img-fluid wp-image-2041 " src="/images/2018/img_5ac12ba2c07e5.png" alt="" /></p>
+<p>Output mám, upravím tedy své Query. Posílat budu vlhkost a teplotu a teď už do blobu.</p>
+<p id="IDpbAvy"><img class="img-fluid wp-image-2042 " src="/images/2018/img_5ac12bc071bd3.png" alt="" /></p>
+<p>Máme nastaveno, pojďme Stream Analytics zapnout.</p>
+<p id="jVqdjoc"><img class="img-fluid wp-image-2043 " src="/images/2018/img_5ac12beb0f22f.png" alt="" /></p>
+<p>Po chvilce se podívám na svou Azure Blob Storage.</p>
+<p id="RJaltMc"><img class="img-fluid wp-image-2044 " src="/images/2018/img_5ac12c01c9ad5.png" alt="" /></p>
+<p>A nacházím tam svoje data.</p>
+<p id="LCYCHTZ"><img class="img-fluid wp-image-2045 " src="/images/2018/img_5ac12c159c594.png" alt="" /></p>
+<p>A je to. Úžasně jednoduché.</p>
+<h1>Přechroupání do Azure Cosmos DB</h1>
+<p>Cosmos DB mám strašně rád. Je to NoSQL databáze a jedním z modelů je document store, tedy to co ukládáte jsou JSON struktury a přistupovat k nim můžete buď přes SQL jazyk (Document DB API) nebo s využitím Mongo DB API. Protože databáze je velmi výkonná a skvěle škáluje, perfektně se hodí na data z IoT. Narozdíl od relačního světa se do ní nebojím nahnat surová data jak jsou a hotovo. Chtěl jsem tedy využít Stream Analytics také na přetažení dat tak jak jsou do Cosmos DB.</p>
+<p>Moje Cosmos DB je připravena, takže si v Stream Analytics založím další Output a specifikuji svoji DB a kolekci.</p>
+<p id="RGPHjdo"><img class="img-fluid wp-image-2047 " src="/images/2018/img_5ac12cfe0595d.png" alt="" /></p>
+<p>Udělám si jednoduché Query (pozor, aby to šlo, musíte Stream Analytics na chvíli zastavit - ale to nevadí, dokáže navázat tam, kde přestalo) typu SELECT všechno do Cosmos DB. Všimněte si, že v jednom Stream Analytics můžete mít jako já víc dotazů, víc výstupů.</p>
+<p id="RxtGrcn"><img class="img-fluid wp-image-2048 " src="/images/2018/img_5ac12d4e37ba0.png" alt="" /></p>
+<p>Stream Analytics jsem zapnul a za malou chvilku vidím ve své Cosmos DB telemetrická data ze senzorů.</p>
+<p id="zfAmQln"><img class="img-fluid wp-image-2049 " src="/images/2018/img_5ac12d70c6358.png" alt="" /></p>
+<p id="drDCQNb"><img class="img-fluid wp-image-2050 " src="/images/2018/img_5ac12d810f718.png" alt="" /></p>
+<p>Prostředky Document DB API si pak snadno můžu zobrazit jen čas a vlhkost.</p>
+<p id="qCdOysP"><img class="img-fluid wp-image-2051 " src="/images/2018/img_5ac12da8f1f07.png" alt="" /></p>
+<p>Případně se zeptat na průměrnou vlhkost za všechna měření.</p>
+<p id="wskSOjW"><img class="img-fluid wp-image-2052 " src="/images/2018/img_5ac12dc61677d.png" alt="" /></p>
+<p>Stream Analytics můžeme tedy použít jako jednoduchý prostředek přesunu dat z IoT Hub či Event Hub do Cosmos DB. Pokud nepotřebujete dělat rozhodnutí vyloženě v reálném čase a chcete se soustředit na sílu Cosmos DB, dobrá volba. Cosmos DB dokáže i věci jako Change Feed a můžete tak informovat třeba serverless kód o tom, že jsou v Cosmos DB nová data. Něco podobného umí i Stream Analytics, takže je na vás, co vám bude dávat největší smysl. Pokud vám nejde o vyloženě real time rozhodnutí, nesnášíte jakýkoli SQL a milujete Mongo API, můžete jednoduše dát všechno na hrb Cosmos DB.</p>
+<h1>Příprava agregovaných dat pro relační svět Azure SQL DB</h1>
+<p>Pro účely zpracování v relační databázi mi bude stačit vlhkost jako průměr za minutu, nepotřebuji detaily každé dvě vteřiny. Nejprve jsem si vytvořil Azure SQL Database. Přímo v GUI portálu lze posílat T-SQL dotazy (ale stejně tak můžete využít SQL Management Studio pro Windows, SQL plug-in pro Visual Studio Code pro Windows, Linux nebo Mac nebo SqlCmd jako příkazovou řádku), takže jsem si vytvořil následující tabulku:</p>
+<p id="iJVDRij"><img class="img-fluid wp-image-2054 " src="/images/2018/img_5ac1d9e45d4bd.png" alt="" /></p>
+<p>Přidám ji jako další output do Stream Analytics.</p>
+<p id="XnniEIh"><img class="img-fluid wp-image-2055 " src="/images/2018/img_5ac1da022b6f4.png" alt="" /></p>
+<p>V mém query teď vytvoříme agregaci, tedy například průměr. Pro agregační funkce ale, jak znáte z relačních systémů, musíme mít nějaké GROUP BY. Protože chceme průměr za minutu, potřebujeme seskupit podle časových oken dlouhých jednu minutu. Pro některé situace budeme potřebovat plovoucí okno (to příště - je vhodné třeba pro detekci anomálií), pro náš případ použiji TumblingWindow, tedy seskupení po celých minutách.</p>
+<p id="DOnqpWh"><img class="img-fluid wp-image-2056 " src="/images/2018/img_5ac1dae7c8d98.png" alt="" /></p>
+<p>Zapněme Stream Analytics a podíváme se na data v SQL. Díky nové funkci portálu tak můžeme učinit přímo z GUI Azure.</p>
+<p id="OLQRoly"><img class="img-fluid wp-image-2057 " src="/images/2018/img_5ac1db0b41dda.png" alt="" /></p>
+<h1>Příprava dat na vizualizaci s Power BI</h1>
+<p>Poslední co si chci vyzkoušet je příprava dat přímo do Power BI pro jejich vizualizaci. Power BI se dá samozřejmě napojit na databázi, ale pro jednoduché zobrazení v reálném čase to uděláme napřímo.</p>
+<p>Nejprve tedy přidáme Power BI jako další Output do Stream Analytics.</p>
+<p id="XmeEYlN"><img class="img-fluid wp-image-2059 " src="/images/2018/img_5ac1db82f25e5.png" alt="" /></p>
+<p id="PiKujhf"><img class="img-fluid wp-image-2060 " src="/images/2018/img_5ac1db8eacb13.png" alt="" /></p>
+<p>Musíme Stream Analytics autorizovat, tedy přihlásit se do Power BI. Následně si vyberu workspace, jméno pro nový datový zdroj a tabulku v něm.</p>
+<p id="NSkhwsf"><img class="img-fluid wp-image-2061 " src="/images/2018/img_5ac1dbb86cee2.png" alt="" /></p>
+<p>Použiji skoro stejné query jako v předchozím případě, jen budu chtít data agregovat do 15 vteřinových intervalů místo minuty.</p>
+<p id="UkEnRdw"><img class="img-fluid wp-image-2062 " src="/images/2018/img_5ac1dbe0569ac.png" alt="" /></p>
+<p>Naloguji se do Power BI a zkontroluji, že vidím novou datovou sadu. Následně vytvořím nový dashboard.</p>
+<p id="MyPRuVH"><img class="img-fluid wp-image-2063 " src="/images/2018/img_5ac1dc021aba6.png" alt="" /></p>
+<p>Jako typ použiji zobrazení proudu dat v reálném čase.</p>
+<p id="PoLWOrK"><img class="img-fluid wp-image-2064 " src="/images/2018/img_5ac1dc2b54601.png" alt="" /></p>
+<p>Vyberu svůj dataset.</p>
+<p id="MVisUQI"><img class="img-fluid wp-image-2065 " src="/images/2018/img_5ac1dc4ab7d83.png" alt="" /></p>
+<p>Na hlavní osu dám čas, na druhou vlhkost a necháme si ukázat posledních 10 minut.</p>
+<p id="VEMoArc"><img class="img-fluid wp-image-2066 " src="/images/2018/img_5ac1dc630277a.png" alt="" /></p>
+<p id="VYckwCT"><img class="img-fluid wp-image-2067 " src="/images/2018/img_5ac1dc7982110.png" alt="" /></p>
+<p>Máme hotovo, uvidíme graf v reálném čase.</p>
+<p id="GnEwRSt"><img class="img-fluid wp-image-2068 " src="/images/2018/img_5ac1dca7e55e6.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Roztlačit něco základního a jednoduchého v Azure je snadné, protože vezmete kostičky a propojíte je dohromady. Během pár hodin jsem měl rozjeto přechroupávání dat do Blob storage, do Cosmos DB, do Azure SQL DB i do Power BI. Pokud chcete do hloubky, prozkoumejte query jazyk Stream Analytics blíže - je velmi mocný a dostanete se o hodně dál, než v dnešní ukázce. </em></p>
+<p><em>Přechroupávání dat mám vyzkoušeno, příště ale u Stream Analytics ještě zůstanu. Chci se podívat na reakce nad daty v reálném čase ať už to bude překročení nějakých hodnot či detekce anomálie s Machine Learningem a spouštět na základě toho akce s frontováním, Azure Functions a Azure Logic Apps. Přijďte si přečíst.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

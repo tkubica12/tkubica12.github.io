@@ -1,0 +1,52 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Governance v Azure: řízení přístupu a provozní politiky'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1851
+wordpress_url: http://tomaskubica.cz/?p=1851
+date: '2018-01-29 05:40:45 +0000'
+date_gmt: '2018-01-29 04:40:45 +0000'
+categories:
+tags:
+- Security
+- Governance
+---
+<p>Jste enterprise firma a myslíte to s cloudem vážně? Pak určitě budete chtít dobře řídit governance - kdo co smí, co komu patří, jaké politiky se mají vynutit, jak si rozdělit práci, jak řídit náklady. V tomto seriálu se na to zaměříme.</p>
+<p>Dnes se podíváme na jemné řízení přístupu k zdrojům v Azure a také na vytváření provozních politik.<!--more--></p>
+<p>Detailní demo k dnešnímu tématu najdete na mém GitHubu zde: <a href="https://github.com/tkubica12/azure-policy-rbac-demo">https://github.com/tkubica12/azure-policy-rbac-demo</a></p>
+<h1>Role-based-access-control vs. Azure Policy</h1>
+<p>Nejprve se vysvětleme to, co mají administrátoři zprvu problém odlišit. RBAC vs. provozní politika. Důležitá zpráva na začátek - obě se implementují na nízkoúrovňových přístupech (API resp. ARM), čili fungují pro všechny typy přístupu - portál, CLI, PowerShell, ARM šablona, SDK, Ansible či Terraform.</p>
+<p>Role based access control je o tom, co který uživatel smí dělat. Funguje to na úrovni API, tedy jakou část stromu prostředků a akcí nad nimi smí využívat. Každá akce v Azure (API volání) je vlastně něco jako URL cesta začínající providerem (například Compute, Storage, Networking), následuje identifikací subscription, pak resource group, pak samotného zdroje a nakonec je akce (start, stop, ...). Na této úrovni lze tedy přístup řídit velmi jemně.</p>
+<p><strong>RBAC tedy znamená, že řeknete které subscriptions, resource groups nebo jednotlivé zdroje uživatel vidí, do kterých může i zapisovat a jaké akce s nimi může provádět.</strong></p>
+<p>Azure Policy je něco jiného, je to o definici pravidel pro práci se zdroji, které musí všichni uživatelé ctít. Funguje na úrovni ARM a můžete v politice reagovat na přítomnost určitých políček v ARM šabloně a omezit jejich hodnoty.  Lze tak například v subscription omezit možnosti používání diskových obrazů jen na ty, které vytvořila a schválila securita. Nebo dokážete vynutit přítomnost metadat, tedy tagování zdrojů tak, že musí obsahovat třeba kontaktní osobu, typ prostředí nebo kategorii zpracovávaných dat. Dá se také uzamknout virtuální stroje v nějaké resource group do konkrétního subnetu a zabránit tak přemostění připravených síťařských pravidel a zařízení.</p>
+<p><strong>Azure Policy definuje provozní pravidla platná pro všechny zdroje, ke kterým jsou přiřazena (třeba Resource Group) bez ohledu na to, kdo je uživatel. Tato pravidla řeší nejen co, ale i jak, protože vidí do obsahu akcí</strong> (například jaký konkrétně subnet se uživatel snaží přiřadit ke své VM).</p>
+<h1>RBAC v Azure</h1>
+<p>Pokud si vystačíte se zabudovanými rolemi můžete tohle všechno provádět přímo v portálu. U každého zdroje či Resource Group najdete panel Access Control (IAM).</p>
+<p id="nYnAnUV"><img class="img-fluid wp-image-1853 " src="/images/2018/img_5a6d8a87bb692.png" alt="" /></p>
+<p>Můžete přiřazovat klasické identity (uživatelské účty či skupiny například nasynchronizované z vašeho Active Directory), ale také service principály (servisní účty). Je tu ještě jedna zajímavá možnost a to je automatické vytvoření účtu pro virtuální mašinu (Managed Service Identity). Účet je automaticky založen a zevnitř VM jste schopni ho použít (s využitím API na localhost), přesto to není tak, že máte uvnitř VM přímý přístup k jménu a heslu. To je velmi zajímavé a zevnitř VM tak můžete například dealokovat sebe sama, požádat VM Scale Set o vytvoření dalších kolegů, ovládat zdroje v Azure či využít tuto identitu na přístupu do Azure SQL.</p>
+<p>A to není všechno - v Azure lze využít Privileged Identity Management. Ten vám umožní nastavit proces kolem elevace práv. Například váš kontraktor má pouze monitorovací práva, ale čas od času mu pro řešení incidentu potřebujete dát práva zapisovací. V PIM je celý proces jak o elevaci práv zažádat, je tam mechanismus schvalování a navýšení práv může být časově omezeno.</p>
+<p>Daleko víc podrobností o RBAC najdete v mém demu: <a href="https://github.com/tkubica12/azure-policy-rbac-demo/blob/master/docs/rbac.md">https://github.com/tkubica12/azure-policy-rbac-demo/blob/master/docs/rbac.md</a></p>
+<h1>Azure Policy</h1>
+<p>Jak už jsem vysvětloval, politika funguje na úrovni kontroly parametrů v ARM engine, tedy umožňuje řešit i "jak". Nejen tedy povolit určitou akci (například vytvoření VM), ale i kontrolovat parametry tohoto objektu - má tagy? Nemá přiřazenou public IP na síťovce? Je ve vámi povolené virtuální síti a subnetu? Používá pouze vaše korporátní schválené diskové obrazy?</p>
+<p>Podstatné tedy je, že politika se týká zdrojů v rámci scope (Resource Group, subscription nebo skupina subscription) bez ohledu na to, kdo je uživatel. Dokážete tak zajistit, aby nedošlo k nechtěným konfiguracím (například omylem), které by třeba kompromitovaly bezpečnost (obejítí síťové ochrany, zdroje bez firewallu, přímý přístup do Internetu místo průchodu WAFkou, použití nekorporátních diskových obrazů) nebo narušovaly administrativní procesy (chybějící kontaktní informace, nesprávné zařazení do nákladového střediska, neoznačení typu prostředí dev/test/prod).</p>
+<p>Nově můžete použít GUI.</p>
+<p id="jhCXmjS"><img class="img-fluid wp-image-1855 " src="/images/2018/img_5a6db5492bdc9.png" alt="" /></p>
+<p>Prohlédněte si zabudované definice politik, jejich počet se neustále rozšiřuje.</p>
+<p id="oRsHENI"><img class="img-fluid wp-image-1856 " src="/images/2018/img_5a6db56d033d6.png" alt="" /></p>
+<p>Takhle vypadá definice vlastního pravidla.</p>
+<p id="eKYliWB"><img class="img-fluid wp-image-1857 " src="/images/2018/img_5a6db624a86d8.png" alt="" /></p>
+<p>Jednotlivá pravidla pak přiřadíte k Subscription či Resource Group. Existuje zákadní Azure Policy zdarma, která se hodí na vynucení pravidel. Máte ale také možnost pořídit si lepší (placenou) variantu, která navíc umí auditní režim. Politika tedy není natvrdo vynucena (můžete zdroje založit i pokud pravidla nedodržíte), ale systém to sleduje a reportuje všechny situace, které neodpovídají pravidlům.</p>
+<p id="PNzMRHW"><img class="img-fluid wp-image-1858 " src="/images/2018/img_5a6db69380fa4.png" alt="" /></p>
+<p>To je ideální režim například pro existující už vytvořené zdroje nebo pro situace, kdy zpočátku nemáte jasnou představu o potřebách daného týmu a příliš restriktivní řešení do začátku by je nadměrně omezovalo. Přes auditní reporty následně zjistíte kde se tým odchýlil a můžete s nimi diskutovat zda je to nutné či se dají věci dělat jinak.</p>
+<p>Azure Policy je velmi mocný nástroj - podrobnosti najdete v mém demu zde: <a href="https://github.com/tkubica12/azure-policy-rbac-demo/blob/master/docs/policy.md">https://github.com/tkubica12/azure-policy-rbac-demo/blob/master/docs/policy.md</a></p>
+<p>&nbsp;</p>
+<p><em>Jak vidíte Azure vám umožňuje nasadit dobrou governance nad celým prostředím. Dnes jsme si ukázali jemné řízení přístupu a vynucení provozních politik. V příštích dílech se podíváme na další aspekty jako je návrh subscription, virtuální datové centrum či Azure Security Center.</em></p>
+<p>&nbsp;</p>

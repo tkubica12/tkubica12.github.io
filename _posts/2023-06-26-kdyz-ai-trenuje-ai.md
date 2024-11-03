@@ -1,0 +1,46 @@
+---
+layout: post
+published: true
+title: "Když AI trénuje AI: Jak GPT učí rybařit lamu (LLaMa) v projektech Alpaca, Vicun nebo Orca od Microsoftu?"
+tags:
+- AI
+---
+# Cena jako problém LLM
+GPT-4 je skvělé a je to asi nejlepší jazykový model, který je dnes k dispozici. Jestli někdo OpenAI a Microsoft v oblasti obrovských modelů může ohrozit, tak hlavně Google a Facebook, ale sledovat je vhodné i Apple, Baidu, Amazon a snad stále ještě IBM (smutný příběh) a samozřejmě i některé univerzity a startupy. Jenže - tyhle modely je opravdu drahé trénovat i provozovat. GPT-4 stojí 0,06 nebo 0,12 USD na 1000 tokenů (za odpovědi a záleží na požadované délce kontextu 8k vs 32k), zatímco klasické GPT-3 je za 0,02 USD a speciálně odladěné zefektivněné GPT-3.5 (to je pod ChatGPT) pak jen 0,002 USD. To mimochodem může naznačovat, že by se v oblasti LLM mohl objevit tick-tack rytmus jako u procesorů (nejdřív nový lepší model s velkou spotřebou a pak jeho efektivnější varianta a tak pořád dokola). Spekuluje se, že Google PaLM 2 (jejich hlavní želízko v ohni proti Microsoftu a OpenAI) je nákladově ještě dražší a to může být pro profitabilitu Googlu problém. Ostatně Microsoft Megatron-Turing NLG měl v v době svého uvedení v roce 2021 3x víc parametrů, než GPT-3 - jenže výsledek nebyl nějak přelomový a náklady enormní, tedy model byl značně nepraktický. Celý projekt tak pro Microsoft a NVidia měl přínos hlavně v prozkoumání limitů scale-up přístupu a díky těmto zkušenostem Azure dokázat pro OpenAI postavit superpočítač pro trénování GPT-4.
+
+# Na učiteli záleží
+Transformery umožnily říct žákům, že si mají sami prostudovat předložený text - použít unsupervised learning. To umožnilo neuvěřitelně zvětšit množství dat použitelných pro trénování a díky tomu mají LLM v sobě ohromný potenciál. Nicméně jakákoli chytrost takového modelu je pohřbená někde uvnitř a je velmi obtížné s ním pracovat. Jediné co chce, je doplňovat předložený text. Když mu dáte otázku, udělá vám třeba 10 variací na stejnou otázku. Úspěch věcí jako je ChatGPT je v tom, že byly následně laděny supervised learningem nad vysoce kvalitními lidmi připravenými datovými sadami, často se modely speciálně učí reagovat na instrukce (bez toho by prompt engineering ani pořádně neexistoval) nebo konverzování. A to je často laděno s použitím Reinforcement Learning with Human Feedback, kdy odpovědi modelu lidé hodnotí a ten se zlepšuje (mimochodem na úkor přesnosti a kreativity -> pokud chcete napsat báseň, možná vám základní model dá víc inspirace, než jeho ChatGPT varianta). Další techniky pak nejsou přímo v ladění modelu (zatím), ale vychází z promptu - například Chain of Thought (CoT). Technika, kdy koučujete model k tomu, aby v úloze postupoval pomalu, krok za krokem a jednotlivé úkony vám průběžně vysvětloval. Některé jdou ještě dál za rámec jediného dotazu,reagují na výstupy modelu a podsouvají mu věci zpět. Asi nejznámější je AutoGPT nebo AgentGPT (pozor na náklady, tohle se strašně snadno zvrtne).
+
+Takže když to shrneme:
+- LLM načetly celý Internet a mají tak obrovské základní předpoklady (to malým modelům schází).
+- Nicméně jejich výsledná kvalita je do značné míry ovlivněná kvalitou následného ladění lidmi připravenými daty či jejich zpětnou vazbou.
+- Co kdybychom vzali malý model a zkusili se zaměřit na trénovací data a zkušenosti z LLM? Směřovali ho k instrukcím, konverzacím, CoT a základnu trénovacích dat i zpětnou vazbu získali od LLM?
+
+# Dej mu rybu a nasytíš ho na den. Nauč ho rybařit a nasytíš ho na celý život.
+GPT-4 je drahé, ale levnější, než lidi. Pro malý jazykový model tak může znamenat skvělého učitele. Pokud děláte matematiku na základce, dokážete posunout děti a potažmo celé lidstvo dál, aniž vy sami jste největším matematikem na světě. Místní sportovní trenér možná není mistr světa, ale svoje svěřence toho naučí opravdu hodně. Ne každý je geniální matematik nebo sportovec a pro začátečníky to stačí. Ne každý je člověk a GPT-4 je pro malý model výborný učitel.
+
+[Alpaca](https://crfm.stanford.edu/2023/03/13/alpaca.html) je projekt, který se snaží naučit malý 7B LLaMA model reagovat na instrukce. Dělají to za použití techniky self-instruct, kdy přes GPT-3 generují příklady instrukcí a jejich odpovědí na ně a touhle sadou 52000 příkladů (představte si kolik času by stálo získat stejné množství dat od lidí) ladí váhy modelu. 
+
+[Vicuna](https://lmsys.org/blog/2023-03-30-vicuna/) využívá data z ShareGPT, má tedy lidské dotazy, ale ChatGPT odpovědi na ně. Projekt tvrdí, že dosáhl lepších výsledků, než Alpaca a zavedl jedno zajímavé hodnocení. Trénovací data dělalo ChatGPT (GPT-3.5), ale vyhodnocování a srovnání modelů provádí GPT-4. Do promptu mu napíšete něco ve smyslu, že dostane odpovědi na otázku od dvou asistentů a má zhodnotit, kdo si vedl lépe. Moc exaktně to tedy nezní, ale je to rozhodně zajímavé. Celá historie počítačů je o tom najít něco, co počítač následně bez lidského zásahu dokáže dokola a dokola opakovat. Pracuje, když vy spíte. Teď se bude učit, když vy spíte.
+
+Zastavme se u nákladů. LLaMA je samozřejmě malý model a i tak náklady na trénování nejsou zanedbatelné - 82000 GPU hodin u 7B a 135000 u 13B modelu (soudě podle informací z předchozích odkazů). To je u 13B modelu v Azure s ND96asr A100 v4 (ta má 8x GPU) nějakých 600k USD v PAYG a 280k USD ve spot instancích. A teď si představte kolik stojí ty opravdu velké modely. Nicméně dotrénování ve stylu Alpaca nebo Vicuna je prý už jen otázka pár stovek dolarů. Myslím, že je to vlastně stejné jako u OpenAI, jen řády jsou jinde - na vytrénování modelu unsupervised learningem spotřebujete majoritu peněz za infrastrukturu, ale za ladění spotřebujete hodně času a lidské práce. Ta je ale v případě Alpaca generována s pomocí GPT-3.5 turbo a 52000 instrukcí, jak koukám každá má tak 200 tokenů, to znamená náklad tak 20 USD.
+
+To nás vede k opuštění lamám podobným zvířat a pojďme na to rybaření a kosatku - project [Orca](https://arxiv.org/abs/2306.02707) od Microsoftu. Ten se zaměřuje na to, že studie jako Vicuna sice dobře imitují schopnosti LLM pracovat s instrukcemi a reagovat na otázky, ale neučí se od něj uvažovat, zdůvodňovat a jsou tedy plytké. Hodí se třeba do počítačové hry, ale méně pro logické úlohy nebo různé školní zkoušky. Kudy na to jdou?
+
+Kvalitu modelu chtějí zkoumat i exaktněji, než že se k němu vyjádří GPT-4, takže to dělají na otázkách ze zkoušek. Model ladí tak, že vezmou otázku a odpověď (podobně jako předchozí zmíněné modely), ale k tomu přidají krok za krokem přemýšlecí postup generovaný učitelem (prompt typu vysvětli to jako pětiletému dítěti krok za krokem). Není to tedy jen běžný instruction tuning, ale jde o snahu koučovat model i co do způsobu uvažování. Zajímavé je, že používali jako učitele jak ChatGPT (GPT-3.5 turbo), tak i o dost kvalitnější (a dražší) GPT-4. Důvody samozřejmě byly v nákladech a rychlosti, ale objevila se ještě jedna zajímavost. Přemýšlecí postup GPT-4 byl na malý 13B model hodně náročný a ten to nepobíral. Ukázalo se, že je nejlepší nejdřív model ladit s ChatGPT (hloupější, méně náročný učitel) a pak až přejít na GPT-4 dolaďování (něco jako když potřebujete nejdřív nasát základy a pak až jít do většího detailu).
+
+Jak to dopadlo? V hodnocení GPT-4 dopadla Orca opravdu dobře, na úrovni ChatGPT - ale to je pocitovka, v které na tom nebyla špatně ani Vicuna (nicméně bylo vidět, že holá LLaMA je hodně pozadu). U profesionálních a akademických zkoušek už je ale rozdíl patrný - Orca je o něco hroší, než ChatGPT, ale výrazně před Vicuna. Samozřejmě však na pana profesora GPT-4 tady nikdo ani náhodou nemá. 
+
+
+Já si z toho dělám tyto závěry:
+- Zázraky se nedějí, velký model je inteligentnější a má daleko větší potenciál.
+- Trénovací data jsou zásadní a těch kvalitních je nedostatek. Dobře natrénovaný malý model může do jisté míry překonat svoje mozkové limity a přiblížit se některým větším modelům.
+- Velké modely toho mohou dokázat daleko víc, pokud by je měl kdo víc učit.
+- Bod zlomu nastane v okamžiku, kdy bude třeba GPT-X schopné navrhnout a vytrénovat svého chytřejšího nástupce. To je zatím vůbec neděje. Nicméně varianta opačná, kdy nejchytřejší modely trénují ty malé a méně chytré sice neposouvá maximální inteligenci dopředu, ale může mít zásadní praktické dopady. Třeba jednou dokáže slušně fungující model běžet v mobilu.
+- Metoda dát velmi kvalitní vzdělání hlupákovi má možná zajímavé důsledky ohledně bezpečnosti AI. Nepochybuji, že LLM má schopnosti manipulace lidí i hledání zločineckých postupů a proto je dobře, že nejsou volně ke stažení a před nimi je vrstva, která něco takového nepropouští. Přijde mi ale, že malý model bude příliš hloupý na to, aby si v datech sám našel něco takového. Pokud pro některé úlohy dosáhneme podobných výsledků, tak tu máme situaci snaživého hlupáka, který jede na maximum svých schopností, co jsme ho naučili versus geniálního profesora, kterého jsme zavřeli do klece a filtrujeme komunikaci s ním, aby se nepustil do něčeho, co nechceme. Kdo z nich bude bezpečnější?
+- Celá situace kolem dnešního AI je čím dál víc podobná učení dětí, koučování a vzdělávání. Směrujeme je, pomáháme jim se rozvinout, bráníme jim v dělání špatných věcí, ale neprogramujeme je. 
+
+
+
+
+

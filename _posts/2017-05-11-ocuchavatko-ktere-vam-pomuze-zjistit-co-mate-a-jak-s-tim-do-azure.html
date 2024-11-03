@@ -1,0 +1,65 @@
+---
+layout: post
+status: publish
+published: true
+title: Očuchávátko, které vám pomůže zjistit co máte a jak s tím do Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 717
+wordpress_url: http://tomaskubica.cz/?p=717
+date: '2017-05-11 05:20:10 +0000'
+date_gmt: '2017-05-11 04:20:10 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Bylo pro mě docela překvapení, když jsem zjistil, že Microsoft má volně dostupný nástroj s tajemným názvem Microsoft Assessment and Planning Toolkit (MAP tool). Vyšlo najevo, že je to velmi pěkné očuchávátko, které z vašeho prostředí či z prostředí zákazníka zjistí základní inventární informace (VMka, desktopy, virtualizační platformy, databáze) a k nim řadu dalších zajímavostí jako je využívání uživateli či zátěž a dokáže dát i zajímavé tipy ohledně migrace Oracle do MS SQL nebo VMware do Hyper-V, ale, a to mě zajímá nejvíc, i doporučení k migraci do Azure. Podívejme se jak to funguje a co to umí zjistit.<!--more--></p>
+<h1>MAP nástroj prakticky u mě v menším prostředí</h1>
+<p>V první řadě si nástroj stáhněte a nainstalujte v podporovaném operačním systému v síti, ve které bude k očuchávání docházet: <a href="https://www.microsoft.com/en-us/download/details.aspx?id=7826">https://www.microsoft.com/en-us/download/details.aspx?id=7826</a></p>
+<p>Software je nahoře a kdo by četl dokumentaci, že … spustíme discovery.</p>
+<p><img class="img-fluid wp-image-718 " src="/images/2017/img_5913e16963e7f.png" alt="" /><br />
+Určitě mě zajímají počítače s Windows a Linux.</p>
+<p><img class="img-fluid wp-image-719 " src="/images/2017/img_5913e26fb95f6.png" alt="" /></p>
+<p>Dále SQL servery, Azure migrace a nainstalovaný software.</p>
+<p><img class="img-fluid wp-image-720 " src="/images/2017/img_5913e29b1d63b.png" alt="" /></p>
+<p>K dispozici máme různé metody pro objevování zařízení, já zvolil jen hloupý klasický IP scan. V praxi ale určitě bude ideální použít prohledávání přes AD DS a/nebo přes SCCM, pokud používáte.</p>
+<p><img class="img-fluid wp-image-721 " src="/images/2017/img_5913e30be1e08.png" alt="" /></p>
+<p>Zadám IP range (nebo víc), ve kterém moje stroje jsou.</p>
+<p><img class="img-fluid wp-image-722 " src="/images/2017/img_5913e32e402ab.png" alt="" /></p>
+<p>Protože nepoužívám AD discovery a mám v portfoliu i Linux stroje, musím zadat credentials - nějaké účty, které může očuchávátko použít.</p>
+<p><img class="img-fluid wp-image-723 " src="/images/2017/img_5913e34f5aa2c.png" alt="" /></p>
+<p>Pak už jen chvilku čekejme.</p>
+<p><img class="img-fluid wp-image-724 " src="/images/2017/img_5913e373f0fc0.png" alt="" /></p>
+<p>Zatím jsme sbírali jen inventář, ale můžeme také sledovat výkonnostní charakteristiky a na základě toho zjistit odhad reálných potřeb a sizing pro Azure.</p>
+<p><img class="img-fluid wp-image-725 " src="/images/2017/img_5913e3938a327.png" alt="" /></p>
+<p>Můžeme si nechat provést sizing VM.</p>
+<p><img class="img-fluid wp-image-726 " src="/images/2017/img_5913e3ba4cc3a.png" alt="" /></p>
+<p>V reportu se pak dočteme například kolik a paměti a CPU se reálně používá.</p>
+<p><img class="img-fluid wp-image-727 " src="/images/2017/img_5913e3d90c00a.png" alt="" /></p>
+<p>Možná si budete chtít performance metriky analyzovat sami.</p>
+<p><img class="img-fluid wp-image-728 " src="/images/2017/img_5913e3ef14bf7.png" alt="" /></p>
+<p>K dispozici mám také report z hypervisorů.</p>
+<p><img class="img-fluid wp-image-729 " src="/images/2017/img_5913e40c9f702.png" alt="" /></p>
+<p>Získali jsme rovněž informace o tom, co je na jednotlivých serverech z hlediska OS, balíčků a aplikací.</p>
+<p><img class="img-fluid wp-image-730 " src="/images/2017/img_5913e426626be.png" alt="" /></p>
+<p><img class="img-fluid wp-image-731 " src="/images/2017/img_5913e435aa1bb.png" alt="" /></p>
+<h1>Co dokázal MAP posbírat ve velkém IT</h1>
+<p>Moje prostředí bylo značně omezené, takže se nástroj nemohl dostatečně vyřádit. Součástí instalačky jsou ale příklady reportů, které nástroj umí dělat. Pojďme se podívat na pár těch, co jsou relevantní pro migraci do Azure.</p>
+<p>SQL servery jsou analyzovány tak, že máme k dispozici informace o jednotlivých SQL instancích, verzích a sizingu.</p>
+<p><img class="img-fluid wp-image-732 " src="/images/2017/img_5913e468690c0.png" alt="" /></p>
+<p>Určitě se bude hodit třeba informace o velikostech konkrétních databází.</p>
+<p><img class="img-fluid wp-image-733 " src="/images/2017/img_5913e4a37e812.png" alt="" /></p>
+<p>Co se SQL týče je perfektní tento nástroj doplnit detailní kalkulačkou, která sbírá údaje z vašeho serveru a na základě přesných měření skutečného zatížení doporučí sizing Azure SQL (<a href="http://dtucalculator.azurewebsites.net/">http://dtucalculator.azurewebsites.net/</a>). Na tento nástroj se podíváme v jiném článku.</p>
+<p>Máte v síti weby postavené na IIS? Najdete je v reportu.</p>
+<p><img class="img-fluid wp-image-734 " src="/images/2017/img_5913e4dbac8fd.png" alt="" /></p>
+<p>Nechybí údaje o Linux strojích.</p>
+<p><img class="img-fluid wp-image-735 " src="/images/2017/img_5913e5029b352.png" alt="" /></p>
+<p>Získáte i výpis z hypervisoru - podporované je Hyper-V a VMware.</p>
+<p><img class="img-fluid wp-image-736 " src="/images/2017/img_5913e5275ca4a.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>MAP nástroj není zázračný prostředek, který v jednom kroku udělá ve vašem IT pořádek a rovnou vás připraví na cloud. Můžete namítnout, že stejné informace získáte ve svých nástrojích pro správu a to je samozřejmě v pořádku. Přesto - dotaz zda existuje jednoduchý nástroj, který by sesbíral podklady pro cvičení typu co půjde do cloudu, co kde běží, kolik čeho budu v cloudu potřebovat a jaké je TCO, dostávám celkem často. Tady je jednoduchá odpověď ... a je to úplně zdarma.</em></p>

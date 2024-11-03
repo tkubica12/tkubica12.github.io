@@ -1,0 +1,47 @@
+---
+layout: post
+status: publish
+published: true
+title: Předávání tajností do App Service (WebApp) přes Azure Key Vault
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2617
+wordpress_url: http://tomaskubica.cz/?p=2617
+date: '2018-11-29 06:37:25 +0000'
+date_gmt: '2018-11-29 05:37:25 +0000'
+categories:
+tags:
+- AppService
+- Security
+---
+<p>Ve vaší WebApp můžete udržovat konfigurační parametry v záložce Application Settings. Tyto jsou bezpečně uloženy, nicméně jejich správu musíte provádět přes WebApp samotnou. Na ukládání tajností jako jsou hesla nebo connection stringy je k dispozici výborná služba Azure Key Vault. Od včerejška je možné ji použít i pro předávání parametrů vašim aplikacím v Application Services aniž byste museli napsat byť jen jedinou řádku kódu! Pojďme se na to podívat.</p>
+<p><!--more--></p>
+<p>Proč používat Azure Key Vault? Klíčovou výhodou je, že máte jedno bezpečné místo pro správu klíčů, hesel, connection stringů a certifikátů. Přístup do trezoru můžete dát jen oprávněným osobám a spravovat vaše tajnosti tam. Aplikace si mohou tyto údaje z trezoru vyzvedávat a aby se mohly ověřovat vůči trezoru lze využít Managed Service Identity. Jde o to, že vaše VM nebo WebApp se sama zaregistruje v Azure Active Directory jako Service Principal a tomu můžete dát do trezoru přístup. Nicméně až do včerejška to u WebApp vyžadovalo, že musíte napsat kód, který to vyzvednutí udělá. Dnes už je ale možné pro Application Settings použít referenci na trezor a aplikace si heslo vyzvedne standardním způsobem bez přizpůsobování kódu. Ať už je to z konfigurační kolekce v .NETu nebo jako env proměnná pro Javu , Javascript, Python nebo PHP. Vyzkoušejme si to.</p>
+<p>Nejprve jsem si vytvořil Azure Key Vault a založíme v něm nějaké tajné heslo.</p>
+<p id="YBeNgfv"><img class="img-fluid wp-image-2619 " src="/images/2018/img_5bff772242fc7.png" alt="" /></p>
+<p id="zGCSSFz"><img class="img-fluid wp-image-2621 " src="/images/2018/img_5bff775202f9b.png" alt="" /></p>
+<p>Po vytvoření hesla si zjistíme jeho přesné URL. Služba integrace s WebApp je aktuálně v Preview a zatím nepodporuje verzování (nicméně je to v plánu) a potřebujeme URL na konkrétní verzi hesla. Tu si uložme, budeme ji potřebovat.</p>
+<p id="ZvCMCSL"><img class="img-fluid wp-image-2622 " src="/images/2018/img_5bff77a03f9ab.png" alt="" /></p>
+<p id="aoofcUh"><img class="img-fluid wp-image-2623 " src="/images/2018/img_5bff77c0f0b70.png" alt="" /></p>
+<p>Pro svou webovou aplikaci se nechám vytvořit Managed Service Identitu.</p>
+<p id="OsSuJOH"><img class="img-fluid wp-image-2624 " src="/images/2018/img_5bff785c0344c.png" alt="" /></p>
+<p>Teď musíme jít do Azure Key Vault a naší WebApp dát právo na přístup k vyzvedávání secrets.</p>
+<p id="dcYCQlf"><img class="img-fluid wp-image-2625 " src="/images/2018/img_5bff789c12f09.png" alt="" /></p>
+<p id="yTINIhz"><img class="img-fluid wp-image-2626 " src="/images/2018/img_5bff78c6abf7f.png" alt="" /></p>
+<p>Aplikaci povolím GET operaci nad Secrets.</p>
+<p id="OXJaZit"><img class="img-fluid wp-image-2627 " src="/images/2018/img_5bff78f57ebee.png" alt="" /></p>
+<p id="OGcUXKq"><img class="img-fluid wp-image-2628 " src="/images/2018/img_5bff791198337.png" alt="" /></p>
+<p id="yWtMNwd"><img class="img-fluid wp-image-2629 " src="/images/2018/img_5bff7930bda91.png" alt="" /></p>
+<p>Výborně. Teď pojďme do Application Settings v mé WebApp a zadáme klíč, ale jeho hodnota bude reference na Key Vault. Tam potřebujeme dříve poznamenané URL a formát vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">@Microsoft.KeyVault(SecretUri=https://mujkeyvaultprowebapp.vault.azure.net/secrets/mojeheslo/03d6bc2991b04846918cc92f6bd81830)</pre>
+<p id="ZTktVOE"><img class="img-fluid wp-image-2630 " src="/images/2018/img_5bff79be1908a.png" alt="" /></p>
+<p>Uložíme a podíváme se, že se všechno povedlo. V env uvidíme, že WebApp si heslo vyzvedla z trezoru.</p>
+<p id="EOEWryr"><img class="img-fluid wp-image-2631 " src="/images/2018/img_5bff7a141ff22.png" alt="" /></p>
+<p>Je tam!</p>
+<p>&nbsp;</p>
+<p><em>Chcete oddělit správu tajností jako jsou hesla, connection stringy, klíče nebo certifikáty od provozu do trezoru? Nechce se vám dávat do aplikace kód na vyzvedávání z trezoru? Díky nové integraci Application Services a Azure Key Vault nemusíte na své aplikaci vůbec nic měnit. Zkuste si to.</em></p>

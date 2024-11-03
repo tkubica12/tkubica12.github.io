@@ -1,0 +1,48 @@
+---
+layout: post
+status: publish
+published: true
+title: Nestartuje vám OS? V Azure díky sériové konzoli žádný problém.
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1996
+wordpress_url: http://tomaskubica.cz/?p=1996
+date: '2018-03-28 05:46:07 +0000'
+date_gmt: '2018-03-28 04:46:07 +0000'
+categories:
+tags:
+- Compute
+---
+<p>U lokálního hypervisoru se dostanete do VM i v okamžiku, kdy je s ní nějaký problém - špatně nastavená síť, moc restriktivní firewall, poškozené nastavení mountování disků apod. Ale ve veřejném cloudu je váš přístup do VM postaven na IP komunikaci s SSH nebo RDP, maximálně se můžete podívat na bootovací sekvenci, ale nic neopravíte. Azure je ale jiný - nově přichází s plnohodnotnou sériovou konzolí. Pojďme si ji vyzkoušet.<!--more--></p>
+<h1>Proč se sériová konzole hodí</h1>
+<p>Velký okruh potenciálních problémů se týká síťové komunikace. Stačí omylem zakázat síťovou kartu a máte po přístupu. Nebo možná špatně nastavit IP či zakázat si SSH či RDP na vnitřním firewallu. Další situace se týká spuštěných služeb - například v systemd v Linuxu omylem zakážete spuštění sshd po startu nebo ve Windows zakážete RDP. Může také jít o problém s disky a souborovým systémem. Někdy je při podezření na poškození FS při startu systému nutné něco odklepnout - a v ten okamžik ještě vzdálený přístup nefunguje. Nebo při nastavení mountování v Linuxové fstab spácháte překlep a OS se při startu zastaví.</p>
+<p>To jsou všechno situace, které je v cloudu obtížné řešit. Často to vede na nutnost si vyexportovat image, ten napojit do jiné VM a v souborovém systému věci opravovat. Nic moc. Azure ale právě přichází se sériovým přístupem, skutečným řešením. A mimochodem v době psaní článku tohle AWS nemá :)</p>
+<h1>Sériová konzole s Linuxem</h1>
+<p>Při vytváření VM (nebo klidně později) zapneme Boot Diagnostics. To dřív sloužilo pouze pro jednosměrný sběr logů ze sériové konzole, ale nově umožňuje právě interaktivní přístup.</p>
+<p id="AQSJSSq"><img class="img-fluid wp-image-1997 " src="/images/2018/img_5abb141e30063.png" alt="" /></p>
+<p>Připojme se na sériovou konzoli a uvidíme server bootovat. Interaktivní okno je postavené na stejné technologii jako velmi oblíbený Azure Cloud Shell. Můžeme tak například vidět Grub, skočit do něj a nabootovat si do Emergency Mode, což podle konkrétního nastavení OS můžeme posloužit k recovery hesla.</p>
+<p id="pdyaMUW"><img class="img-fluid wp-image-1999 " src="/images/2018/img_5abb175446e54.png" alt="" /></p>
+<p>Nebo sledovat start OS a interagovat s ním.</p>
+<p id="cbdesvQ"><img class="img-fluid wp-image-1998 " src="/images/2018/img_5abb15f4cead7.png" alt="" /></p>
+<p>Tady jsem nabootoval do emergency módu.</p>
+<p id="dEpJCIy"><img class="img-fluid wp-image-2001 " src="/images/2018/img_5abb19964cbd3.png" alt="" /></p>
+<p>Díky tomu můžu změnit zapomenuté heslo.</p>
+<p id="BCxtRvv"><img class="img-fluid wp-image-2000 " src="/images/2018/img_5abb197f1f61a.png" alt="" /></p>
+<h1>Sériová konzole s Windows</h1>
+<p>Víte, že ve Windows už poměrně dlouho existuje režim s přístupem přes sériový port? Já to nevěděl. Jmenuje se Special Administrative Console (SAC) a pokud jste vytvořili Windows VM v Azure v březnu 2018 nebo později, je automaticky zapnutý (pokud dříve, musíte si ho v OS zapnout).</p>
+<p>Stejně jako u Linux nezapomeňte zapnout Boot Diagnostics. Zapneme si interaktivní konzoli v portálu a uvidíme SAC.</p>
+<p id="kHyUCzV"><img class="img-fluid wp-image-2002 " src="/images/2018/img_5abb1a070ade0.png" alt="" /></p>
+<p>Hmm, nějaké základní věci se tu dají dělat. Nicméně můžeme si vytvořit nový kanál s cmd a skočit do něj.</p>
+<p id="nTsQNZf"><img class="img-fluid wp-image-2004 " src="/images/2018/img_5abb1b226a304.png" alt="" /></p>
+<p id="LOAACCd"><img class="img-fluid wp-image-2005 " src="/images/2018/img_5abb1b799c831.png" alt="" /></p>
+<p id="TYvINXz"><img class="img-fluid wp-image-2006 " src="/images/2018/img_5abb1ba23bd14.png" alt="" /></p>
+<p>No odtud už snadno skočíte do PowerShell, kde jistě na rozdíl ode mne dokážete kouzla.</p>
+<p id="ybznoPm"><img class="img-fluid wp-image-2009 " src="/images/2018/img_5abb1cb405f87.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Co když se odstřihnu nebo mi OS nenastartuje? Velmi častá otázka administrátorů při seznamování se s veřejným cloudem. V Azure díky sériové konzoli není nic ztraceno, připojte se a opravte co potřebujete. Funkce je v preview, vyzkoušet ji můžete ještě dnes.</em></p>
+<p>&nbsp;</p>

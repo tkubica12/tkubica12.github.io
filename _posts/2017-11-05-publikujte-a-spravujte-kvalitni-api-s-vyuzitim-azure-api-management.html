@@ -1,0 +1,63 @@
+---
+layout: post
+status: publish
+published: true
+title: Publikujte a spravujte kvalitní API s využitím Azure API Management
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1583
+wordpress_url: http://tomaskubica.cz/?p=1583
+date: '2017-11-05 21:05:36 +0000'
+date_gmt: '2017-11-05 20:05:36 +0000'
+categories:
+tags:
+- Apps
+---
+<p>Svět dnešních aplikací je postaven na API a nejen to - tyto se stávají nejen interním nástrojem pro agilnější vývoj aplikací a odemknutí inovací, ale také obchodním nástrojem pro spolupráci s partnery i zákazníky. Vytvořit kvalitní API, zabezpečit, verzovat, dokumentovat, dlouhodobě spravovat, agregovat a začlenit starší systémy a analyzovat jeho používání není bez použití vhodného nástroje nic jednoduchého. Právě to řeší Azure API Management. Dnes se podíváme na to "proč" a v následujících článcích si prakticky ukážeme jak řešit jednotlivé situace.<!--more--></p>
+<h1>Proč Azure API Management</h1>
+<p>Existuje hned několik důvodů proč využívat API Management.</p>
+<h2>Sjednocení a modernizace API celé aplikace</h2>
+<p>Často bývají aplikace složeny z komponent a pokud nestavíte na zelené louce, tyto vznikaly různými způsoby v čase. To přináší dvě potíže z hlediska jednoduchosti napojení dalších aplikací.</p>
+<p>Prvním problémem je to, že pro přístup na aplikační API musíte znát všechny potřebné endpointy - různé komponenty běží na různých místech (DNS jménech) a tuto logiku musí pak ostatní aplikace mít. Musí vědět kam se mají obracet pro získání různých typů informací a to je poměrně komplexní.</p>
+<p>Druhá potíž spočívá v nekonzistencích daných historickým vývojem. Některé komponenty mohou používat XML, ale jiné JSON. Některé nevyžadují žádné ověření, jiné používají Basic Authentication zatímco jiné klienstký certifikát. Dost možná máte i API, která ještě nejsou REST, ale jsou postaveny na SOAP. Vyznat se v tom může být velmi obtížné a reálně se tak snižuje využitelnost celého řešení.</p>
+<p>API management dokáže zajistit konsolidaci na jeden endpoint a zahladit rozdíly - může konvertovat XML na JSON, může konvertovat SOAP v backendu na REST, autentizace externích přístupů jsou oddělené od vnitřního používání API a systém tak sjednocuje i tuto vlastnost.</p>
+<h2>Oddělení fasády od interních API</h2>
+<p>V rámci interních týmů může docházet k poměrně bouřlivému vývoji, změnách komponent, modernizaci komponent a nechceme, aby toto vedlo k nutnosti změnit kód aplikací jiných týmů či partnerů. Jinak řečeno fasáda, tedy externí reprezentace aplikace, by měla být oddělena od detailů vnitřní implementace.</p>
+<p>Tak například aktuálně může být vaše aplikace koncipována jako monolit, ale chcete v průběhu třeba roku postupně oddělovat některé komponenty do samostatných mikroslužeb. To není něco, s čím bych chtěl okolní svět zatěžovat. API Management vám tedy umožní vytvořit fasádu pro stávající monolit a jak budete postupně vytvářet mikroslužby, externí fasáda se měnit nebude.</p>
+<p>Podobně můžete ve fasádě nasadit Mock, tedy pouze simulovanou verzi API. Představte si třeba, že kromě stávajících API chystáte rozšíření funkcí o další, ale ty ještě nemáte hotové. Přesto chcete vývojářům (jiným týmům ve vaší organizaci nebo partnerským organizacím) umožnit začít se na nové funkce připravovat. API Management dovoluje vytvořit API ve fasádě, které ale není spojeno s žádným backendem (který zatím neexistuje), ale vrací nějakou statickou hodnotu. Díky tomu může další tým už začít pracovat na kódu, který nová API využije - zkrátka až bude vaše implementace hotová, přenastavíte fasádu tak, že začne vracet reálné hodnoty.</p>
+<p>Pokud vrací některá API poměrně statické výsledky, může vám Azure API Management nabídnout caching. Tedy po prvním dotazu se odpověď na nějakou dobu uloží a následně není nutné vždy kontaktovat backend - to vede k nižším latencím a úspoře na výkonu backend zdrojů.</p>
+<h2>Zjednodušení vývoje webových a mobilních aplikací</h2>
+<p>Zejména při používání mikroslužeb, kdy jednotlivé komponenty aplikace nabízí samostatné služby, může být front end poměrně komplikovaný. Ať už jde o Javascript webu nebo třeba Xamarin pro mobilní svět, držet v kódu logiku pro přístup na velké množství různých API a informace z nich agregovat a vykreslovat je náročné. Často se tak používá pattern "backend for frontend", tedy že nad surovým API komponent vystavíte specifické API optimalizované pro jednotlivé frontendy. To umožní například agregovat jednotlivé volání a nabízet přidanou hodnotu specificky pro potřeby konkrétního frontendu. Azure API Management vám pomůže i s tím.</p>
+<h2>Dokumentace, správa a udržitelnost API</h2>
+<p>Jakmile chcete API nabídnout dalším týmům ve firmě nebo dokonce partnerům či veřejnosti, je velmi zásadní udržovat kvalitní a aktuální dokumentaci, správně verzovat API a řešit release modifikací. Azure API Management tyto funkce má. API nejen nadesignujete, ale popíšete, přidáte schéma a příklady a systém sám vygeneruje portál pro developery s živou dokumentací, příklady použití apod. Můžete provádět a spravovat generační změny v API (například /api/v1/ a /api/v2/) a uvnitř generace řešit revize- to funguje podobně jako třeba deployment sloty v App Services.</p>
+<h2>API jako byznys</h2>
+<p>Jakmile nabízíte API jiným subjektům, ať už interně či externě, budete potřebovat řešit několik dalších věcí. Jednou z nich je nabízet různé balíčky API (například plnou verzi a omezenou verzi) a vyřešit bezpečný přístup k nim, tedy registraci subjektu a vygenerování přístupových informací do API (samotná registrace a přístup na developerský portál může být integrována například s Azure Active Directory ověřením, Azure AAD B2C, Facebook, Google či jakýmkoli vaším vlastním třeba s Open Connect ID).</p>
+<p>Kromě balíčků API budete jistě chtít ochranu před nadměrným používáním nebo toho využít pro svůj obchodní model. Tak například verze zdarma může nabízet plnou funkčnost, ale omezení na 10 volání za minutu. To může stačit pro testování nebo primitivní aplikace, ale pro vážně míněné použití si developeři jistě rádi připlatí za balíček, který umožňuje třeba 1000 volání za minutu.</p>
+<p>A co když má developer dotazy nebo něco nefunugje dle očekávání? Azure API Management developerský portál můžete upravit tak, že bude obsahovat třeba často kladené otázky nebo možnost poskytnou zpětnou vazbu.</p>
+<h2>Analytika API volání jako vstupní data pro byznys</h2>
+<p>Veškerá volání je možné analyzovat a to buď přímo nativními prostředky Azure API Management (tam jde spíše o statistiku), ale jsou připravené i as-a-service integrace do pokročilé analytiky (kombinace Event Hub, Streaming Analytics, Analytics Services a Power BI) - výsledkem je, že v Power BI pak můžete sledovat inteligentní analýzu používání vašeho API. Jaké funkce ostatní týmy a partneři používají, je to optimální, nepokusili se pracovat s API způsobem, který vám nevyhovuje? Tyto informace jsou velmi zajímavá data pro byznys. Díky tomu víte, jak který partner či zákazník vaši službu využívá, co ho zajímá a co ne, jak jeho používání vypadá v čase (co dělá ve dne, co v noci apod.). Pokud například zaznamenáte nový zájem o novou část vašeho API, zvýšení či naopak snížení používání některých API, možná je to čas mu zavolat.</p>
+<h1>Co je Azure API Management</h1>
+<p>Jde o vynikající API Management nabízený formou služby v Azure: <a href="https://azure.microsoft.com/en-us/services/api-management/">https://azure.microsoft.com/en-us/services/api-management/</a></p>
+<p>Velmi snadno si ho založíte a vyberete si z různých cenově odstupňovaných variant. Pak hned můžete začít vytvářet vaše API - buď přímo v GUI, importem z openAPI (Swagger) či WADL, importem existujících SOAP API či nahráním rovnou z Azure backend technologií jako je Azure Functions, Logic Apps nebo API Apps v rámci App Services.</p>
+<p id="GCrVchM"><img class="img-fluid wp-image-1588 " src="/images/2017/img_59fc3012b0a0e.png" alt="" /></p>
+<p>Pak už můžete designovat své API, transformovat, aplikovat politiky, verzovat, řešit revize apod.</p>
+<p id="pJWxoyu"><img class="img-fluid wp-image-1589 " src="/images/2017/img_59fc3040e7138.png" alt="" /></p>
+<p>Automaticky se vám vygeneruje developerský portál, který si ale můžete jednoduše upravit do svého designu, přidat časté otázky a tak podobně. V portálu je živá dokumentace, kde si může vývojář API rovnou vyzkoušet.</p>
+<p id="RBUWVkF"><img class="img-fluid wp-image-1590 " src="/images/2017/img_59fc30847a321.png" alt="" /></p>
+<p>Dokonce se mu automaticky vygenerují ukázky v jeho oblíbeném programovacím jazyce.</p>
+<p id="GeAPShD"><img class="img-fluid wp-image-1591 " src="/images/2017/img_59fc30ab144fc.png" alt="" /></p>
+<p>API můžete začít sdružovat do produktů a dávat k nim přístup jednotlivým parnerům, vývojářům či externím firmám.</p>
+<p id="rWWBJYl"><img class="img-fluid wp-image-1592 " src="/images/2017/img_59fc30d58ed99.png" alt="" /></p>
+<p>Jednoduše můžete také změnit třídu služby (zvýšit výkon i funkce) či přidat instance (z důvodu dalšího škálování výkonu a vysoké dostupnosti). Vícero instancí vám automaticky zajistí balancing (a u prémium verze dokonce mezi regiony) a výkon, ale vše stále ovládáte z jednotného portálu a vývojáři také nepoznají rozdíl.</p>
+<p id="IfQHYUP"><img class="img-fluid wp-image-1593 " src="/images/2017/img_59fc31186adba.png" alt="" /></p>
+<p>Pokud váš backend běží ve VM v Azure nebo dokonce u vás v on-premises, ale máte VPN či ExpressRoute propojení, API Management se dokáže integrovat do vašeho VNETu.</p>
+<p id="MRVobRD"><img class="img-fluid wp-image-1594 " src="/images/2017/img_59fc316f33dfe.png" alt="" /></p>
+<p>Přístup do portálu a registraci nového subjektu můžete ověřovat mnoha způsoby včetně custom integrace třeba do existujícího Open Connect ID systému.</p>
+<p id="QnBBnYA"><img class="img-fluid wp-image-1595 " src="/images/2017/img_59fc31b4b1669.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Tolik k úvodu do Azure API Management - v dalších článcích už si prakticky ukážeme některého jeho funkce. Dnešní doba je o API - jak pro interní použití, kdy další týmy mohou nad vaší aplikací stavět a přinášet další inovace pro váš byznys, nebo pro externí použití, kdy můžete zpřístupnit své služby obchodním partnerům, zákazníkům nebo veřejnosti. Vyzkoušejte si to!</em></p>

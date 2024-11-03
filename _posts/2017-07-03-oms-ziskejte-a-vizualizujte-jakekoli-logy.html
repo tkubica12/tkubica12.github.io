@@ -1,0 +1,78 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Log Analytics: získejte a vizualizujte jakékoli logy'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 919
+wordpress_url: http://tomaskubica.cz/?p=919
+date: '2017-07-03 05:47:05 +0000'
+date_gmt: '2017-07-03 04:47:05 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Log Analytics (OMS) dokáže sbírat Windows eventy a také Syslog. Linuxové aplikace ovšem často místo do syslogu využíva logování do vlastního souboru (a některé aplikace ve Windows také). Jak takové logy dostat do systému? A jak je parsovat a indexovat jednotlivá políčka? A jak z toho všeho udělat krásný dashboard? Podívejme se dnes jak na to.<!--more--></p>
+<h1>Získání libovolných logů</h1>
+<p>OMS agent v Linuxu je schopen sbírat Linux logy a také současně nativně umí získávat logy z MySQL, Apache a monitorovat Docker. Ukažme si, jak přes agenta posílat do OMS libovolné další logy ze souboru. Funguje to jak pro Linux tak Windows, ale pro tento příklad použiji Ubuntu.</p>
+<p>Tato funkce je aktuálně v Preview, takže ji musíme nejprve explicitně povolit.</p>
+<p id="ggAspAY"><img class="img-fluid wp-image-920 " src="/images/2017/img_594a73d78a614.png" alt="" /></p>
+<p>Pokud chcete zůstat v GUI (a pro dnešek chci) je nastavení custom logů společné pro všechny monitorované stroje (samozřejmě pokud na konkrétním OS takový log neexistuje, nebude se nic posílat, ale k žádné chybě nedojde). Pokud potřebujete skutečně nastavení pro individuální VM zvlášť, je to možné, ale musíte to vyřešit přímo v konfiguračním souboru daného OMS agenta. Pojďme si tedy přidat pravidlo pro získávání konkrétního log souboru.</p>
+<p>Jděte do nastavení OMS a přidejte nový log.</p>
+<p id="oWkLdRL"><img class="img-fluid wp-image-921 " src="/images/2017/img_594a74a584d97.png" alt="" /></p>
+<p>OMS chce ukázat příklad obsahu logu. Jednotlivé hlášky bude podle řádek a použil jsem následující vlastní log:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">INFO 201 "Vsechno vypada ok"
+INFO 201 "Porad je to ok"
+DEBUG 301 "Zkousim se pripojit"
+ERROR 401 "Sluzba neni dostupna"
+INFO 202 "Databaze je ok"</pre>
+<p>Pojďme ho naservírovat OMS.</p>
+<p id="pJinjCe"><img class="img-fluid wp-image-922 " src="/images/2017/img_594a7aa2c4f84.png" alt="" /></p>
+<p>Co má OMS brát za jednotlivé hlášky? V mém případě to budou jednotlivé řádky (ke sloupcům se dostaneme, to se parsuje jinde).</p>
+<p id="RIMiFRp"><img class="img-fluid wp-image-923 " src="/images/2017/img_594a7ad39377e.png" alt="" /></p>
+<p>Následně řekneme kde má OMS agent log hledat. Já zadám konkrétní soubor, ale můžete také použít hvězdičku. OMS nepodporuje řešení, kdy se soubor po nějaké době přepíše. použijte trvale rostoucí log, nebo vytvoření nového souboru s pořadovým číslem například po každých 100MB dat apod. (pak použijete hvězdičky).</p>
+<p id="DPyLsaO"><img class="img-fluid wp-image-926 " src="/images/2017/img_594a7bde00061.png" alt="" /></p>
+<p>Na závěr zadáme jméno custom logu. To bude v systému zařazeno jako nový Type.</p>
+<p id="vXasYCu"><img class="img-fluid wp-image-927 " src="/images/2017/img_594a7c1b58e2c.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Teď musíme chvilku čekat, ze začátku může nějakou dobu trvat, než se logy objeví.</p>
+<p id="QCotRqN"><img class="img-fluid wp-image-937 " src="/images/2017/img_594abecfe4ebf.png" alt="" /></p>
+<p>Výborně, právě se nám podařilo dostal vlastní speciální logy do OMS!</p>
+<h1>Parsujeme náš log</h1>
+<p>Jednotlivé řádky logu máme v OMS jako jednotlivé zprávy a to je dobře. Jenže celý řádek je zanesen jako jediný atribut RawData, přitom jsou uvnitř informace ("sloupečky"), které se dají parsovat, abychom je mohli mít indexováné a filtrovat podle nich.</p>
+<p>V našem seznamu hlášek klikněte na tři tečky a zvolte extrahovat políčka.</p>
+<p id="beEhbBv"><img class="img-fluid wp-image-938 " src="/images/2017/img_594ac00c99f2f.png" alt="" /></p>
+<p>OMS používá inteligentní parsovací technologii, takže nemusíte psát složité RegEx paterny, stačí označit to, co považujete za unikátní políčko.</p>
+<p id="DhQyiSB"><img class="img-fluid wp-image-939 " src="/images/2017/img_594ac08709366.png" alt="" /></p>
+<p>OMS vám ukáže jak by to vypadalo u ostatních hlášek.</p>
+<p id="KJYdbDj"><img class="img-fluid wp-image-940 " src="/images/2017/img_594ac0fcc3f00.png" alt="" /></p>
+<p>Uložte extrakci a opakujte pro další políčka, pak nějakou dobu počkejte. OMS nedokáže jít a zpětně logy doparsovat, ale nové už ano. Vygeneroval jsem tedy nějaké další záznamy do logu a podívejme se, jak jsou v OMS vidět.</p>
+<p id="PxmmOcZ"><img class="img-fluid wp-image-942 " src="/images/2017/img_594ac469e81e4.png" alt="" /></p>
+<p>Všimněte si, že políčka jsou vyparsovaná a hlavně modrá, tedy indexovaná a můžeme podle nich dělat různé filtrační a agregační operace, zobrazovat grafy apod. Můžeme tedy například získat počet hlášek za jednotlivé severity.</p>
+<p id="ExUMBMN"><img class="img-fluid wp-image-944 " src="/images/2017/img_594ac509c788d.png" alt="" /></p>
+<p>Query si zapamantujte, hned se nám bude hodit. Máme vyparsováno, tak co kdybychom si udělali dashboard?</p>
+<h1>Vytvoříme si dashboard</h1>
+<p>Co kdybychom z předchozího query udělali nějaký hezký obrázek? Klikněte na zelené + a přesuňte na plochu třeba koblihový graf.</p>
+<p><img class="img-fluid wp-image-945 " src="/images/2017/img_594ac5988d0c1.png" alt="" /></p>
+<p>Zadejte naše query.</p>
+<p id="hZqSHOs"><img class="img-fluid wp-image-946 " src="/images/2017/img_594ac66204eb3.png" alt="" /></p>
+<p>Pak už se můžeme kochat výsledkem.</p>
+<p id="XwvjBCj"><img class="img-fluid wp-image-947 " src="/images/2017/img_594ac71fd10aa.png" alt="" /></p>
+<p id="RvMGngU">Můžete také vytvářet komplexnější View, které se zobrazí po rozkliknutí - třeba něco takového:</p>
+<p id="pWdUbuN"><img class="img-fluid wp-image-949 " src="/images/2017/img_594ac850dd922.png" alt="" /></p>
+<p>Všechno do modra ale také není to pravé, že? Pojďme namapovat barvy jinak.</p>
+<p id="QoxfKCd"><img class="img-fluid wp-image-951 " src="/images/2017/img_594ac918bc65a.png" alt="" /></p>
+<p>Udějme totéž pro budík. Takže v hlavním OMS dashboardu je tohle:</p>
+<p id="ItZjGSs"><img class="img-fluid wp-image-954 " src="/images/2017/img_594acab2e10db.png" alt="" /></p>
+<p>No a když si klikneme, dostaneme se sem:</p>
+<p id="WyWrHyz"><img class="img-fluid wp-image-955 " src="/images/2017/img_594acb115e7c4.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>OMS dokáže přes agenta získat log z libovolného souboru, parsovat jeho políčka a nakonec i vykreslit přehledné vizualizace. Nejste omezeni na to, co vám dává Microsoft v základu - přidejte si co potřebujete, je to jednoduché.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

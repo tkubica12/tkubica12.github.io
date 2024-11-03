@@ -1,0 +1,190 @@
+---
+layout: post
+status: publish
+published: true
+title: Azure Automation na příkladu změny tieru webové aplikace
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 634
+wordpress_url: http://tomaskubica.cz/?p=634
+date: '2017-04-28 05:48:33 +0000'
+date_gmt: '2017-04-28 04:48:33 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Azure platforma v sobě obsahuje obrovské množství automatizace. Škálování počtu VM či nodů hostujících webové aplikace, začleňování do balanceru a asi tisíc dalších věcí. Někdy ale můžete chtít svoje vlastní automatizace a pak můžete například napsat velmi mocné PowerShell skripty, které kromě Azure rozhýbou i vaše operační systémy či aplikace. Jedna věc je ale poslat z notebooku skript do Azure a druhá mít centralizovaný orchestrovaný rámec, který funguje i když se veze váš notebook v metru. To je Azure Automation a dnes si ho vyzkoušíme.</p>
+<h1>Azure Automation</h1>
+<p>O co jde? V nejjednodušší podobě si to představte jako sdílený server, kde máte svoje uzavřené PowerShell prostředí (tam si můžete instalovat různé další moduly a jste odděleni od ostatních) a nad tím je systém, který spouští vaše skripty jak potřebujete. Možná v pravidelných časech, možná jako reakci na nějaký alert nebo čeká na webhook na REST zavolání z jiného libovolného nástroje či je integrován s OMS. Tyto skripty mohou nejen ovládat Azure jako takový, ale samozřejmě dělat další operace - přistupovat do operačních systémů, exportovat data z databáze, rozesílat emaily a notifikace uživatelům a tak podobně.</p>
+<p>Možná se ptáte proč zapřísáhlý zastánce desired state, tedy deklarativních automatizačních postupů, propaguje workflow model (imperativní přístup), tedy krok za krokem řešení ve skriptech? Tyto dva světy se totiž výborně doplňují. Pro provisioning infrastruktury v Azure bych určitě šel do ARM šablon, případně Terraformu či CloudForms (a pro jednodušší situace možná Ansible či Chef). Pro provisioning vnitřku VM (OS, aplikace) bych volil Ansible, případně Chef či Puppet a pro Windows svět (pakliže váš tým je zaměřen jen tímto směrem) PowerShell DSC. Jsou ale situace, kdy potřebujete procesní přístup. Udělej tohle, pak tamto. Vyzkoušej něco a podle odpovědi postupuj dál. Zjistit si něco z externích zdrojů a zařid se podle toho. To je také velmi důležité, desired state procesní pohled nezachycuje. Někdy tedy bude naprosto ideální použít jednoduše oboje. Azure Automation bude orchestrovat komplexní proces (třeba DR), ale pro některé úkony se rozhodně nemusí stydět zavolat ARM a PowerShell DSC.</p>
+<p>Azure Automation ale dokáže tahat i za vaší on-premises infrastrukturu a pro ten účel existuje koncept Hybrid Runbook Worker. Jde v zásadě o agenta, kterého nainstalujete na VM v on-premises a ten komunikuje s Azure Automation (nemusíte tedy otevírat žádné porty dovnitř do vaší infrastruktury, je to bezpečné). Ten si z Azure stáhne zadanou práci a lokálně ji provede.</p>
+<p>Azure Automation kromě klasických PowerShell skriptů umožňuje používat také PowerShell Workflow. V čem je jiné? Především jde o schopnost paralelizace, tedy úkony se neřeší sekvenčně jak u běžného skriptu, ale můžete definovat co může být prováděno současně a dramaticky tak zrychlit běh celého workflow. Druhým aspektem je schopnost vytváření checkpointů, tedy komplexní workflow může v určitém místě uchovat svůj stav a vy máte možnost z tohoto bodu pokračovat dál. To nabízí větší robustnost, která je vhodná zejména pro velmi komplexní operace jako je disaster recovery vašeho datového centra.</p>
+<p>Posledním velkým bodem je orchestrace úkonů PowerShell DSC, tedy desired state konfigurace vašich Windows strojů. Definujete co v něm chcete nebo naopak nechcete mít a robot to uvede do požadovaného stavu. I to je možné pořídit v rámci Azure Automation.</p>
+<h1>Vytvořme si automation účet</h1>
+<p>Nejprve si pojďme vytvořit Azure Automation účet.</p>
+<p id="wrBXcbX"><img class="img-fluid wp-image-639 " src="/images/2017/img_5901a76190a47.png" alt="" /></p>
+<p>Určíme si jméno a lokalitu a také necháme vytvořit Run As účet. Pod ním bude Azure Automation vykonovávat svoje zásahy do Azure, takže víte přesně co udělal robot a co člověk. Máte možnost si s tím pohrát i ručně a mít ještě víc pod kontrolou, ale to já teď nepotřebuji.</p>
+<p id="IKXfhfG"><img class="img-fluid wp-image-640 " src="/images/2017/img_5901a7e8315da.png" alt="" /></p>
+<p>Po pár minutách bude náš automatizační účet připraven. Všimněte si, že nám byly vytvořeny i čtyři příkladové Runbooky. Na stránce vidíme přehled Runbooků (zjednodušeně řešeno skriptů), Joby (spuštěné úlohy), Assety (například nainstalované moduly, časové rámce pro kalendář, proměnné apod.), hybridní "makáči" a věci kolem desired state konfigurace OS (DSC).</p>
+<h1>Ukázka - škálujeme App Service</h1>
+<p>Vyzkoušejme si řešení následující situace. Mám App Service Plan v kategorii Basic 2, kde hostuji web appku, API a funkce. Azure mi nabízí možnost automaticky škálovat přidáváním a ubíráním nodů, což je skvělé a rozhodně ideální cesta. Jenže moje situace je specifická - jde o opravdu malinkatou aplikaci, která se v noci vůbec nebude používat. Vždy jí stačí pouze jeden node a v noci ji navštíví maximálně jeden zbloudilý uživatel. Jak to řešit? Co kdybychom na noc přepnuli aplikaci do Free tieru? Zůstane dostupná (ačkoli bez jakékoli garance výkonu, takže naprosto nevhodná pro produkci - ale to mi nevadí), ale neplatím za ni. Ráno bych zas servisní plán přehodil zase do B2. Tohle Azure sám o sobě nezajišťuje (ono to má totiž konsekvence, protože nižší tier třeba nemá všechny vlastnosti vyššího a ty se před tím musí odkonfigurovat). V mém případě tedy ideální pro vyzkoušení Azure Automation, s kterým se dá dělat úplně cokoli.</p>
+<p>Takhle vypadá moje prostředí.</p>
+<p id="tJOMkFz"><img class="img-fluid wp-image-645 " src="/images/2017/img_5901ac3e77ece.png" alt="" /></p>
+<p>Moje skripty budou potřebovat příslušné Azure moduly, tak se podívejme, jaké máme nainstalované v základu.</p>
+<p id="AVAiMQO"><img class="img-fluid wp-image-647 " src="/images/2017/img_5901acb83b524.png" alt="" /></p>
+<p>Jak vidno AzureRM.Websites, který budeme potřebovat, tam není. Přidáme z galerie.</p>
+<p id="UGTsVCo"><img class="img-fluid wp-image-648 " src="/images/2017/img_5901acfc9be9f.png" alt="" /></p>
+<p>Nejprve budeme potřebovat nejnovější AzureRM.profile modul. Najděte ho a provedeme instalaci.</p>
+<p id="nMhQASk"><img class="img-fluid wp-image-650 " src="/images/2017/img_5901adc34e59c.png" alt="" /></p>
+<p>Najděte Websites modul a nainstalujeme.</p>
+<p id="qPTxgcc"><img class="img-fluid wp-image-649 " src="/images/2017/img_5901ad45705dd.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Tím jsme připraveni. Nejprve jsem si udělal testovací skriptík, který pouštím z notebooku, a který mi ukazuje, v jakém tieru aktuálně moje aplikace běží a zda odpovídá.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">while ($true) {
+    $time = Get-Date
+    $tier = (Get-AzureRmAppServicePlan -ResourceGroupName automation-demo -Name demo-plan).Sku.Size
+    $service = (Invoke-WebRequest "https://automationdemofunkce.azurewebsites.net/api/funkce?code=iChXT3UHOTB05jJ6xJtK9rL9sN6C1mt3VGuRhxZsExWlXzz3oyeIxw==").Content
+    Write-Host $time.ToLongTimeString() " -&gt; Tier: " $tier "   Odpoved sluzby: " $service
+    sleep 1
+}</pre>
+<p>Aktuálně mi píše tohle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">10:58:26  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+10:58:28  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+10:58:31  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"</pre>
+<p>Běžím tedy v "denním režimu". Připravil jsem následující skript. Ten jako vstupní parametr má jméno resource groupy a servisního plánu (aby byl trochu univerzálnější). Následně se přihlásí do Azure Run As účtem (s tím si nelamte hlavu, já kód zkopíroval z ukázkového skriptu a nehodlám ho měnit). Na konci pak jsou kroky potřebné ke shození servisního plánu do Free vrstvy. Potíž je, že v Basic mají služby by default nastaveno AlwaysOn, tedy že zůstávají plně aktivní i pokud je nikdo nepoužívá. Free vrstva tohle nepodporuje, tedy musí to být vypnuté (pokud dlouho nikdo nepřistupuje, web se uspí a při první požadavku se musí dostat do paměti, takže první request po dlouhé době může trvat třeba pár vteřin). Musíme tedy AlwaysOn povypínat a pak můžeme změnit tier. Vypadá to celkově takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;#
+    .DESCRIPTION
+        Scale App Services to Free
+#&gt;
+
+Param(
+  [string]$rgName,
+  [string]$planName
+)
+
+$connectionName = "AzureRunAsConnection"
+try
+{
+    $servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
+
+    "Logging in to Azure..."
+    Add-AzureRmAccount `
+        -ServicePrincipal `
+        -TenantId $servicePrincipalConnection.TenantId `
+        -ApplicationId $servicePrincipalConnection.ApplicationId `
+        -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+}
+catch {
+    if (!$servicePrincipalConnection)
+    {
+        $ErrorMessage = "Connection $connectionName not found."
+        throw $ErrorMessage
+    } else{
+        Write-Error -Message $_.Exception
+        throw $_.Exception
+    }
+}
+
+$PropertiesObject = @{alwaysOn = $false;}
+$sites = Get-AzureRmWebApp -ResourceGroupName $rgName
+foreach ($site in $sites) {
+    Set-AzureRmResource -PropertyObject $PropertiesObject -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites/config -ResourceName ($site.SiteName+"/web") -ApiVersion 2015-08-01 -Force
+}
+Set-AzureRmAppServicePlan -ResourceGroupName $rgName -Name $planName -Tier Free
+
+</pre>
+<p>&nbsp;</p>
+<p>Založme tedy nový Runbook.</p>
+<p id="hlOxkds"><img class="img-fluid wp-image-651 " src="/images/2017/img_5901b48116993.png" alt="" /></p>
+<p>Bude typu PowerShell (existuje i grafický editor, ale pokud vládnete PowerShellem, je to podstatně rychlejší).</p>
+<p id="FbIkdlx"><img class="img-fluid wp-image-652 " src="/images/2017/img_5901b4c7e8020.png" alt="" /></p>
+<p>Vložte zmíněný kód, klikněte Save a pojďme si to otestovat.</p>
+<p id="xzdXoIY"><img class="img-fluid wp-image-657 " src="/images/2017/img_5901c3387d9ac.png" alt="" /></p>
+<p>Vyplňte parametry.</p>
+<p id="zHVFTSG"><img class="img-fluid wp-image-656 " src="/images/2017/img_5901c0ae5bff8.png" alt="" /></p>
+<p>Teď už stačí kliknout na tlačítko Start. V tento okamžik se vytvoří úloha a je zařazena do fronty. Neznamená to, že se začne provádět hned - Azure řídí zdroje a pokud je moc lidí, budete muset chvilku počkat. SLA na tuto službu zní, že 99,9% vašich jobů bude spuštěno do 30 minut. Většinou jsem zaznamenal čekací doby do deseti minut, v každém případě s tím ale ve svých plánech počítejte (pokud má být něco v 7:00 hotové, skript trvá 10 minut, tak naplánujte spuštění pro jistotu na 6:20).</p>
+<p>Tady je výsledek mého sledovacího skriptu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">12:09:51  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+12:09:53  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+12:09:56  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+12:09:58  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"
+12:10:10  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"</pre>
+<p>Jak vidno vše se povedlo, od teď jedu ve Free tieru. Jsem spokojen, Runbook pojďme publikovat.</p>
+<p id="OibTIQg"><img class="img-fluid wp-image-658 " src="/images/2017/img_5901c45d6e1e6.png" alt="" /></p>
+<p>Přidejte ještě druhý Runbook, který bude dělat opak:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;#
+    .DESCRIPTION
+        Scale App Services to B2
+#&gt;
+
+Param(
+  [string]$rgName,
+  [string]$planName
+)
+
+$connectionName = "AzureRunAsConnection"
+try
+{
+    $servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
+
+    "Logging in to Azure..."
+    Add-AzureRmAccount `
+        -ServicePrincipal `
+        -TenantId $servicePrincipalConnection.TenantId `
+        -ApplicationId $servicePrincipalConnection.ApplicationId `
+        -CertificateThumbprint $servicePrincipalConnection.CertificateThumbprint 
+}
+catch {
+    if (!$servicePrincipalConnection)
+    {
+        $ErrorMessage = "Connection $connectionName not found."
+        throw $ErrorMessage
+    } else{
+        Write-Error -Message $_.Exception
+        throw $_.Exception
+    }
+}
+
+$PropertiesObject = @{alwaysOn = $true;}
+$sites = Get-AzureRmWebApp -ResourceGroupName $rgName
+Set-AzureRmAppServicePlan -ResourceGroupName $rgName -Name $planName -Tier Basic -WorkerSize Medium
+foreach ($site in $sites) {
+    Set-AzureRmResource -PropertyObject $PropertiesObject -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites/config -ResourceName ($site.SiteName+"/web") -ApiVersion 2015-08-01 -Force
+}
+</pre>
+<p id="GMuYJBF"><img class="img-fluid wp-image-659 " src="/images/2017/img_5901c4cc65fa3.png" alt="" /></p>
+<p>Výborně. Předpokládejme, že požadavek byl, že se má služba ve všední dny ráno v 7 zapnout a večer v 7 shodit do Free. Založme si tyto časové okamžiky.</p>
+<p id="fMHEkvU"><img class="img-fluid wp-image-660 " src="/images/2017/img_5901c564d48cd.png" alt="" /></p>
+<p>Definujme všední dny ráno.</p>
+<p id="DGlUQQh"><img class="img-fluid wp-image-661 " src="/images/2017/img_5901c6116ab9d.png" alt="" /></p>
+<p>Dále pak večerní vypínání.</p>
+<p id="oGJLFiu"><img class="img-fluid wp-image-662 " src="/images/2017/img_5901c6518711c.png" alt="" /></p>
+<p>Tyto pak nastavíme pro naše dva Runbooky.</p>
+<p id="equjbNN"><img class="img-fluid wp-image-663 " src="/images/2017/img_5901c689ef35c.png" alt="" /></p>
+<p>Kromě času nastavte také parametry, tedy vstupy našeho Runbooku.</p>
+<p id="ZLRHPEy"><img class="img-fluid wp-image-664 " src="/images/2017/img_5901c6a0ac354.png" alt="" /></p>
+<p>Nastavte pro oba Runbooky a automatizaci máme hotovou. Vyzkoušejme ještě jednu věc. Dejme tomu naše zapínadlo můžeme nechat reagovat na webhook, tedy nespouštět jen na základě času, ale na vyžádání třeba z nějaké jiné aplikace.</p>
+<p id="waGADVg"><img class="img-fluid wp-image-665 " src="/images/2017/img_5901c6f06133a.png" alt="" /></p>
+<p>Vytvořím webhook s platností jeden rok. URL si skopírujte, budeme ho potřebovat.</p>
+<p id="VEnUFrH"><img class="img-fluid wp-image-666 " src="/images/2017/img_5901c73a1c10d.png" alt="" /></p>
+<p>Vyzkoušíme si zavolat webhook z notebooku z PowerShellu, ale stejným způsobem to jednoduše udělá vaše aplikace.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Invoke-WebRequest "https://s2events.azure-automation.net/webhooks?token=b0%2fvVr5Xfmukv5URsLmbrZt3rTKbP0lcd9%2b8ZHtye%2fM%3d" -Method Post</pre>
+<p>Průběh můžete sledovat v GUI. Je tam vidět, že webhook byl úspěšně zavolán a úloha je naplánovaná.</p>
+<p id="OWWLuWc"><img class="img-fluid wp-image-668 " src="/images/2017/img_5901c859d7230.png" alt="" /></p>
+<p>Po chvilce zjišťuji, že moje služba se přepnula do B2. Funguje to.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">12:29:05  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"
+12:29:07  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"
+12:29:09  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"
+12:29:12  -&gt; Tier:  F1    Odpoved sluzby:  "Ziju!"
+12:29:14  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+12:29:16  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"
+12:29:18  -&gt; Tier:  B2    Odpoved sluzby:  "Ziju!"</pre>
+<h1>Kolik to bude stát</h1>
+<p>Nechme pro dnešek stranou PowerShell DSC, který se licencuje na nody (o tomto řešení někdy příště) a podívejme se na orchestrační engine samotný. Jednotkou pro billing je tady čas běhu vašich skriptů. V dnešní ukázce mluvíme o asi 1-2 minutách na spuštění. Pokud se vejdete do 500 minut měsíčně, je pro vás služba zcela zdarma. Placená verze ale není nijak drahá - za 20 hodin čistého času běhu skriptů zaplatíte 2 EUR.</p>
+<p>&nbsp;</p>
+<p><em>Automatizaci mám velmi rád a používal bych desired state všude tam, kde je to možné, tedy ARM šablony pro Azure zdroje, PowerShell DSC pro Windows OS nebo univerzální infrastrukturní Terraform či CloudForms nebo konfigurační Ansible, Chef, Puppet. Jsou ale situace, kdy potřebujete orchestrovat víc věcí dohromady a zásadní je workflow, tedy nějaký proces, postup (teď tohle, pak tamto a nakonec něco dalšího), ne desired state. V takovém případě nad to dejte Azure Automation.</em></p>

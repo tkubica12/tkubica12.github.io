@@ -1,0 +1,64 @@
+---
+layout: post
+status: publish
+published: true
+title: 'OMS a Log Analytics gateway: napojte VM bezpečně i bez přímého Internetu'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 866
+wordpress_url: http://tomaskubica.cz/?p=866
+date: '2017-10-11 05:00:15 +0000'
+date_gmt: '2017-10-11 04:00:15 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>OMS a Azure Log Analytics, řešení pro hybridní správu ať jsou vaše systémy kdekoli, jsou hostovaný software (SaaS). Agenti v OS tedy potřebují komunikovat ven. Jak to udělat, abychom nemuseli otevírat spojení všem on-premises VM s využitím OMS brány? A jak omezit samotnou bránu tak, že nedostává přístup do plného Internetu? Podívejme se dnes jak na to.<!--more--></p>
+<h1>OMS Gateway</h1>
+<p>Pokud nasazujete OMS v on-premises prostředí, určitě se najdou VM (a nebude jich málo), které nemají z bezpečnostních důvodů přímý přístup na Internet. Jak pak ale může OMS fungovat? Jednou z možností je nasadit OMS Gateway. Půjde o jeden Windows server, který bude fungovat jako proxy. Vaše spravované VM ho využijí jako proxy pro komunikaci s OMS. Stačí pak tedy pouze, aby OMS brána měla přístup směrem k OMS, kde samozřejmě vytváří šifrovaný TLS tunel.</p>
+<p>Začneme instalací brány. Nejprve jděte do nastavení OMS, Connected Sources a Windows Servers.</p>
+<p>Tam najdete odkaz na OMS agenty i na OMS gateway. Zvolíme tedy jeden Windows server, z kterého se stane OMS Gateway. Na ten nejprve nainstalujeme agenta a počkáme, až se objeví v OMS. To udělejte klasickým postup tak, jak už jsem na tomto blogu popsal. V zásadě stáhnete instalačku a na serveru spustíte, zadáte workspace ID i klíč pro připojení.</p>
+<p id="faqdPHZ"><img class="img-fluid wp-image-867 " src="/images/2017/img_594782aea5035.png" alt="" /></p>
+<p id="DnNOBlf"><img class="img-fluid wp-image-868 " src="/images/2017/img_594782ca8b647.png" alt="" /></p>
+<p id="wOTJuBT"><img class="img-fluid wp-image-869 " src="/images/2017/img_594782ed26e9d.png" alt="" /></p>
+<p>Ověřte, že se agentu podařilo zaregistrovat.</p>
+<p id="HxXMfNy"><img class="img-fluid wp-image-870 " src="/images/2017/img_5947842d4635a.png" alt="" /></p>
+<p>Doporučuji pár minut počkat, než se stroj objeví ve vašem OMS prostoru.</p>
+<p id="llHNisO"><img class="img-fluid wp-image-872 " src="/images/2017/img_59478491e59ac.png" alt="" /></p>
+<p>Perfektní. Teď si stáhněte OMS Gateway (je to malinké MSI) a nainstalujte na serveru.</p>
+<p id="GLrBbsI"><img class="img-fluid wp-image-873 " src="/images/2017/img_594784e55bdeb.png" alt="" /></p>
+<p>OMS brána používá port 8080, ale můžete to změnit. Pokud je tento serveru připojen do Internetu přes proxy, nastavte to.</p>
+<p id="dXlsJtH"><img class="img-fluid wp-image-874 " src="/images/2017/img_5947850f524c2.png" alt="" /></p>
+<p>Ověřte, že OMS brána běží.</p>
+<p id="RpiiFwB"><img class="img-fluid wp-image-875 " src="/images/2017/img_594785544fcc0.png" alt="" /></p>
+<p>Připojíme teď nějakou VM skrze OMS Gateway. Začněte instalovat agenta jako v předchozím případě, ale na této stránce se zastavte a klikněte na Advanced.</p>
+<p id="nVAqnex"><img class="img-fluid wp-image-876 " src="/images/2017/img_59478b696a0d2.png" alt="" /></p>
+<p>Zadejte adresu OMS brány a dokončete instalaci.</p>
+<p id="NVzatwI"><img class="img-fluid wp-image-877 " src="/images/2017/img_59478bad83531.png" alt="" /></p>
+<p>Ověřte, že se agent úspěšně připojil.</p>
+<p id="aqiaGDV"><img class="img-fluid wp-image-878 " src="/images/2017/img_59478c7b4fe0b.png" alt="" /></p>
+<p>Nastavení proxy můžete změnit i po instalaci.</p>
+<p id="HWYJlwe"><img class="img-fluid wp-image-879 " src="/images/2017/img_59478ca39dd75.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Totéž můžeme udělat s Linux agentem. Při jeho instalaci zadejte údaje OMS brány.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">wget https://github.com/Microsoft/OMS-Agent-for-Linux/releases/download/OMSAgent-201705-v1.3.5-127/omsagent-1.3.5-127.universal.x64.sh
+chmod +x omsagent-1.3.5-127.universal.x64.sh
+./omsagent-1.3.5-127.universal.x64.sh --install -w "BLABLA-450d-8afc-f0749ab2ffa9" -s "BLABLABLA6OCg==" -p "http://10.0.0.4:8080"
+</pre>
+<p>Pokud vše dopadlo správně, uvidíte svoje systémy v OMS.</p>
+<p id="rtivomG"><img class="img-fluid wp-image-881 " src="/images/2017/img_5947a1d992c04.png" alt="" /></p>
+<h1>Omezení Internetu u OMS brány</h1>
+<p>Brána nepotřebuje mít žádné otevřené porty dovnitř, protože veškerá komunikace je iniciována klientskou stranou na klasické HTTPS portu 443. Pokud chcete bránu co nejvíce omezit, můžete použít následující opatření.</p>
+<p>Směrem ven můžete povolit pouze port 443.</p>
+<p>Pokud váš firewall/NGFW podporuje URL záznamy, můžete specificky povolit odchozí provoz jen na tyto URL (vypněte HTTPS inspekci, dochází k bezpečnému ověřování certifikátů a jiný to z bezpečnostních důvodu nepřijme):</p>
+<p>*.ods.opinsights.azure.com</p>
+<p>*.oms.opinsights.azure.com</p>
+<p>*.blob.core.windows.net</p>
+<p>*.azure-automation.net</p>
+<p>&nbsp;</p>
+<p><em>Právě jste si vyzkoušeli restriktivní napojení vašich on-premises systémů do OMS. Pouze jeden z nich (OMS brána) potřebuje přístup ven a to na jediném standardním portu 443 s TLS zabezpečením a bez potřeby otevřených portů dovnitř. Navíc můžete na svém NGFW omezit URL pouze na ty, které jsou potřeba pro řešení OMS. Napojení on-premises systémů do OMS se rozhodně nemusíte bát!</em></p>

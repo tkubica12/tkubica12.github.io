@@ -1,0 +1,62 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Stack: networking'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2412
+wordpress_url: http://tomaskubica.cz/?p=2412
+date: '2018-09-17 04:59:28 +0000'
+date_gmt: '2018-09-17 03:59:28 +0000'
+categories:
+tags:
+- Networking
+- AzureStack
+---
+<p>Jak se Azure Stack začleňuje do existující sítě datového centra? Proč jsou součástí balíčku i síťové prvky a co na nich technici hardwarového dodavatele mají zprovozněno? A protože všechno je softwarově definované jak vlastně SDN v Azure Stack funguje? Pojďme na to mrknout.<!--more--></p>
+<h1>Integrace Azure Stack do sítě datového centra</h1>
+<p>Jak se integruje Azure Stack do vašeho datového centra? Docela snadno. Při instalaci si Azure Stack vytvoří několik sítí. Některé vám mohou být jedno, protože jsou naprosto interní (například storage provoz). Jiné musí být routovatelné s tím, že část z nich potřebuje přístup na Internet pro registraci Azure Stacku, integraci AAD a tak podobně (pozor - Azure Stack v době psaní tohoto článku nepodporuje http proxy, pokud ji v datovém centru máte, nasaďte ji minimálně pro Azure Stack v transparentním režimu).</p>
+<p>Veškerý provoz tenantů je ve VNETu a ten je skutečně pouze uvnitř. Ven se provoz dostává přiřazením externí IP adresy z administrátorem definovaného poolu. To může být public IP (typický scénář u providerů poskytujících Azure Stack ostatním), ale i privátní reálná IP vaší sítě (scénář interního využití). Tyto IP adresy hostitelské nody ohlašují připojeným top-of-rack prvkům přes BGP jako /32 host routy.</p>
+<p>Napojení ToR prvků do vaší sítě je L3 spojení (žádné L2 nepříjemnosti a tím pádem kompatibilita s čímkoli) a ideálně s využitím BGP.</p>
+<h1>Co je na top-of-rack prvcích</h1>
+<p>Konfigurace ToR prvků vám není přístupná, ale co je tam použito? Začněme zevnitř. Azure Stack potřebuje některé vnitřní komunikační sítě z nichž nejzajímavější je ta pro storage provoz. Tam je použito RDMA a RoCE nebo iWARP a je to perfektně vyladěno (storage dosahuje velmi dobrých výkonů a nejnovější Azure Stack varianty dokonce podporují 25G nebo 40G síťovky). Pro redundanci je využit MLAG v implementaci podle toho, jaký prvek tam hardwarový dodavatel použil (vše je extrémně přísně certifikováno Microsoftem, takže všechny varianty fungují dobře).</p>
+<p>Druhá věc je publikace externích IP. Virtuální komponenty v nodech říkají přes BGP protokol těmto ToR prvkům kde se nachází která externí IP. ToR tedy funguje jako BGP peer a myslím, že i jako Route Reflector pro nody ve Scaling Unit. Z důvodu redunance je mezi prvky další linka pro iBGP.</p>
+<h1>SDN: Hyper-V Network Virtualization (HNV)</h1>
+<p>Možná vás překvapí, že součástí Windows Server 2016 je parádní SDN implementace inspirovaná tím, co se léta budovalo v Azure. Prostě to tam sedí a nepotřebujete jako u VMware dost brutální příplatek za NSX ani investovat do drahého softwarově-hardwarového spletence Cisco ACI. Dnes nechci detailně popisovat tuto technologii, ale protože je klíčovou součástí Azure Stack (a současně velmi podobná implementace je v Azure samotném), pojďme se na ni trochu podívat.</p>
+<p><img src="https://azurestack.blog/wp-content/uploads/2016/10/16-HNV-Networking.jpg" alt="Image result for hyper-v hnv" /></p>
+<h2>Management, control plane a data plane</h2>
+<p>Tak jako každé SDN využívá HNV oddělení management vrstvy, control plane a data plane. Tou management vrstvou je v případě Azure Stack ARM a pod ní Network Resource Provider. Pokud si klikáte v portálu nebo posíláte ARM šablonu třeba na vytvoření virtuální sítě, mluvíte právě s ARM a ten následně se síťovým resource providerem. Pokud vytvoříte nové VM a síťovou kartu dochází na pozadí ke koordinaci výpočetního a síťového resource providera.</p>
+<p>Control plane dostává informace z management plane (ten k němu mluví přes API) a přetváří je do role jednotlivých automárních pravidel (když ti přijde tohle, mrkni se sem, změň tohle políčko podle toho co najdeš a pošli dál). Těmi potom programuje data plane, tedy místo, kde se skutečně pakety filtrují, směrují a všelijak jinak řeší. K tomu využívá OVSDB protokol  a tím programuje virtuální switche v Hyper-V. Těmi ale pro HNV nejsou standardní vSwitche co běžně znáte, ale Virtual Forwarding Platform (VFP), která do HNV i Azure Stacku přišla právě z implementace v Azure. Samozřejmě tam jsou kolem ní nějaké vychytávky, které v Azure Stack ani klasickém Windows Server nenajdete, jako je například kompletní offload těchto funkcí do FPGA čipů, ale z pohledu fungování navenek je to stejné.</p>
+<p id="zjtUBuA"><img class="img-fluid wp-image-2414 " src="/images/2018/img_5b79c0df020ec.png" alt="" /></p>
+<h2>Virtuální sítě (VNET)</h2>
+<p>Každý tenant (či chcete-li subscription nebo projekt) má možnost vytvářet si virtuální sítě. Jde o L3 konstrukty obsahující subnety a jsou čistě jen vaše. Bez dalších akcí jsou zcela izolované, tím pádem mohou mít klidně adresy překrývající se s jinou subscription či jiným VNETem ve stejné subscription. Protože můžete mít dvě VM a každé se ocitne na jiném nodu Azure Stacku, musíme vymyslet způsob, jak něco takového dopravit přes fyzickou síť. Paket tak jak je poslat nemůžeme, protože by se pomíchal s ostatními. Místo toho ho tedy zabalíme do nějakého tunelu tak, že pro fyzickou infrastrukturu je to jako když napíšete turistický pohled uvnitř VNETu a napíšete na něj adresu druhé VM, ale Azure Stack ho před odesláním vezme a dá do obálky, na kterou napíše adresu fyzického nodu, na kterém vaše VMko běží. Fyzická síť se orientuje podle obálek a pracuje ve fyzickém světě, zatímco SDN si obálku otevře a chová se pro každou virtuální síť samostatně.</p>
+<p>Technicky vzato se tady v Azure Stack využívá VXLAN, ale HNV umí ještě třeba NVGRE.</p>
+<p>Stejně jako v Azure nepodporuje HNV broadcast protokoly z důvodu škálovatelnost a bezproblémové funkčnosti. Žádná neefektivní head-end replikace ani žádný složitě integrovatelný multicast v hardwaru sítě. Nic z toho v cloudu neškáluje. Jak se ale řeší objevování stanic a klasické protokoly typu ARP, bez kterých dnes síť nefunguje? Azure, Azure Stack i HNV přesně ví, kde co má. Všechny VM jsou vytvářeny tak, že se ví co jsou zač (MAC/IP adresy) a kde jsou. Netřeba tedy řešit nějaké discovery a broadcastovat zprávy. Aby VMka nic nepoznala, tak na svoje ARP dotazy samozřejmě dostanou odpověď, ale tu jim zprostřekuje přímo hostitel, tedy řekněme vSwitch.</p>
+<p>Když necháme podrobnosti stranou - nejdůležitější pro vás je, že veškerá komunikace je skutečně pouze uvnitř virtuálního světa. Vaše VM za žádných okolností nepoběží ve vaší fyzické síti. Nedáte ho do své existující VLAN. To je základní princip cloudu, konzistence a přenositelnosti.</p>
+<p id="uDPYZMO"><img class="img-fluid wp-image-2415 " src="/images/2018/img_5b79c1b3ed273.png" alt="" /></p>
+<h2>Azure VFP - virtuální switch včetně směrování a firewallingu</h2>
+<p>V Azure i Azure Stack máte možnost vytvářet Network Security Group pro stavovou filtraci provozu. To je implementováno přímo v hostiteli a má to na starost VFP. Tato platforma ale řeší i veškeré routování. Pokud odešlete paket a ten je potřeba směrovat (obvyklé hrátky s MAC hlavičkami) případně nějak upravit IP hlavičky (třeba přepsat IP, což jak uvidíte se hodí), i to dělá VFP. Není zde žádný centrální router pro tyto účely, vaše výchozí gateway je v každém nodu.</p>
+<p id="iaTRqzd"><img class="img-fluid wp-image-2416 " src="/images/2018/img_5b79c257a6190.png" alt="" /></p>
+<h2>Software Load Balancer: balancing a cesta ven</h2>
+<p>A co load balancing? Azure, Azure Stack i HNV nabízí jednododuchý, ale velmi praktický a plně softwarově definovaný load balancer (Azure LB). Velký Azure kromě toho nabízí i další možnosti jako je L7 balancer s Reverse Proxy (Azure Application Gateway) či DNS balancer (Azure Traffic Manager). Jak funguje balancer v Azure Stack i Azure?</p>
+<p>LB funkce je implementována jako pool strojů s názvem Software Load Balancer. V Azure je tento pool naprosto masivní a perfektně škáluje, totéž je možné i v Azure Stack, kde je ale zatím pokud vím používána jen dvojice SLB v active/active režimu (a v Azure Stack Development Kit uvidíte jednu SLB VM). Co má na starost? Na virtuální IP (venkovní nebo interní) přijde paket a SLB ho rozhodí (náhodně nebo 2-tuple či 5-tuple hash) na nody v backend poolu. Při tom nedělá (!) source NAT, což je trochu jiné, než běžné nastavení klasických balancerů. Druhou jeho rolí je programovat a vyhodnocovat health checky (ale nikoli je provádět).</p>
+<p>Všechno ostatní už umí hostitel sám. Tím, že je zachována zdrojová adresa klienta je možné provádět direct server return. Přímo server, který odpovídá dokáže ve VFP předělat zdrojovou IP mašiny na IP balanceru a paket vyslat rovnou ven. Odpovědi (což bývá větší objem) tedy vůbec balancerem neprocházejí. No a hostitel také dělá health check. Čili přímo sám server provádí nastavené zasílání health checků VMkům z neroutovatelné IP adresy. Krásně distribuované a velmi efektivní.</p>
+<p id="rCoLonB"><img class="img-fluid wp-image-2417 " src="/images/2018/img_5b79c27ec78c2.png" alt="" /></p>
+<h2>SLB v roli MUXu</h2>
+<p>SLB plní ještě jednu důležitou roli a to je MUX. Externí IP adresy (buď z reálné IP vašeho datového centra nebo dokonce vaše public IP adresy) musí síť vašeho datového centra znát a vědět kam má provoz poslat. Ve směru z Azure Stacku ven je to jednoduché. Routing v síťařině něřeší zdrojové IP, ale směruje podle destination. Proto, jak už jsme si řekli, může být NAT přímo v hostitelých, protože síti je jedno, z kterého nodu to přijde. Pokud ale síť posílá něco na tuto IP, musí vědět kam to poslat. Tím místem je zase SLB, který tedy funguje jako MUX a používá se i když přiřadíte public IP k vaší VM bez nějakého balancování. Ten musí fyzické síti říct, že se přes něj dá dostat na tuto adresu a udělá to BGP protokolem (advertising je /32 routa, tzv. host routa). Protože v Azure Stack jsou SLB (zatím) dva, nahlásí se síti oba a ta pak může použít ECMP a rozhazovat na ně zátěž.</p>
+<p>Jak jsem říkal VM z Azure Stacku nikdy nepoběží ve vaší fyzické VLAN. Nicméně můžete jí přiřadit externí IP identickým mechanismem jako ve velkém Azure. Tady to ale kromě skutečné public IP může být i nějaká jiná reálná IP vašeho datového centra, třeba privátní rozsah v DMZ.</p>
+<p id="AusGUpX"><img class="img-fluid wp-image-2419 " src="/images/2018/img_5b79c34466bcc.png" alt="" /></p>
+<h2>Service Insertion</h2>
+<p>HNV, Azure i Azure Stack podporuje vkládání boxů se síťovou funkčností do cesty provozu. Pokud jste někdy v Azure potřebovali zprovoznit síťové řešení třetí strany (třeba nějaký firewall), určitě jste to použili. Jmenuje se to Route Table (User Defined Route) a říkáte když provoz vypadá tak a tak bude jeho next-hop v tomto VMku.</p>
+<p id="yAaMbcn"><img class="img-fluid wp-image-2418 " src="/images/2018/img_5b79c2d031ab1.png" alt="" /></p>
+<h2>VPN brána</h2>
+<p>HNV obsahuje i druhou možnost jak dostat pakety z VNETu. Tou možností je IPSec VPNka. V době psaní tohoto článku jsou podporovány pouze starší SKU, takže výkon je maximálně 200 Mbps, ale v budoucnu se jistě objeví novější varianty s větším výkonem. Pokud jako externí IP použijete skutečnou public IP, můžete Azure VPN v Azure Stack navázat na to samé v Azure a obě prostředí si tak hezky propojit.</p>
+<p>Něco jako Express Route (schopnost vylít pakety do operátorských konstruktů typu MPLS L3 VPN) není v Azure Stack podporovaná, ale to neznamená, že nemůžete vaši Express Route do Azure využít. Můžete například vzít router, který máte peerovaný na Express Route v Azure a do stejné VRFky se dostat VPNkou z Azure Stack.</p>
+<p>&nbsp;</p>
+<p><em>Pokud si budujete softwarově definované datové centrum sami a používáte Hyper-V, mrkněte na HNV - je to velmi mocné SDN, které je přímo součástí vašich Windows Datacenter. V Azure Stack jsou tyto principy použity a interní nastavení nemusíte řešit. Azure Stack se vám chová stejně jako Azure. Vytváříte si VNETy, v nich máte konstrukty jako je NSG nebo Azure LB a můžete jim přiřadit externí IP či propojit venkovní svět přes VPNku. Viděl jsem hodně pokusů o privátní cloud bez SDN a není to ono. Pokud chcete skutečný privátní cloud se vším všudy a mít ho hned k dispozici plně funkční, zvolte Azure Stack a získejte konzistenci s Azure.</em></p>

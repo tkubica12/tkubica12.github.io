@@ -1,0 +1,178 @@
+---
+layout: post
+status: publish
+published: true
+title: Privátní repozitáře zdarma s Git a Visual Studio Team Services
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1391
+wordpress_url: http://tomaskubica.cz/?p=1391
+date: '2017-08-22 00:14:56 +0000'
+date_gmt: '2017-08-21 23:14:56 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Hledáte pro váš vývojový tým protostor pro privátní repozitáře postavené na Git protokolu s bezpečným uložením v cloudu s funkcemi jako je webové GUI, pull requesty, řízení projektu, testování či CI/CD? Zkuste Visual Studio Team Services, které je pro týmy do velikosti pět uživatelů zdarma s neomezeným počtem privátních repozitářů a dokonce jednou hostovanou CI/CD pipeline. Pokud váš projekt poroste snadno si připlatíte víc uživatelů, víc pipeline nebo další služby jako je testování. Vyzkoušejme si dnes základní práci s version control s využitím oblíbeného Git.<!--more--></p>
+<h1>Nejjednoduší cesta k privátnímu repozitáři</h1>
+<p>Po založení základního účtu zdarma (není potřeba kreditní karta) si můžeme vytvořit svůj první projekt.</p>
+<p id="SrBRzuv"><img class="img-fluid wp-image-1392 " src="/images/2017/img_599134bb6220f.png" alt="" /></p>
+<p>Zadáme název a ponecháme Git jako výchozí protokol. Další nastavení se týká řízení projektu, ale o tom jindy.</p>
+<p id="SptKNJe"><img class="img-fluid wp-image-1393 " src="/images/2017/img_599134fdd91a8.png" alt="" /></p>
+<p>Hotovo - máme URL našeho projektu a můžeme začít využívat Git. Protože jsme tu ale poprvé, musíme vyřešit ještě způsob přihlašování. Git příkazová řádka, s kterou budu na začátek pracovat, nepodporuje jednoduše některé moderní metody ověřování jako je OAuth nebo vícefaktorové přihlašování. Začneme tedy tím, co není pro praxi doporučováno, ale na úvod to uděláme (a v průběhu článku změníme) - vygenerujeme si k našemu účtu separátní login pro Git protokol.</p>
+<p id="VZtdFXy"><img class="img-fluid wp-image-1394 " src="/images/2017/img_599135da111bb.png" alt="" /></p>
+<p>Vytvoříme si heslo.</p>
+<p id="iUXsbNu"><img class="img-fluid wp-image-1395 " src="/images/2017/img_5991363b862cb.png" alt="" /></p>
+<p>Teď můžeme do klasického Git CLI (na možnosti využití GUI nebo IDE se podíváme později).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git clone https://mujtym.visualstudio.com/_git/paradniProjekt
+Cloning into 'paradniProjekt'...
+Username for 'https://mujtym.visualstudio.com': tokubica@microsoft.com
+Password for 'https://tokubica@microsoft.com@mujtym.visualstudio.com':
+warning: You appear to have cloned an empty repository.
+Checking connectivity... done.</pre>
+<p>Výborně - teď můžeme něco vytvořit, provést commit a push.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ cd paradniProjekt/                                                                                               
+$ echo "# Paradni projekt" &gt; README.md                                                              
+$ git add -A                                                                                        
+$ git commit -m "Vytvoren uvodni README"        
+
+[master (root-commit) 5692497] Vytvoren uvodni README                                                                                                       
+ Committer:  &lt;tomas@xxx&gt;                                                                                                
+...                                                                                                                      
+                                                                                                                                                            
+ 1 file changed, 1 insertion(+)                                                                                                                             
+ create mode 100644 README.md   
+
+$ git push  
+
+...                                                                                   
+                                                                                                                                                            
+Username for 'https://mujtym.visualstudio.com': tokubica@microsoft.com                                                                                      
+Password for 'https://tokubica@microsoft.com@mujtym.visualstudio.com':                                                                                      
+Counting objects: 3, done.                                                                                                                                  
+Writing objects: 100% (3/3), 261 bytes | 0 bytes/s, done.                                                                                                   
+Total 3 (delta 0), reused 0 (delta 0)                                                                                                                       
+remote: We noticed you're using an older version of Git. For the best experience, upgrade to a newer version.                                               
+remote: Analyzing objects... (3/3) (15 ms)                                                                                                                  
+remote: Storing packfile... done (183 ms)                                                                                                                   
+remote: Storing index... done (48 ms)                                                                                                                       
+To https://mujtym.visualstudio.com/_git/paradniProjekt                                                                                                      
+ * [new branch]      master -&gt; master</pre>
+<h1>Práce s kódem přes webové GUI</h1>
+<p>Náš nový soubor uvidíme v GUI našeho projektu v sekci Code. Klikneme na něj.</p>
+<p id="KMBRirk"><img class="img-fluid wp-image-1396 " src="/images/2017/img_59913b94d1f78.png" alt="" /></p>
+<p>Soubor můžeme editovat přímo odtud.</p>
+<p id="JiDqnFd"><img class="img-fluid wp-image-1397 " src="/images/2017/img_59913bd5a16ec.png" alt="" /></p>
+<p>Přidáme nějaký text.</p>
+<p id="TBsHLKh"><img class="img-fluid wp-image-1398 " src="/images/2017/img_59913c0b225b2.png" alt="" /></p>
+<p>Můžeme se podívat jak bude Markdown vypadat.</p>
+<p id="IrIAQYQ"><img class="img-fluid wp-image-1399 " src="/images/2017/img_59913c2d848d3.png" alt="" /></p>
+<p>A také vypsat změny proti původní verzi.</p>
+<p id="VAqPlSG"><img class="img-fluid wp-image-1400 " src="/images/2017/img_59913c5698a2c.png" alt="" /></p>
+<p>Jsme spokojeni, provedeme Commit.</p>
+<p id="lIjhbWe"><img class="img-fluid wp-image-1401 " src="/images/2017/img_59913c74be962.png" alt="" /></p>
+<p id="CgqaOOR"><img class="img-fluid wp-image-1402 " src="/images/2017/img_59913c979b27e.png" alt="" /></p>
+<p>K dispozici máme verze souboru.</p>
+<p id="HNTVSHi"><img class="img-fluid wp-image-1403 " src="/images/2017/img_59913cb6ee9c5.png" alt="" /></p>
+<p>Podívejme se také na přehled commitů.</p>
+<p id="OqnRpdo"><img class="img-fluid wp-image-1404 " src="/images/2017/img_59913cdca5518.png" alt="" /></p>
+<p>Teď už můžeme udělat pull v CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git pull
+
+Username for 'https://mujtym.visualstudio.com': tokubica@microsoft.com
+Password for 'https://tokubica@microsoft.com@mujtym.visualstudio.com':
+remote: Microsoft (R) Visual Studio (R) Team Services
+remote: We noticed you're using an older version of Git. For the best experience, upgrade to a newer version.
+remote: Found 3 objects to send. (6 ms)
+Unpacking objects: 100% (3/3), done.
+From https://mujtym.visualstudio.com/_git/paradniProjekt
+   5692497..dabddbf  master     -&gt; origin/master
+Updating 5692497..dabddbf
+Fast-forward
+ README.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+$ cat README.md
+
+# Paradni projekt
+
+- uprava z webu</pre>
+<h1>Osobní tokeny</h1>
+<p>Využití fixního separátního jména a hesla pro Git není ideální z pohledu bezpečnosti a není doporučováno. Lepší je vygenerování osobního tokenu. Na vršku stránky najdete svou ikonku a tam můžeme změnit bezpečnostní nastavení.</p>
+<p id="VRYFelK"><img class="img-fluid wp-image-1406 " src="/images/2017/img_5991403420b12.png" alt="" /></p>
+<p>Nejprve zrušíme fixní login.</p>
+<p id="dsmKpDY"><img class="img-fluid wp-image-1407 " src="/images/2017/img_599140830b18c.png" alt="" /></p>
+<p>Ověříme si, že už nefunguje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git pull
+
+Username for 'https://mujtym.visualstudio.com': tokubica@microsoft.com
+Password for 'https://tokubica@microsoft.com@mujtym.visualstudio.com':
+fatal: Authentication failed for 'https://mujtym.visualstudio.com/_git/paradniProjekt/'</pre>
+<p>Založíme se raději osobní token.</p>
+<p id="BnOkUCp"><img class="img-fluid wp-image-1408 " src="/images/2017/img_599140dda5d00.png" alt="" /></p>
+<p>Všimněte si dvou zásadních změn. Tou první je omezená platnost tokenu a tou podstatnější je granulární řízení přístupu. Pro různé úkony, pracovní počítače, IDE apod. můžete mít různé tokeny s různými právy. Navíc kdykoli je to potřeba lze token zrušit, revokovat. Pro jednoduchost necháme všechno povolené a token vytvoříme.</p>
+<p id="lCQERxQ"><img class="img-fluid wp-image-1409 " src="/images/2017/img_599141495f571.png" alt="" /></p>
+<p>Teď je ten správný okamžik si token "opsat" - pak už se k němu nedostanete.</p>
+<p id="uGsnivT"><img class="img-fluid wp-image-1410 " src="/images/2017/img_59914189f00f7.png" alt="" /></p>
+<p>Zkusíme ho použít jako heslo k našemu účtu. Bude fungovat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git pull
+
+Username for 'https://mujtym.visualstudio.com': tokubica@microsoft.com
+Password for 'https://tokubica@microsoft.com@mujtym.visualstudio.com':
+Already up-to-date.</pre>
+<h1>Automatizace tokenů s credential managerem</h1>
+<p>Možná se vám nebude chtít starat se o expirované tokeny a chodit do GUI - je to sice třeba jen jednou za 3 měsíce, ale i to může obtěžovat. Navíc s tokenem musíte manipulovat - nějak ho překopírovat a někde si ho třeba uložit a pokud to neuděláte bezpečně, je to riziko. Microsoft má k dispozici credential manager, který tento proces pro Git automatizuje. V zásadě jde o to, že s ním můžete využít moderní formy ověřování včetně vícefaktorové autentizace vůči Azure Active Directory. Po tomto velmi bezpečném procesu pro vás credential manager vygeneruje token a ten uloží. V případě Windows nebo pokud máte ve svém Linuxu GNOME je toto úložiště tokenu šifrované - v případě, kdy tuto možnost nemáte (například jedete Ubuntu Server bez GNOME), lze uložit klíč do git konfigurace (tam je ale nešifrovaný, takže pro jeho ochranu před ostatními uživateli systému doporučuji použít šifrování domovského adresáře (tam se .gitconfig obvykle nachází).</p>
+<p>Projekt a informace k instalaci na různé systémy najdete zde: <a href="https://github.com/Microsoft/Git-Credential-Manager-for-Mac-and-Linux/blob/master/Install.md">https://github.com/Microsoft/Git-Credential-Manager-for-Mac-and-Linux/blob/master/Install.md</a></p>
+<p>Já budu provádět instalaci na Ubuntu s využitím Windows subsystem for Linux a GNOME nemám. Nejprve nainstalujeme Javu, stáhneme instalačku a provedeme instalaci.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo apt-get install default-jre
+
+$ wget https://github.com/Microsoft/Git-Credential-Manager-for-Mac-and-Linux/releases/download/git-credential-manager-2.0.3/git-credential-manager-2.0.3.jar
+$java -jar ./git-credential-manager-2.0.3.jar install</pre>
+<p>Protože nemám GNOME, bude tokeny ukládat v Git konfiguračním souboru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git config --global credential.canFallBackToInsecureStore true</pre>
+<p>Původní token smažeme.</p>
+<p id="PlcYTBU"><img class="img-fluid wp-image-1411 " src="/images/2017/img_5991443ba4026.png" alt="" /></p>
+<p>Půjdeme do CLI a zkusíme git pull. Pokud bychom byli v Git for Windows naskočí nám moderní interaktivní přihlašovací dialog. V případě Linux se ověření provede přes token do registrační služby. Otevřete přihlašovací stránku (na libovolném stroji s prohlížečem), zadáte tento kód a normálně se přihlásíte.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git pull
+
+------------------------------------
+OAuth 2.0 Device Flow authentication
+------------------------------------
+To complete the authentication process, please open a web browser and visit the following URI:
+https://aka.ms/devicelogin
+When prompted, enter the following code:
+DTQ4UZRC6
+Once authenticated and authorized, execution will continue.</pre>
+<p>V prohlížeči dokončíme přihlášení.</p>
+<p id="lAFncIO"><img class="img-fluid wp-image-1412 " src="/images/2017/img_599144d3bd410.png" alt="" /></p>
+<p id="XpTEpaI"><img class="img-fluid wp-image-1413 " src="/images/2017/img_599144fea5b93.png" alt="" /></p>
+<p>A je to - přihlášení je v pořádku a git pull se provedl. Při dalším pull už tuto proceduru opakovat nemusíme - máme token a je stále platný.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Already up-to-date.
+
+$ git pull
+Already up-to-date.</pre>
+<p>Automaticky vytvořený token samozřejmě najdeme i v GUI (resp. informaci o něm, ne jeho obsah) a můžeme ho tam klidně revokovat, pokud to bude nutné.</p>
+<p id="TKcETFQ"><img class="img-fluid wp-image-1414 " src="/images/2017/img_599145fb612d9.png" alt="" /></p>
+<p>Tento postup přihlašování je velmi dobrý pro Windows prostředí. Hesla zůstávají schována a ani uživatel samotný je nevidí. Úvodní proces logování je plně interaktivní a jednoduchý. Pokud je váš vývoj primárně v Linuxu, doporučoval bych SSH klíče - právě o tom bude následující část.</p>
+<h1>SSH klíče</h1>
+<p>Použití public/private key infrastruktury je velmi bezpečné a při tom pro uživatele jednoduché. Nastavení v Linux prostředí je snadné a velmi typické - je mnoho důvodů pro používání SSH klíčů místo hesel v Linuxu. Stačí vygenerovat privátní a veřejný klíč a ten privátní uložit na správné místo ve vašem systému (typicky ~/.ssh/id_rsa). Použití tohoto procesu je možné i u Windows, ale nastavení je o něco složitější, protože to není nativní chování systému - návod najdete zde: <a href="http://www.cgranade.com/blog/2016/06/06/ssh-keys-in-vscode.html">http://www.cgranade.com/blog/2016/06/06/ssh-keys-in-vscode.html</a></p>
+<p>Já už na svém stroji privátní klíč mám, takže mi stačí nakopírovat veřejný klíč do Visual Studio Team Services. Stále jsme na stránce bezpečnosti a přidáme veřejný SSH klíč.</p>
+<p id="OvVhovs"><img class="img-fluid wp-image-1416 " src="/images/2017/img_59914779247c9.png" alt="" /></p>
+<p id="kzswCze"><img class="img-fluid wp-image-1417 " src="/images/2017/img_599147bee3b92.png" alt="" /></p>
+<p>Aktuálně mám git repozitář napojen přes HTTPS protokol a to musíme změnit na SSH. Nejprve tedy jakou URL použít. Tu najdeme například na stránce svého projektu v sekci Code. Klikneme na Clone.</p>
+<p id="TBenZiD"><img class="img-fluid wp-image-1418 " src="/images/2017/img_5991480a89df3.png" alt="" /></p>
+<p>Nakopírujte si SSH URL.</p>
+<p id="CpOBOwf"><img class="img-fluid wp-image-1419 " src="/images/2017/img_59914833c28a0.png" alt="" /></p>
+<p>V Git CLI přenastavíme URL na SSH protokol a provedeme pull. Protože privátní klíče mám na své stanici, všechno proběhne.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ git remote set-url origin ssh://mujtym@mujtym.visualstudio.com:22/_git/paradniProjekt
+
+$ git pull
+Already up-to-date.</pre>
+<p>Jednoduché a bezpečné, pro Linux svět určitě ideální.</p>
+<p>&nbsp;</p>
+<p><em>Potřebujete privátní Git repozitář zcela zdarma pro váš tým a k tomu pěkné GUI, pull requesty, správu releasů, řízení projektu či CI/CD pipeline? Podívejte se na Visual Studio Team Services, které je do pěti uživatelů zdarma. Pokud se rozrostete i tak je řešení jedním z cenově nejdostupnějších - ostatně 10 uživatelů vás vyjde asi na 25 EUR měsíčně. A pokud jste předplatiteli Visual Studio máte typicky Team Services v ceně.</em></p>

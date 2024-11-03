@@ -1,0 +1,49 @@
+---
+layout: post
+status: publish
+published: true
+title: Chcete maximální bezpečnost v Azure i jinde? Přemýšlejte o privilegované pracovní
+  stanici.
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2117
+wordpress_url: http://tomaskubica.cz/?p=2117
+date: '2018-05-07 01:38:36 +0000'
+date_gmt: '2018-05-07 00:38:36 +0000'
+categories:
+tags:
+- Security
+---
+<p>Pokud je bezpečnost správy systémů (OS, DB, ...) pro vás to nejdůležitější, zvažte použití privilegované pracovní stanice. Možná to není pro administrátory zrovna pohodlné a flexibilní, ale je to skvělý způsob dramatického zvýšení bezpečnosti. Dnes si řekneme proč a jak to funguje a v dalším díle si vyzkoušíme některé příklady, například velmi zajímavý projekt Apache Guacamole.<!--more--></p>
+<h1>V čem mi může privilegovaná stanice pomoci?</h1>
+<p>Místo přímého připojení na RDP, VNC nebo SSH systémů a budou administrátoři připojovat výhradně přes dedikovanou privilegovanou pracovní stanici (pro zjednodušení budu říkat jump server) - typicky nějaké VMko v Azure, z kterého pak můžete přistupovat do dalších VM v Azure (ale i platformních služeb smaozřejmě). Proboha proč?</p>
+<h2>Oddělení běžného nástroje od více bezpečného</h2>
+<p>Notebook správce samozřejmě má mít všechny možné prvky bezpečnosti, z Microsoft portfolia určitě věci jako Defender, Information Protection, Intune a tak podobně. Přesto - vždy potřebujete nechat správci poměrně velkou míru svobody, aby na stroji vůbec mohl pracovat, vyřizovat emaily, vyvíjet software a tak podobně. Stejně tak ho potřebujete nechat fungovat kdekoli ve světě - v práci, v kavárně, doma. To všechno znamená riziko.</p>
+<p>Pokud pro přístup k systémům budeme používat separátní VM, to bude specificky zaměřené právě na tohle a můžeme ho tak omezit, zabezpečit a uzamknout. Tak například na takovém stroji nebudete moci spouštět své vlastní procesy, jen to, co je předem připraveno a schváleno. To případnému útočníkovi prakticky znemožňuje se strojem dělat něco užitečného - nepřidá si key logger, ani snímač obrazovky, ani scanner sítě či lámač hesel. Stanice umí jen naprosto minimální sadu věcí.</p>
+<h2>Kontrola úniku informací</h2>
+<p>Nezabráníte člověku, aby si v hlavě odnesl informace a ochrana nafocení obrazovky mobilem je také problematická (ale možná). To zásadnější ale je, když si může stáhnout soubor do své stanice (SCP, FTP, RDP integrace na clipboard, share) a tam ho neručeně uploadovat do vzdálené storage, poslat emailem nebo nahrát na USB.</p>
+<p>Privilegovaná stanice může být v tomto dost neúprosná. Tak například nemusí umožňovat žádné sdílení souborů případně ho zajistit pouze tak, aby k němu měl přístup jen cílový systém a jump server, nikoli přímo klient. V takové stanici bude zakázáno nastartování prohlížeče či souborového klienta, nepůjde přimapovat disk a můžete i bránit přístupu do externího světa třeba na internetová úložiště. V některých případech nemůžete ani do příkazové řádky stanice - na aplikační úrovni pro vás zajistí SSH/VNC/RDP proxy a nemáte možnost jít do PowerShellu lokální stanice a o něco se pokoušet.</p>
+<h2>Jediné místo pro odříznutí přístupu do systémů</h2>
+<p>Pokud je přístup ke kritickým systémům umožněn pouze přes privilegovanou stanici je login do ní první vlnou autentizace a autorizace. Předpokládám, že většina systémů sdílí stejnou bázi uživatelů, ale možná se u vás najdou i instance, kde je jméno a heslo separátní. Vymazání či změna všech sdílených přístupů a identit uživatele může nějakou dobu trvat. ale odříznutím přístupu na jump server se zabrání i logování do systémů byť zaměstanec zná heslo.</p>
+<h2>Kompletní audit včetně nahrávání obrazovek</h2>
+<p>Jedním z důvodů nasazení privilegované stanice je schopnost kompletně auditovat veškeré chování uživatele (něco, co by na běžném pracovním notebooku asi málokdo přijal). Existuje řada nástrojů pro nahrávání co se děje na obrazovce. Díky tomu jste schopni zpětně identifikovat co se dělo a kdo a jak se pokusil o průlom.</p>
+<h2>Ochrana proti hardwarovému odposlouchávání</h2>
+<p>Řada řešení na jump serveru umožňuje používat virtuální klávesnici. To může být důležité pro zadávání některých přihlašovacích údajů, protože efektivně brání získávání údajů v nakaženém notebooku přes key logger.</p>
+<h2>Nepřímý přístup a ochrana před brute-force</h2>
+<p>Mezi spravovaným systémem a klientem je minimálně jedna vložená vrstva proxy. Klient tedy nemá přímý přístup k systému, pouze jump server může takové spojení navázat a funguje jako proxy, kdy návaže spojení s klientem. V některých scénářích, například s Apache Guacamole, je oddělení ještě výraznější. Se systémy komunikuje Guacamole serverová část běžící v separátním kontejneru (nebo VM). Teprve k ní přistupuje Guacamole web server, tedy místo, kde se klient připojuje a přes web iniciuje RDP/VNC/SSH komunikaci. Typicky ještě před webovou část dáte reverse proxy, například Azure Application Insights, což oddělí web od klienta, přidá TLS šifrování a případně Web Application Firewall. Řetězec tedy je klientův prohlížeč -&gt; reverse proxy -&gt; web server -&gt; jump server backend -&gt; spravovaný systém.</p>
+<h1>Jaké jsou možnosti?</h1>
+<p>Na některé způsoby řešení se podíváme v jiném článku, zejména na Apache Guacamole.</p>
+<h2>Windows stanice</h2>
+<p>První možností je použít pracovní stanici Windows, třeba VM v Azure. Na té můžete nainstalovat Remote Desktop Gateway a integrovat ji třeba s vícefaktorovým ověření a Azure Active Directory. Je také možné systém zpřístupnit pro uživatele (RDP přímo do jump serveru) a nabídnout velmi restriktivní sadu nástrojů (SQL Server Management Studio apod.). Je vhodné použít silné bezpečnostní politiky a AppLocker pro whitelist pouze základních schválených aplikací a procesů. Tento koncept můžete kombinovat s komerčním software pro další potřeby - třeba virtuální klávesnici nebo nahrávání videozáznamů.</p>
+<h2>Apache Guacamole</h2>
+<p>Guacamole je řešení, které na straně ke klientovi běží celé v HTML5. Nepotřebujete tedy žádný speciální software, vše funguje přes web. Možná to může při dobré implementaci být alternativa k různým VPN - Guacamole přes WAFku vystrčíte klidně i do Internetu. Ať už bude před nebo za firewallem umožní Guacamole věci jako integrace do AAD ověřování (včetně všech jeho výhod jako je vícefaktorové ověření, integrace s Intune, Identity Protection apod.), bezpečné přenosy souborů nebo nahrávání, například videozáznam práce přes RDP.</p>
+<h2>Komerční řešení</h2>
+<p>Existují i kompletní řešení třetích stran. Pokud chcete něco s plnou podporou a jednoduchého na instalaci, mrkněte se po nich.</p>
+<p>&nbsp;</p>
+<p><em>Priviledged Access Workstation, řekněme chytrý a bezpečný jump server, je perfektní zbraň ve vašem bezpečnostním arzenálu. Může omezit flexibilitu administrátorů, ale na druhou stranu zvyšuje bezpečnost dost dramaticky. Bojíte se nasazovat věci v Azure, protože aktuální bezpečnostní principy ve vašem datovém centru nejsou dostatečné a bojíte se je přenést do cloudu? Dobrý jump server možná bude řešení a pomůže vám konceptuálně nejen s Azure, ale s bezpečností správy systémů obecně.</em></p>
+<p><em>V příštích dílech prozkoumám dvě varianty. Použití dobře nastavené Windows stanice a nasazení Apache Guacamole v Azure.</em></p>

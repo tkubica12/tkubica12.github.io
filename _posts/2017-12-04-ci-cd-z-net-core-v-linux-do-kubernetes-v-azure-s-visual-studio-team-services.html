@@ -1,0 +1,117 @@
+---
+layout: post
+status: publish
+published: true
+title: CI/CD z .NET Core v Linux do Kubernetes v Azure s Visual Studio Team Services
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1719
+wordpress_url: http://tomaskubica.cz/?p=1719
+date: '2017-12-04 06:49:15 +0000'
+date_gmt: '2017-12-04 05:49:15 +0000'
+categories:
+tags:
+- Kubernetes
+- Automatizace
+---
+<p>Zkusil jsem se pustit do něčeho, v čem jsem se zatím příliš nepohyboval. Visual Studio, .NET, Visual Studio Team Services, ale chtěl jsem to vidět v kombinaci s tím, čemu se naopak věnuji delší dobu - Linux, Docker kontejnery a Kubernetes. Jde to vůbec dohromady? Perfektně! Pojďme na to mrknout.<!--more--></p>
+<h1>.NET Core v Linux kontejneru</h1>
+<p>Myslím, že pročištění celého .NET a jeho otevření byl opravdu skvělý tah, který udělal .NET sexy i v dnešní době. Je open source, funguje v Linuxu a díky své architektuře, self-contained designu a podstatně menší velikosti jde perfektně dohromady s kontejnery. Navíc verze .NET Core 2.0 už je funkčně natolik bohatá, že mi pravověrní dot-netáří tvrdí, že už jim nebrání v rozletu - naopak. Nikdy mě nenapadlo, že se za určitých okolností bude dát vzít .NET aplikace a překlopit do stavu, kdy běží v Linux kontejneru.</p>
+<h2>Použijeme Visual Studio rovnou s kontejnerizací</h2>
+<p>Začal jsem tím, že jsem vytvořil nový projekt ve Visual Studio 2017.</p>
+<p id="KVyuPlz"><img class="img-fluid wp-image-1720 " src="/images/2017/img_5a229aee4782b.png" alt="" /></p>
+<p>Na další stránce si vyberu projektovou šablonu (třeba zjednodušené Razor pages), ale to hlavní je vidět dole. Zapínám podporu pro Docker v Linuxu na svém Windows počítači (musím mít nainstalovaný Docker for Windows).</p>
+<p id="tHMvPhg"><img class="img-fluid wp-image-1721 " src="/images/2017/img_5a229b5418020.png" alt="" /></p>
+<p>Tato volba způsobila, že se mi vygeneroval Dockerfile, tedy hlavní předpis pro sestavení kontejnerového image (nicméně tomu musí předcházet build proces).</p>
+<p id="umTOxWk"><img class="img-fluid wp-image-1722 " src="/images/2017/img_5a229bc64e647.png" alt="" /></p>
+<p>To určitě využijeme. Nicméně pojďme se nejprve podívat, jestli Visual Studio umí s kontejnery nějak pracovat i lokálně. Umí. V adresáři nacházím Docker compose soubor, který evidentně popisuje build proces aplikace.</p>
+<p id="cSpnDLa"><img class="img-fluid wp-image-1723 " src="/images/2017/img_5a229c24c99eb.png" alt="" /></p>
+<p>Naivně tedy spouštím tlačítko "přehrávání" a moc nevěřím, že se bude dít něco rozumného.</p>
+<p id="VcYpAFm"><img class="img-fluid wp-image-1724 " src="/images/2017/img_5a229c55ef6a7.png" alt="" /></p>
+<p>Ale ono se děje. Visual Studio využívá compose souboru a provádí build, následně montuje konejner přes můj Docker for Windows a během chvilky mi v browseru vyskakuje aplikace. Skutečně docker příkazem zjišťuji, že opravdu běžím v lokálním Linux kontejneru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS C:\Users\tokubica&gt; docker ps
+CONTAINER ID        IMAGE                 COMMAND               CREATED             STATUS              PORTS                   NAMES
+ce0434969b2e        webapplication1:dev   "tail -f /dev/null"   42 seconds ago      Up 41 seconds       0.0.0.0:32768-&gt;80/tcp   dockercompose12046321161007613461_webapplication1_1</pre>
+<p>Na straně u vývojáře jsem spokojen a jdeme do Visual Studio Team Services.</p>
+<h1>Visual Studio Team Services - moje CI/CD do Kubernetes</h1>
+<p>Nejprve jsem si ve VSTS založil projekt a použil ho jako Git z pohledu version control. To samozřejmě není nutné (můžete využít třeba GitHub a VSTS použít jen na CI/CD ... případně se dá klidně CI dělat v Jenkins a VSTS použít jen na CD apod.). To si ukazovat nebudeme - přejděme rovnou na Continuous Integration.</p>
+<h2>Continuous Integration: definice Build</h2>
+<p>Připravil jsem si Build definici, která bude třeba reagovat na commit do nějakého branche. Procesní stránku věci teď nechme stranou, půjde mi spíše o dotažení kódu do Kubernetes, než nastavení governance a celého procesu.</p>
+<p id="QOQQdqK"><img class="img-fluid wp-image-1726 " src="/images/2017/img_5a229dda84c81.png" alt="" /></p>
+<p>První velmi příjemná vlastnost VSTS je podpora dynamicky přidělených agentů a to včetně Linuxových. Celé VSTS je cloudová služba a agenti, které potřebuji na různé spouštění testování, buildování či montování Docker obrazů, si budu ad-hoc půjčovat z cloudu. Tohle přináší fantastickou produktivitu v porovnání s fixními zdroji, které jsou obvykle omezující v on-premises.</p>
+<p id="kXJUiiJ"><img class="img-fluid wp-image-1727 " src="/images/2017/img_5a229e4546440.png" alt="" /></p>
+<p>V prvním kroku se ujistím, že do agenta nahrávám nejnovější prostředí - v mém případě .NET Core 2.0.</p>
+<p id="uMmlbuF"><img class="img-fluid wp-image-1728 " src="/images/2017/img_5a229e90e4fa7.png" alt="" /></p>
+<p>Následně provedu build aplikace.</p>
+<p id="sTJiyuZ"><img class="img-fluid wp-image-1729 " src="/images/2017/img_5a229eb1a3c08.png" alt="" /></p>
+<p>Na tomto místě by měl být nějaký Unit test a podobné záležitosti, které v rámci tohoto pokusu s dovolení přeskočím (a ne že pak někde řeknete, že jsem vám takový špatný nápad poradil :) ).</p>
+<p>Další krok mi chvilku trval odladit. Nemohl jsem se stále trefit do správných adresářů tak, aby následně fungovala kontejnerizace buildu. Potřeboval jsem přepnout na verzi 2 tohoto tasku a specifikovat správnou cestu v --output přepínači. Následně zakázat (to bylo důležité) přidání názvu aplikace do adresáře a také vypnout publikování věcí, které nepotřebuji.</p>
+<p id="bYmukiL"><img class="img-fluid wp-image-1730 " src="/images/2017/img_5a229f4ff41db.png" alt="" /></p>
+<p>V dalším kroku potřebuji smontovat Docker image. Na to musím mít "počítač s Linuxem a Dockerem" a tím je samozřejmě můj Linux Agent vypůjčený automaticky z cloudu, takže žádný problém. Potřebuji specifikovat kam bude můj kontejner patřit (v tomto kroku přesněji jaký bude jeho plný název) - v mém případě Azure Container Registry.</p>
+<p id="LZcumjQ"><img class="img-fluid wp-image-1731 " src="/images/2017/img_5a229fbcd1587.png" alt="" /></p>
+<p>Ještě dole v tomto kroku potvrdím, že chci za název kontejneru přidat tag s číslem buildu a současně druhou kopii image vytvořit s tagem latest.</p>
+<p id="ewXSgAQ"><img class="img-fluid wp-image-1732 " src="/images/2017/img_5a22a00be0273.png" alt="" /></p>
+<p>Tento krok lokálně (v mém přiděleném agentovi) vytvořil image tak, že použil Dockerfile (ten nám vygenerovalo Visual Studio dříve), který mu řekl jak dovnitř nakopírovat vybuildovanou aplikaci. Jenže teď nám image sedí sice se správným jménem, ale jen v lokálním repozitáři v agentovi. Potřebujeme publikovat Docker image do mého Azure Container Registry.</p>
+<p id="dSRWzht"><img class="img-fluid wp-image-1733 " src="/images/2017/img_5a22a07b784dd.png" alt="" /></p>
+<p>Mám tedy připraven build, který jsem zabalil do Docker image a ten mám ve svém repozitáři připravený k releasnutí. Ale ještě jedna věc mi chybí. Release budu provádět do Kubernetes, takže potřebuji ještě připravit příslušný deployment předpis. Vytvořil jsem si jeho šablonu, která má objekt Kubernetes Service (externí reprezentaci s public IP adresou) a Deployment (3 balancované instance mé aplikace). Potřebuji tuto šablonu modifikovat tak, aby ukazovala na právě vytvořený build - tedy změnit v ní tag image, který se z registru použije.</p>
+<p>Tady přišlo asi jediné místo, které mi přišlo zatím nedostatečně pokryté - nebo jsem alespoň nenašel vhodné řešení. Představoval bych si nějaký templatovací jazyk, pro mě ideální Jinja2, ale to jsem nějak nenašel a z marketplace si nevybral. Nakonec jsem tedy prozatím vytvořil templatovací "jazyk" sám a použil sed pro dosazení hodnoty. Není to žádná krása, ale alespoň jde o další důkaz, že VSTS agent je skutečně Linuxový :)</p>
+<p>Šablona deploymentu vypadá takhle a je součástí version control.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Service
+apiVersion: v1
+metadata:
+  name: myvsts-service-ext
+spec:
+  selector:
+    app: myvsts
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: myvsts
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: myvsts
+    spec:
+      containers:
+      - name: myvsts
+        image: tomdocker.azurecr.io/webapplication1:{tag}
+        ports:
+        - containerPort: 80
+      nodeSelector:
+        beta.kubernetes.io/os: linux</pre>
+<p>Takhle pak vypadá můj "sofistikovaný" systém dosazení čísla buildu.</p>
+<p id="zlSPiRs"><img class="img-fluid wp-image-1734 " src="/images/2017/img_5a22a23be5f94.png" alt="" /></p>
+<p>Výborně. Teď potřebujeme někam uložit artefakty tak, aby bylo možné je nasadit. Samotný Docker image je v mém repozitáři, takže jde o upravený deployment.yaml pro Kubernetes, který nakopíruji do adresáře s artefakty.</p>
+<p id="QHMqVxu"><img class="img-fluid wp-image-1735 " src="/images/2017/img_5a22a28ef2f70.png" alt="" /></p>
+<p>Hotovo, teď už stačí artefakt s nějakým názvem publikovat.</p>
+<p id="rEuuRvD"><img class="img-fluid wp-image-1736 " src="/images/2017/img_5a22a2bb09d72.png" alt="" /></p>
+<p>Perfektní. Právě jsme si automatizovali připravení všeho potřebného pro přechod z kódu do něčeho, co již je možné přímo poslat do Kubernetes.</p>
+<h2>Continuous Delivery/Deployment: definice Release</h2>
+<p>Jednotlivé buildy mám ve stavu "release candidate", tedy je to otestované a připravené pro případné nasazení (Continuous Delivery) a to můžeme vyvolat přímo z VSTS. Ostatně můžeme i tyto procesy automatizovat, přidat nějaké další pojistky, nutnost dalšího schválení odpovědnou osobou a tak podobně a automaticky i šoupnout kód rovnou do produkce, pokud chceme (Countinuous Deployment). Pojďme si vytvořit definici Release.</p>
+<p id="YphgzTb"><img class="img-fluid wp-image-1737 " src="/images/2017/img_5a22a3875bd93.png" alt="" /></p>
+<p>V mém případě je to strašlivě jednoduché. Na vstupu je artefakt s deployment.yaml souborem a jednoduchý krok pro deployment.</p>
+<p id="YJWplcU"><img class="img-fluid wp-image-1738 " src="/images/2017/img_5a22a3c45fbf1.png" alt="" /></p>
+<p>V mém jediném kroku, který musím nastavit, je nejprve vytvoření spojení do Kubernetes (zadáte cestu ke clusteru a kopii Kubernetes konfiguračního souboru - toho stejného, co používáte s kubectl a asi máte v ~/.kube/config</p>
+<p id="FRTQPWs"><img class="img-fluid wp-image-1739 " src="/images/2017/img_5a22a41d18eb4.png" alt="" /></p>
+<p>Protože používáme image v zabezpečeném repozitáři, musíme dát v Kubernetes jeho credentials. Perfektní je, že VSTS to udělá za nás a příslušný secret založí.</p>
+<p id="JCckXWr"><img class="img-fluid wp-image-1740 " src="/images/2017/img_5a22a4560a1e1.png" alt="" /></p>
+<p>Poznámka - pokud máte Azure Container Registry společně s AKS (Managed Kubernetes) v jednom místě pod jedním účtem, bude Kubernetes automaticky přihlášený, což je můž případ. Jinak právě musíme v deployment.yaml použít volbu imagePullSecrets: acr (kde acr je Secret name z předchozí konfigurace).</p>
+<p>Zbývá poslední krok (tady jsem se znovu trochu trápil s nalezením správné cesty k souboru, ale povedlo se - poslední adresář je pojmenování vašeho artefaktu z Build kroku) - zadání Kubernetes příkazu (apply způsobí rolling upgrade v Kubernetes).</p>
+<p id="etkuxJq"><img class="img-fluid wp-image-1741 " src="/images/2017/img_5a22a4e7d1533.png" alt="" /></p>
+<p>To je všechno - opravdu to funguje!</p>
+<p>&nbsp;</p>
+<p><em>VSTS vám může posloužit pro řízení projektu, trackování bugů, jako version control, continuous integration systém i continuous delivery a mnoho dalšího a to pro libovolný jazyk i prostředí. Nicméně některou z těchto součástek můžete bez problémů nahradit jinou a použít VSTS třeba jen pro CD nebo pro CI/CD ... zkrátka to je na vás.</em></p>
+<p><em>Pro mne je zásadní zjištění, že celý ekosystém počínaje Visual Studio a .NET Core šablonou s podporou Dockeru v Linux přes VSTS Linux agenty až po deployment do Kubernetes v Azure je skutečně výborně připraven pro moderní svět kontejnerů!</em></p>

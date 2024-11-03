@@ -1,0 +1,85 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak nasadit zónově redundantní aplikaci v Azure infrastruktuře
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1558
+wordpress_url: http://tomaskubica.cz/?p=1558
+date: '2017-11-08 05:55:22 +0000'
+date_gmt: '2017-11-08 04:55:22 +0000'
+categories:
+tags:
+- Compute
+---
+<p>V jednom z předchozích článků jsem se věnoval SLA VM v Azure: <a href="https://tomaskubica.cz/sla-a-vysoka-dostupnost-vm-v-azure/">https://tomaskubica.cz/sla-a-vysoka-dostupnost-vm-v-azure/</a></p>
+<p>Dnes návážu s ukázkou jak nasadit aplikaci do zónově redundantních VM a balancovat přes ně provoz. Cílem je zajistit si ještě vyšší dostupnost - jak je uvedeno ve zmíněném článku při použití Availability Set dostáváte 99,95%, ale jakmile budou Availabity Zones uvedené do plné dostupnosti, čeká na vás 99,99%.</p>
+<p>Availability zóny jsou v preview v regionu West Europe.<!--more--></p>
+<h1>Nasazujeme VM v zónách</h1>
+<p>Nejprve si vytvoříme Resource Group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n zoneapp -l westeurope</pre>
+<p>Dále si připravíme síť.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network vnet create -g zoneapp -n mynet --address-prefix 10.0.0.0/16 --subnet-name sub --subnet-prefix 10.0.0.0/24</pre>
+<p>Moje aplikace je webová a poběží na portu 3000. Musíme si proto vytvořit Network Security Group. Je to nutné i protože zónově redundantní Load Balancer to vyžaduje (nemůžete balancovat na stoje, na kterých není NSG ať už per-VM nebo na subnetu).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network nsg create -g zoneapp -n vmzone1nsg
+az network nsg create -g zoneapp -n vmzone2nsg
+
+az network nsg rule create -g zoneapp --nsg-name vmzone1nsg -n myweb3000 --priority 120 --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 3000 --access Allow --protocol Tcp
+az network nsg rule create -g zoneapp --nsg-name vmzone2nsg -n myweb3000 --priority 120 --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges 3000 --access Allow --protocol Tcp</pre>
+<p>Nastartuji si teď dvě VM a každou v jiné zóně. Jediný rozdíl oproti běžnému příkazu je přepínač --zone a u něj číslo. Máme k dispozici tři oddělené zóny, já mám dvě VM, tak je dám do jedničky a do dvojky.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az vm create -n vmzone1 -g zoneapp --image UbuntuLTS --admin-username tomas --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --size Standard_A1_v2 --storage-sku Standard_LRS --zone 1 --public-ip-address "" --nsg vmzone1nsg
+
+az vm create -n vmzone2 -g zoneapp --image UbuntuLTS --admin-username tomas --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --size Standard_A1_v2 --storage-sku Standard_LRS --zone 2 --public-ip-address "" --nsg vmzone2nsg</pre>
+<p>Abych se nemusel na VM připojovat a svou webovou aplikaci instalovat, připravil jsem si pro ni instalační skript a provedu to automaticky s využitím VM extension.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az vm extension set -n CustomScriptForLinux --publisher Microsoft.OSTCExtensions -g zoneapp --settings '{"fileUris": ["https://tomuvstore.blob.core.windows.net/provision/provision.sh", "https://tomuvstore.blob.core.windows.net/provision/web", "https://tomuvstore.blob.core.windows.net/provision/web.service"],"commandToExecute": "sh provision.sh"}' --vm-name vmzone1
+
+az vm extension set -n CustomScriptForLinux --publisher Microsoft.OSTCExtensions -g zoneapp --settings '{"fileUris": ["https://tomuvstore.blob.core.windows.net/provision/provision.sh", "https://tomuvstore.blob.core.windows.net/provision/web", "https://tomuvstore.blob.core.windows.net/provision/web.service"],"commandToExecute": "sh provision.sh"}' --vm-name vmzone2</pre>
+<p>Po nějaké době budou obě VM včetně aplikace nahoře a běží nám v oddělených zónách dostupnosti.</p>
+<h1>Balancing na aplikace v různých zónách</h1>
+<p>Teď bych potřeboval použít Azure Load Balancer, který by měl virtuální IP a balancoval provoz na tyto VM (a současně měřil, která z VM žije). Klasický Load Balancer je ale omezený na jednu zónu a totéž platí i pro veřejnou IP. Z toho důvodu se klasický LB a IP nyní označují za Basic SKU a nově v preview jsou nové Standard verze SKU, které jsou zónově redundantní.</p>
+<p>Vytvořbe si balancer, health probe, backend pool a službu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network public-ip create -n lbip -g zoneapp --sku Standard
+
+az network lb create -n mylb -g zoneapp --sku Standard --public-ip-address lbip --
+backend-pool-name mypool
+
+az network lb probe create -g zoneapp --lb-name mylb -n myprobe --protocol http --port 3000 --path /
+
+az network lb rule create -g zoneapp --lb-name mylb -n mylbrules --protocol Tcp --frontend-port 80 --backend-port 3000 --probe-name myprobe</pre>
+<p>Teď potřebujeme do backend poolu zařadit naše VM. To se provádí na úrovni jejich síťové karty, kde musíme modifikovat jejich konfiguraci. Abych nemusel klikat v GUI, nejprve si přes CLI vyparsuji potřebné identifikátory a následně přidám backend pool k těmto kartám.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export nic1id=$(az vm nic list --vm-name vmzone1 -g zoneapp --query [0].id -o tsv)
+
+export nic2id=$(az vm nic list --vm-name vmzone2 -g zoneapp --query [0].id -o tsv)
+
+export nic1config=$(az network nic ip-config list --ids $nic1id --query [0].id -o tsv)
+
+export nic2config=$(az network nic ip-config list --ids $nic2id --query [0].id -o tsv)
+
+az network nic ip-config address-pool add --address-pool mypool --lb-name mylb --ids $nic1config
+
+az network nic ip-config address-pool add --address-pool mypool --lb-name mylb --ids $nic2config</pre>
+<p>Co se týče cen, zónově redundantní Load Balancer bude na rozdíl od klasického zpoplatněn. Stejně tak cena zónově redundantní IP bude o něco vyšší, než stávající standardní. Cenové podmínky zatím stanoveny nebyly a budou oznámeny později.</p>
+<h1>Otestujeme</h1>
+<p>Připojíme se na IP adresu balanceru a párkrát si vyzkoušíme. Moje aplikace vrací identifikátor specifický pro instanci, takže si dokážeme, že se provoz skutečně balancuje na obě instance.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export ip=$(az network public-ip show -n lbip -g zoneapp --query ipAddress -o tsv)
+curl $ip
+
+curl $ip
+&lt;h1&gt;My MAC address is 00:0d:3a:20:ff:69&lt;/h1&gt;$ 
+curl $ip
+&lt;h1&gt;My MAC address is 00:0d:3a:21:10:fe&lt;/h1&gt;$ 
+curl $ip
+&lt;h1&gt;My MAC address is 00:0d:3a:20:ff:69&lt;/h1&gt;$ 
+curl $ip
+&lt;h1&gt;My MAC address is 00:0d:3a:21:10:fe&lt;/h1&gt;$ 
+curl $ip
+&lt;h1&gt;My MAC address is 00:0d:3a:20:ff:69&lt;/h1&gt;$</pre>
+<p>&nbsp;</p>
+<p>A to je všechno!</p>
+<p><em>Jak vidíte používat zónově redundantní VM je velmi jednoduché. Vyzkoušejte si, v regionu West Europe už je v preview k dispozici.</em></p>

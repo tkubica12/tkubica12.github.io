@@ -1,0 +1,179 @@
+---
+layout: post
+status: publish
+published: true
+title: Domény a certifikáty v Azure App Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1224
+wordpress_url: http://tomaskubica.cz/?p=1224
+date: '2017-09-04 06:21:20 +0000'
+date_gmt: '2017-09-04 05:21:20 +0000'
+categories:
+tags:
+- AppService
+---
+<p>Webová aplikace nebo API v Azure App Service vystavuje endpoint, za kterým pak můžete mít různé množství nodů. Automaticky tak provádí balancing na nody i terminaci SSL/TLS. Podívejme se jak ke své aplikaci přidáte svou vlastní doménu a certifikáty - je to snadné.<!--more--></p>
+<h1>Vlastní domény</h1>
+<p>Jakmile vytvoříte Web App s nějakým jménem, dostanete od Azure platné doménové jméno, které můžete okamžitě použít jako URL pro svou aplikaci. Bude to nazevappky.azurewebsites.net. Například tady:</p>
+<p id="pLyfDVx"><img class="img-fluid wp-image-1225 " src="/images/2017/img_59815086a692d.png" alt="" /></p>
+<p>Vyzkoušejme si teď tři způsoby mapování custom domény.</p>
+<h2>CNAME</h2>
+<p>První možností jak přidat vlastní doménové jméno k Azure App Service je použití CNAME záznamu. Jde o DNS record, který představuje přezdívku, tedy klientský počítač se zeptá na záznam z vaší domény a ta poskytne CNAME, tedy že má klient dál hledat pod názvem třeba nasweb.azurewebsites.net. Výhodou tohoto řešení je, že nemusíme řešit IP adresy (A záznam bude mít ve správě doména azurewebsites.net). To je důležitá výhoda v tom, že záznam funguje i pokud svou Web App zrušíte a vytvoříte znova se stejným názvem. Při takové operaci se virtuální IP změní, ale jméno na azurewebsites.net zůstane. Nevýhodou je, že dle DNS pravidel nesmí být na konkrétním jméně v DNS serveru kombinace CNAME s jiným typem záznamu. Protože v root doméně typicky potřebujete SOA a NS záznamy, není možné použít tuto metodu na root domény (třeba tomaskubica.cz, pouze něco.tomaskubica.cz). Vyzkoušejme si.</p>
+<p>Klikneme na přidání nového jména v nastavení Web App.</p>
+<p id="gxatmGU"><img class="img-fluid wp-image-1226 " src="/images/2017/img_598154d47e762.png" alt="" /></p>
+<p>Já budu chtít použít jméno nasweb.azure.tomaskubica.cz</p>
+<p id="FzcyqrZ"><img class="img-fluid wp-image-1227 " src="/images/2017/img_59815542b867f.png" alt="" /></p>
+<p>Klikneme na Validate a vybereme záznam typu CNAME. Test dopadne špatně - ještě jsme v DNS serveru nezanesli potřebný record.</p>
+<p id="iaiGLak"><img class="img-fluid wp-image-1228 " src="/images/2017/img_59815590de4d5.png" alt="" /></p>
+<p>Musíme tedy do DNS serveru, který spravuje doménu azure.tomaskubica.cz. To může být vaše vlastní DNS, server registrátora či providera nebo lze hostovat externí DNS záznamy v Azure DNS (vysoce dostupný replikovaný DNS server jako služba). Přidám tedy potřebný záznam.</p>
+<p id="ZaqkPVd"><img class="img-fluid wp-image-1229 " src="/images/2017/img_598156187888a.png" alt="" /></p>
+<p>DNS je celoplanetární eventuálně konzistentní systém, takže může nějakou dobu (klidně i hodinu a víc) trvat, než se stanou záznamy viditelné po celém světě. Já mám DNS v Azure, takže App Service to uvidí prakticky okamžitě. Klikněme znova na Validate. Všechno vypadá dobře, můžeme jméno k webu přidat.</p>
+<p id="Bcecqxg"><img class="img-fluid wp-image-1231 " src="/images/2017/img_598156af720ba.png" alt="" /></p>
+<p>Máme hotovo - přiřadili jsme vlastní doménové jméno.</p>
+<p id="AXgdZis"><img class="img-fluid wp-image-1232 " src="/images/2017/img_598156d7cfa58.png" alt="" /></p>
+<p>Pro hloubavější ještě zkrácený výpis z dig:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ dig nasweb.azure.tomaskubica.cz
+
+;; ANSWER SECTION:
+nasweb.azure.tomaskubica.cz. 2533 IN    CNAME   nasweb.azurewebsites.net.
+nasweb.azurewebsites.net. 733   IN      CNAME   waws-prod-am2-093.vip.azurewebsites.windows.net.
+waws-prod-am2-093.vip.azurewebsites.windows.net. 300 IN CNAME waws-prod-am2-093.cloudapp.net.
+waws-prod-am2-093.cloudapp.net. 60 IN   A       52.174.150.25</pre>
+<h2>A záznam na IP adresu</h2>
+<p>Pokud potřebujete webu dát root doménu, CNAME nelze použít (resp. občas se používá technika, kdy na root odpovídá jednoduchý web server, který provede L7 HTTP redirect na non-root, ale to je jiná věc). K vaší webové aplikaci existuje virtuální IP adresa a tu můžeme použít pro A záznam v DNS serveru. Mimochodem tato IP není dedikována pro vás - před App Services je v Azure interní HTTP proxy, která reaguje na tuto IP a kouká do URL v HTTP requestu a posílá do správného tenantu.</p>
+<p>Vytvořme si další hostname ve Web App, tentokrát naswebip.azure.tomaskubica.cz s využitím A záznamu.</p>
+<p id="qtHoTwR"><img class="img-fluid wp-image-1233 " src="/images/2017/img_598158d1272ad.png" alt="" /></p>
+<p>Zvolíme A záznam.</p>
+<p id="PhUqAsA"><img class="img-fluid wp-image-1234 " src="/images/2017/img_59815921b3387.png" alt="" /></p>
+<p>Chybí nám tedy dvě věci. Jednak založení samotného A záznamu směřujícího na příslušnou IP adresu. Zanesu do svého Azure DNS.</p>
+<p id="WdFVRCx"><img class="img-fluid wp-image-1235 " src="/images/2017/img_5981596b6e926.png" alt="" /></p>
+<p>To ale nestačí. Ještě musíme dokázat, že máme doménové jméno ve své správě a že tak můžeme právoplatně nechat naši Web App na toto jméno reagovat. To uděláme tak, že dle návodu vytvoříme TXT záznam ukazující na nasweb.azurewebsites.net. Ten není určen pro klienty, ale pro Azure App Service, která si tak ověří, že doménu skutečně vlastníme.</p>
+<p id="OehhjOe"><img class="img-fluid wp-image-1236 " src="/images/2017/img_59815a6c4aeae.png" alt="" /></p>
+<p>V Web App přidáme tento hostname a jdeme vyzkoušet.</p>
+<p id="KVGboxc"><img class="img-fluid wp-image-1237 " src="/images/2017/img_59815b1e32496.png" alt="" /></p>
+<p>Funguje! Opět ještě uvádím zkrácený výpis z dig.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ dig naswebip.azure.tomaskubica.cz
+
+;; ANSWER SECTION:
+naswebip.azure.tomaskubica.cz. 3563 IN  A       52.174.150.25</pre>
+<h1>HTTPS a certifikáty</h1>
+<p>Aplikace nasazené v App Service automaticky podporují HTTPS bez nutnosti to nějak nastavovat nebo psát kód. Zkuste to. Podívejme se ale jaký je použit certifikát.</p>
+<p id="kUAavdT"><img class="img-fluid wp-image-1238 " src="/images/2017/img_59815e63a0769.png" alt="" /></p>
+<p>Pokud použijete doménu nasweb.azurewebsites.net je certifikát platný, nicméně jde o wildcard certifikát. Pokud někdo vytvoří svou stránku také v Azure App Service bude mít certifikát stejný. Nicméně pro některé situace to může být naprosto postačující. Ne ovšem tam, kde máte vlastní doménu - k té potřebujete i vlastní certifikát.</p>
+<h2>App Service Certificate</h2>
+<p>Pokud chcete veřejný certifikát pro novou aplikaci je určitě nejjednoduší zakoupit ho přímo v Azure (jako autorita se na pozadí používá Godaddy). Ten se i postará o automatické obnovení certifikátu a jeho bezpečné uložení v Azure Key Vault.</p>
+<p>Vytvoření certifikátu není složité a vybrat si můžete buď řešení pro konkrétní jméno nebo wildcard pro celou vaši doménu/subdoménu.</p>
+<p id="yfYdzow"><img class="img-fluid wp-image-1243 " src="/images/2017/img_5981655b0d0b8.png" alt="" /></p>
+<p>Detaily k procesu najdete zde: <a href="https://docs.microsoft.com/en-us/azure/app-service-web/web-sites-purchase-ssl-web-site">https://docs.microsoft.com/en-us/azure/app-service-web/web-sites-purchase-ssl-web-site</a></p>
+<h2>Let's encrypt, třetí strany nebo váš vlastní certifikát</h2>
+<p>Možná hledáte něco levného, ideálně zdarma. To je možné s využitím autority Let's encrypt. Ta ovšem vystavuje certifikáty na pouhé 3 měsíce, takže budete muset poměrně často obnovovat. Další varianta je pořídit certifikát u některého z dalších poskytovatelů. Pro striktně interní aplikace možná budete preferovat vlastní certifikační autoritu. Postup je ve všech případech podobný. Vyzkoušíme si tento proces s Let's encrypt v manuálním režimu - je to zdarma.</p>
+<p>Na Linux stroji mimo App Service (ale i tak by to šlo) jsem si nainstaloval certbot.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo apt-get update
+$ sudo apt-get install software-properties-common
+$ sudo add-apt-repository ppa:certbot/certbot
+$ sudo apt-get update
+$ sudo apt-get install certbot</pre>
+<p>Spustil jsem manuální generování certifikátu. Musíme prokázat vlastnictví domény a to buď přes HTTP (na web umístíte konkrétní soubor) nebo DNS (založíte záznam dle instrukcí). Já zvolil DNS metodu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo certbot certonly --manual --preferred-challenges dns
+
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Please enter in your domain name(s) (comma and/or space separated)  (Enter 'c'
+to cancel):nasweb.azure.tomaskubica.cz
+Obtaining a new certificate
+Performing the following challenges:
+dns-01 challenge for nasweb.azure.tomaskubica.cz
+
+-------------------------------------------------------------------------------
+NOTE: The IP of this machine will be publicly logged as having requested this
+certificate. If you're running certbot in manual mode on a machine that is not
+your server, please ensure you're okay with that.
+
+Are you OK with your IP being logged?
+-------------------------------------------------------------------------------
+(Y)es/(N)o: Y
+
+-------------------------------------------------------------------------------
+Please deploy a DNS TXT record under the name
+_acme-challenge.nasweb.azure.tomaskubica.cz with the following value:
+
+ssFaDFya4jmtQcTFj0TOGcXSO27XbV_ooG18k31YggI
+
+Once this is deployed,
+-------------------------------------------------------------------------------
+Press Enter to Continue</pre>
+<p>Teď jdu do svého DNS serveru založit požadovaný záznam.</p>
+<p id="ZovGKEG"><img class="img-fluid wp-image-1244 " src="/images/2017/img_59816c1730539.png" alt="" /></p>
+<p>A pokračujeme dál.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Waiting for verification...
+Cleaning up challenges
+
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at
+   /etc/letsencrypt/live/nasweb.azure.tomaskubica.cz/fullchain.pem.
+   Your cert will expire on 2017-10-31. To obtain a new or tweaked
+   version of this certificate in the future, simply run certbot
+   again. To non-interactively renew *all* of your certificates, run
+   "certbot renew"
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+</pre>
+<p>Výborně! Certifkát máme. Pro nahrání do Azure ho potřebujeme konvertovat na PFX formát. Budeme dotázáni na vytvoření hesla pro zabezpečení souboru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo openssl pkcs12 -inkey /etc/letsencrypt/live/nasweb.azure.tomaskubica.cz/privkey.pem -in /etc/letsencrypt/live/nasweb.azure.tomaskubica.cz/fullchain.pem -export -out nasweb.pfx
+
+Enter Export Password:
+Verifying - Enter Export Password:</pre>
+<p>Pojďme nahrát PFX k naší aplikaci.</p>
+<p id="TxOPQJG"><img class="img-fluid wp-image-1245 " src="/images/2017/img_59816d9502d9a.png" alt="" /></p>
+<p id="qAxuFrl"><img class="img-fluid wp-image-1246 " src="/images/2017/img_59816ef2d71ab.png" alt="" /></p>
+<p>Certifikát máme nahraný. Pojďme ho teď přiřadit ke správnému hostname.</p>
+<p id="BQZxfSc"><img class="img-fluid wp-image-1247 " src="/images/2017/img_59816f316e44e.png" alt="" /></p>
+<p>Vybereme doménu a certifikát. Pokud je to možné vždy bych používal SNI, tedy řešení kdy je certifikát svázán s doménovým jménem, ne IP adresou serveru. Některé archaické prohlížeče SNI nepodporují, ale všechno rozumné už dnes rozhodně ano. Pokud zvolíte IP řešení musí pro vás Azure vytvořit vaši zcela samostatnou IP adresu - za což něco málo připlatíte a tímto krokem se pro vás změní (nezapomeňte pak upravit A záznam v DNS, pokud používáte). Já použiji SNI.</p>
+<p id="JPhbKFN"><img class="img-fluid wp-image-1248 " src="/images/2017/img_59816ff5eb34b.png" alt="" /></p>
+<p>Ověříme, že funguje. Určitě ano!</p>
+<p id="cuNyDGy"><img class="img-fluid wp-image-1249 " src="/images/2017/img_5981705a6dc4a.png" alt="" /></p>
+<p>Proces u dalších poskytovatelů veřejných certifikátů bude dost podobný. Výhodou placených služeb bude například delší platnost certifikátu. Při použití interní certifikační autority to bude také velmi podobné, jen nebudete muset ověřovat vlastnictví domény.</p>
+<p>Samozřejmě ideální je mít certifikát přímo z Azure, který se sám obnovuje. Zejména v případě Let's encrypt jsou 3 měsíce dost krátká doba na to s tím pořád cvičit. Je to možné automatizovat a komunita na to dokonce napsala extension.</p>
+<p id="ntnlefV"><img class="img-fluid wp-image-1240 " src="/images/2017/img_598160284ef5f.png" alt="" /></p>
+<p id="dNtlpgG"><img class="img-fluid wp-image-1241 " src="/images/2017/img_5981604873830.png" alt="" /></p>
+<p>Toto rozšíření se pravidelně spouští ,využívá Web Jobs a automaticky generuje a aktualizuje certifikát podle potřeby. Musíte ale udělat ještě pár dalších kroků pro úspěšnou instalaci: <a href="https://github.com/sjkp/letsencrypt-siteextension/wiki/How-to-install">https://github.com/sjkp/letsencrypt-siteextension/wiki/How-to-install</a></p>
+<p>Nezapomeňte, že řešení není nijak podporované a případné selhání této komunitní verze může vést k vypršení certifikátu - pro kritické aplikace bych se orientoval jiným směrem, ale pro jednoduché webové aplikace proč ne.</p>
+<h1>Redirect HTTP na HTTPS</h1>
+<p>Je fajn mít HTTPS (a to i z důvodu rankingu ve vyhledávačích) a ještě lepší je na něj automaticky přesměrovat požadavky přicházející na HTTP.  Pro Windows-based Web App takový redirect nastavujeme v souboru web.config v root adresáři vašeho webu (.NET vývojáři pracující s IIS to velmi dobře znají). Pro deployment třeba Node.js aplikace (to je můj případ) pro mne Azure tento soubor vygeneroval. Podívám se tedy na jeho obsah třeba přes Kudu (nebo připojením na FTP).</p>
+<p id="uGTvmNT"><img class="img-fluid wp-image-1252 " src="/images/2017/img_5981758945b12.png" alt="" /></p>
+<p>Soubor si vezmu k sobě a uložím do svého version control - tedy napříště už nebude Azure web.config generovat a použije tento hotový. Před dosavadní pravidla přidáme jedno, které provádí redirect.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;rewrite&gt;
+  &lt;rules&gt;
+    &lt;!-- BEGIN rule ELEMENT FOR HTTPS REDIRECT --&gt;
+    &lt;rule name="Force HTTPS" enabled="true"&gt;
+      &lt;match url="(.*)" ignoreCase="false" /&gt;
+      &lt;conditions&gt;
+        &lt;add input="{HTTPS}" pattern="off" /&gt;
+      &lt;/conditions&gt;
+      &lt;action type="Redirect" url="https://{HTTP_HOST}/{R:1}" appendQueryString="true" redirectType="Permanent" /&gt;
+    &lt;/rule&gt;
+    &lt;!-- END rule ELEMENT FOR HTTPS REDIRECT --&gt;</pre>
+<p>To je všechno. Protože mám napojení na VSTS, provedl jsem commit souboru a za pár vteřin už redirect funguje. Pokud navštívíte web přes HTTP automaticky se dostanete na HTTPS. Web na HTTP vrací permanentní redirect:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl -i http://nasweb.azure.tomaskubica.cz/
+HTTP/1.1 301 Moved Permanently
+Content-Length: 159
+Content-Type: text/html; charset=UTF-8
+Location: https://nasweb.azure.tomaskubica.cz/
+Server: Microsoft-IIS/8.0
+X-Powered-By: ASP.NET
+Set-Cookie: ARRAffinity=85cfba63f86c844c235d7ba33783aa032eb04b0979ca366fa6133d3110439ca5;Path=/;HttpOnly;Domain=nasweb.azure.tomaskubica.cz
+Date: Wed, 02 Aug 2017 06:52:36 GMT
+
+&lt;head&gt;&lt;title&gt;Document Moved&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;&lt;h1&gt;Object Moved&lt;/h1&gt;This document may be found &lt;a HREF="https://nasweb.azure.tomaskubica.cz/"&gt;here&lt;/a&gt;&lt;/body&gt;</pre>
+<p>U Web App on Linux záleží co použijete. Pokud chcete dělat deployment zdrojového kódu zvolíte Microsoft managed framework, kde je pod kapotou Apache, takže redirect nastavíte v htaccess souboru. Pokud si přinesete svůj vlastní kontejner s libovolným web serverem, nastavíte redirect prostředky tohoto serveru.</p>
+<p>&nbsp;</p>
+<p><em>Proč se trápit s nastavováním balanceru a SSL akcelerátoru, síťařinou, deploymentem či registrací certifikátů, když to pro svojí webovou aplikaci nebo API můžete udělat jednoduše a elegantně v rámci platformní služby. Vyzkoušejte Azure App Services.</em></p>
+<p>&nbsp;</p>

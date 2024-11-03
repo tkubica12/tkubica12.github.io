@@ -1,0 +1,237 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak oddělit správu hesel od nasazení Azure infrastruktury a aplikací s Azure
+  Key Vault
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2103
+wordpress_url: http://tomaskubica.cz/?p=2103
+date: '2018-04-30 05:38:10 +0000'
+date_gmt: '2018-04-30 04:38:10 +0000'
+categories:
+tags:
+- Security
+---
+<p>Představte si, že Azure pro vás spravuje provozák, který má mít schopnost prostředí zakládat, ale neměl by znát heslo do databáze. MySQL služba nepoužívá Azure Active Directory pro ověřování, takže při jejím vytváření potřebujeme nějaké heslo určit. Stejně tak při konfiguraci aplikace potřebujeme skočit do VM a do konfiguračního souboru aplikace zadat heslo do databáze. Situace je tedy neřešitelná - provozák to heslo zkrátka mít musí... nebo ne? Jasně že ne - uložme si hesla do trezoru s Azure Key Vault.<!--more--></p>
+<h1>Vytváření ARM zdrojů s Key Vault</h1>
+<p>Pojďme na první problém. Naše aplikace bude využívat například Azure MySQL jako služba a při jejím vytváření je samozřejmě nutné vytvořit jméno a heslo pro přístup dovnitř. Jak Azure zdroje nasadit a přitom neznat heslo?</p>
+<p>Nejprve si vytvoříme resource group a pak Azure Key Vault - trezor na klíče (to provádíme jako ne-provozák). Rovnou při zakládání povolíme jednu důležitou volbu a to je použitelnost pro ARM (template) deployment. Za normálních okolností mají k tajnostem přístup pouze uživatelé, které explicitně zvolíte. My chceme, aby uživatel mohl při nasazování zdroje říct, že heslo se má vzít z hodnoty v trezoru, ale současně nemá sám mít právo ho přečíst. Potřebujeme tedy takové právo udělit Azure Resource Manageru, nikoli konkrétnímu uživateli.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">az group create --name secrets-test-rg --location westeurope
+
+az keyvault create \
+  --name muj-trezor \
+  --resource-group secrets-test-rg \
+  --location westeurope \
+  --enabled-for-template-deployment true
+</pre>
+<p>Teď oprávněný uživatel (ne=provozák) vytvoří v trezoru heslo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">az keyvault secret set --vault-name muj-trezor --name moje-heslo --value Azure12345678
+</pre>
+<p>Výborně. Přepínáme se do role provozáka, která k heslu nemá přístup. Používat bude následující ARM šablonu:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters":{
+      "databaseForMySqlAdminName": {
+          "type": "string"
+      },
+      "databaseForMySqlAdminPassword": {
+          "type": "securestring"
+      },
+      "databaseForMySqlDatabaseName": {
+          "type": "string",
+          "defaultValue": "sampledb"
+      },
+      "databaseForMySqlTier": {
+          "type": "string",
+          "defaultValue": "Basic",
+          "allowedValues": [
+              "Basic",
+              "GeneralPurpose",
+              "MemoryOptimized"
+          ]
+      },
+      "databaseForMySqlFamily": {
+          "type": "string",
+          "defaultValue": "Gen4",
+          "allowedValues": [
+              "Gen4",
+              "Gen5"
+          ]
+      },
+      "databaseForMySqlCores": {
+          "type": "int",
+          "defaultValue": 1,
+          "allowedValues": [
+              1,
+              2,
+              4,
+              8,
+              16,
+              32
+          ]
+      },
+      "databaseForMySqlVersion": {
+          "type": "string",
+          "defaultValue": "5.7",
+          "allowedValues": [
+              "5.7",
+              "5.6"
+          ]
+      },
+      "databaseForMySqlSizeGb": {
+          "type": "int",
+          "defaultValue": 5
+      },
+      "databaseForMySqlName": {
+          "type": "string"
+      }
+  },
+  "variables": {
+      "location": "[resourceGroup().location]",
+      "databaseForMySqlSku": "[concat(variables('tierSymbol')[parameters('databaseForMySqlTier')], '_', parameters('databaseForMySqlFamily'), '_', parameters('databaseForMySqlCores'))]",
+      "tierSymbol": {
+          "Basic": "B",
+          "GeneralPurpose": "GP",
+          "MemoryOptimized": "MO"
+      }
+  },
+  "resources": [
+      {
+          "name": "[parameters('databaseForMySqlName')]",
+          "type": "Microsoft.DBforMySQL/servers",
+          "apiVersion": "2017-12-01",
+          "location": "[variables('location')]",
+          "sku": {
+              "name": "[variables('databaseForMySqlSku')]"
+          },
+          "properties": {
+              "version": "[parameters('databaseForMySqlVersion')]",
+              "administratorLogin": "[parameters('databaseForMySqlAdminName')]",
+              "administratorLoginPassword": "[parameters('databaseForMySqlAdminPassword')]",
+              "createMode": "default"
+          },
+          "resources": [
+              {
+                  "name": "[parameters('databaseForMySqlDatabaseName')]",
+                  "type": "databases",
+                  "apiVersion": "2017-12-01",
+                  "dependsOn": [
+                      "[resourceId('Microsoft.DBforMySQL/servers', parameters('databaseForMySqlName'))]"
+                  ],
+                  "properties": {
+                      "charset": "utf8",
+                      "collation": "utf8_general_ci"
+                  }
+              },
+              {  
+                  "type":"firewallrules",
+                  "apiVersion":"2017-12-01-preview",
+                  "dependsOn":[  
+                    "[resourceId('Microsoft.DBforMySQL/servers', parameters('databaseForMySqlName'))]"
+                  ],
+                  "location":"[resourceGroup().location]",
+                  "name":"AllowAll",
+                  "properties":{  
+                    "startIpAddress":"0.0.0.0",
+                    "endIpAddress":"255.255.255.255"
+                  }
+              }
+          ]
+      }
+  ]
+}</pre>
+<p>Finta spočívá v tom, že parametr databaseForMySqlAdminPassword (ten je typu securestring, takže jeho hodnota se nedostane nikam do logu) nevyplníme sami, ale odkážeme se na obsah v Key Vault - do něj sice sám provozák přístup nemá, ale trezor byl nastaven tak, že umožňuje deployment ARM šablon. Načtu si tedy ID trezoru a při definici parametrů deploymentu ho namíříme na správný secret.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">export vault=$(az keyvault show -g secrets-test-rg -n muj-trezor --query id -o tsv)
+
+az group deployment create -g secrets-test-rg \
+  --template-file azuredeploy.json \
+  --parameters '{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseForMySqlAdminName": {
+            "value": "dbadmin"
+        },
+        "databaseForMySqlName": {
+            "value": "moje-mysql-db"
+        },
+        "databaseForMySqlAdminPassword": {
+            "reference": {
+                "keyVault": {
+                  "id": "'$vault'"
+                },
+                "secretName": "moje-heslo"
+              }
+        }
+    }
+}'
+
+</pre>
+<p>To je všechno! MySQL bude vytvořen s heslem z trezoru, aniž by ten, co databázi vytváří, heslo kdy viděl.</p>
+<h1>Vytvoření VM bez přístupu dovnitř</h1>
+<p>Zadání je podobné - někdo má vytvořit VM, do které ale sám nezíská přístup. Samozřejmě můžeme podobně jako u MySQL použít heslo z trezoru, ale v případě OS máme i další možnosti.</p>
+<p>V mé situaci je použit Linux a tam je moje volba jasná. Žádné heslo, ale SSH klíče. Provozák použije můj public klíč, což umožní moje připojení (já mám private klíč) aniž by on získal přístup také.</p>
+<p>V případě Windows lze volit metody, kdy výchozí jméno a heslo slouží pouze pro základní setup (kdy ve VM není ještě nic citlivého), který bude záhy přepsán. Tak například můžete VM začlenit do AD domény s politikou, která šmahem zakáže přihlašování lokálních účtů. Nebo při deploymentu uložíte do Key Vault certifikát, necháte ho vstříknout do VM při startu a následně s ním zprovozníte WinRM. Díky němu už se nějaký skript může připojit a provést potřebné operace typu změna hesla nebo vytvoření jiných účtů.</p>
+<h1>Nastavení aplikace bez zásahu provozáka</h1>
+<p>Dejme tomu, že aplikace musí běžet ve VM. Z bezpečnostních důvodů image nemá obsahovat žádné citlivé informace typu uložená hesla, loginy apod. Nejen, že heslo do MySQL nechci mít jako součást image VM - chci si ho vyzvedávat z trezoru, tak ale také login pro vyzvedávání z trezoru nechci jako součást image (protože pak to logicky trochu ztrácí smysl).</p>
+<p>Využijeme tedy Managed Service Identity. Jde o řešení, kdy Azure sám pro vytvořenou VM založí současně servisní účet v Azure Active Directory (ve výchozím stavu bez jakýchkoli práv) a umožní VM získat přes API bezpečnostní token pro tento účet.</p>
+<p>Při vytváření VM jen řeknu, že chci založit servisní účet (assign-identity). Všimněte si, že využívám public ssh klíč, takže provozák nezískává přístup dovnitř.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">az vm create -n appka \
+  -g secrets-test-rg \
+  --image UbuntuLTS \
+  --admin-username tomas \
+  --size Standard_B1s \
+  --assign-identity [system] \
+  --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex"
+</pre>
+<p>Načtu si název toho servisního účtu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">export account=$(az vm show -n appka -g secrets-test-rg --query identity.principalId -o tsv)
+</pre>
+<p>Teď musí příjít ke slovu někdo jiný, kdo bude mít právo řídit přístup k heslu uloženému v trezoru a ten přiřadí právo na načtení servisnímu účtu našeho VMka.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">az keyvault set-policy --name muj-trezor \
+  --object-id $account \
+  --secret-permissions get
+
+</pre>
+<p>Výborně! Co by se mělo dít uvnitř VM (řekněme, že to byl předem připravený image)? Řekněme, že bych chtěl heslo načíst s využitím pouhého bash a curl. Nejprve si nainstaluji jq (pro parsování JSON) a mysql klienta.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">sudo apt install jq mysql-client -y
+</pre>
+<p>Následně využiji lokálně dostupného API, abych získal token pro servisní účet tohoto VMka.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">export token=$(curl -s http://localhost:50342/oauth2/token \
+    --data "resource=https://vault.azure.net" \
+    -H Metadata:true \
+    | jq -r .access_token)
+</pre>
+<p>S využitím toho tokenu už můžu jít přímo do trezoru a přečíst si heslo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">export password=$(curl -s https://muj-trezor.vault.azure.net/secrets/moje-heslo?api-version=2016-10-01 \
+    -H "Authorization: Bearer $token" \
+    | jq -r .value)
+
+</pre>
+<p>Ideální by bylo teď z toho nedělat nějaký konfigurační soubor nebo tak něco, ale opakovat tohle vždy, když je to potřeba - tedy údaj nechávat jen v paměti (aplikačně načíst z env nebo jako parametr při startu procesu apod.).</p>
+<p>Vyzkoušíme, že se do MySQL as a service v Azure z aplikace dostanu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">mysql -hmoje-mysql-db.mysql.database.azure.com \
+    -udbadmin@moje-mysql-db \
+    -p$password \
+    -e "SHOW DATABASES;"
+
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mysql              |
+| performance_schema |
+| sampledb           |
+| sys                |
++--------------------+
+</pre>
+<p>&nbsp;</p>
+<p><em>Co jsme tedy dosáhli? Podařilo se nám oddělit heslo do MySQL od procesu provisioningu databáze, VMka s aplikací a konfigurací aplikace samotné. Ten, kdo řešení nasazoval, byl úspěšný, přestože se k heslu vůbec nedostal. Azure Key Vault je zásadní komponenta pro situace, kdy vás trápí bezpečnost. Třeba vám pomůže se v cloudu chovat bezpečněji, než u sebe.</em></p>

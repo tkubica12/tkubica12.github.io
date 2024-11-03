@@ -1,0 +1,97 @@
+---
+layout: post
+status: publish
+published: true
+title: Azure Backup pro on-premise
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 778
+wordpress_url: http://tomaskubica.cz/?p=778
+date: '2017-05-29 05:45:24 +0000'
+date_gmt: '2017-05-29 04:45:24 +0000'
+categories:
+tags:
+---
+<p>O zálohování do cloudu už jsem psal několikrát - dostanete data geograficky mimo dosah potenciálních havárií vašeho DC, data jsou uložena minimálně ve třech kopiích (nebo když připlatíte tak v šesti napříč regiony) a to všechno jako službu. Dnes si ukážeme nativní Azure Backup pro on-premise zdroje. Konkrétně je podporován hypervisor (záloha Hyper-V nebo VMware VM), soubory a adresáře či některé aplikace (například SQL Server, Sharepoint, Exchange). Technicky vychází z System Center DPM - rozdíl je pouze v tom, že nefunguje bez platné Azure subscription (nicméně zálohu na lokální disk dělat můžete) a nepodporuje zálohování na pásky.<!--more--></p>
+<h1>Backup and Site Recovery vault</h1>
+<p>Pokud ještě ve své Azure subscription nemáte, založte si Backup and Site Recovery.</p>
+<p><img class="img-fluid wp-image-779 " src="/images/2017/img_592b07ef23ec2.png" alt="" /></p>
+<p>Moje Recovery Services jsou zatím úplně prázdné.</p>
+<p><img class="img-fluid wp-image-780 " src="/images/2017/img_592b0814ca01d.png" alt="" /></p>
+<p>Jděte do záložky Getting started a Backup. Můžeme zálohovat věci z Azure (o tom jindy), dnes použijeme on-premise.</p>
+<p><img class="img-fluid wp-image-781 " src="/images/2017/img_592b0840e7074.png" alt="" /></p>
+<p>Prohlédněte si co můžeme zálohovat. Dnes si vyberu moje Hyper-V.</p>
+<p><img class="img-fluid wp-image-782 " src="/images/2017/img_592b08678a671.png" alt="" /></p>
+<p>Na další stránce dostávám podrobné instrukce co dál.</p>
+<p><img class="img-fluid wp-image-783 " src="/images/2017/img_592b0880d724f.png" alt="" /></p>
+<h1>Azure Backup Server</h1>
+<p>Udělám tedy, co mi říkají. System Center nemám, takže pojedu podle návodu. Potřebuji tedy v on-premise prostředí získat Azure Backup Server. Ten bude fungovat jako lokální přestupní stanice pro zálohování do Azure, tedy jednotliví agenti z on-premises budou psát do něj a z tohoto místa se bude mluvit do cloudu.</p>
+<p><img class="img-fluid wp-image-784 " src="/images/2017/img_592b089f3b50c.png" alt="" /></p>
+<p><img class="img-fluid wp-image-785 " src="/images/2017/img_592b092c569ce.png" alt="" /></p>
+<p>V mezičase se vrátíme do Azure portálu a stáhneme si údaje pro registraci našeho serveru do Azure vault.</p>
+<p><img class="img-fluid wp-image-786 " src="/images/2017/img_592b094f85157.png" alt="" /></p>
+<p>Instalace Azure Backup tento soubor po nás bude chtít.</p>
+<p id="sernZPe"><img class="img-fluid wp-image-787 " src="/images/2017/img_592b097076790.png" alt="" /></p>
+<p>Po zadání souboru si všimněte, že instalátor si načetl správné údaje.</p>
+<p><img class="img-fluid wp-image-788 " src="/images/2017/img_592b098a86f92.png" alt="" /></p>
+<p>Je pravděpodobné, že zálohy budete chtít šifrovat přímo ještě v on-premises. S tím Azure Backup počítá - vygenerujte šifrovací klíč nebo si vymyslete svůj.</p>
+<p><img class="img-fluid wp-image-789 " src="/images/2017/img_592b09bb5d871.png" alt="" /></p>
+<p>Pak se doklikejte na konec instalace Azure Backup Server.</p>
+<p><img class="img-fluid wp-image-790 " src="/images/2017/img_592b09da1f71f.png" alt="" /></p>
+<p>Azure Backup Server je přestupní stanice a k tomu potřebuje nějaký lokální prostor. Navíc dává smysl ty čerstvé zálohy držet i lokálně tak, aby v případě netragické havárie (kdy potřebujeme obnovu jednoho serveru a nepřišli jsme o celé datové centrum včetně lokálních záloh) bylo možné provést restore rychle. Přidáme tedy lokální disky.</p>
+<p><img class="img-fluid wp-image-792 " src="/images/2017/img_592b0ab2da6be.png" alt="" /></p>
+<p><img class="img-fluid wp-image-793 " src="/images/2017/img_592b0ac397ee2.png" alt="" /></p>
+<p><img class="img-fluid wp-image-794 " src="/images/2017/img_592b0ad285083.png" alt="" /></p>
+<h1>Instalace agentů</h1>
+<p>Zálohovací server máme připraven a napojen do Azure. Teď budeme potřebovat nainstalovat zálohovací agenty tam, kde potřebujeme - například na Hyper-V server, na náš SQL Server apod.</p>
+<p>Půjdeme do sekce agentů a zvolíme Install.</p>
+<p><img class="img-fluid wp-image-795 " src="/images/2017/img_592b0b8c85f1e.png" alt="" /></p>
+<p>Azure Backup Server umí agenty "natlačit", nicméně pro prostředí za firewallem nabízí také dostatek možností.</p>
+<p><img class="img-fluid wp-image-796 " src="/images/2017/img_592b0bb0d21dd.png" alt="" /></p>
+<p>Používám metodu tlačení a vybírám si svůj Hyper-V server.</p>
+<p><img class="img-fluid wp-image-797 " src="/images/2017/img_592b0bd54ed34.png" alt="" /></p>
+<p>Aby mohl zálohovací server agenta do mašiny dostat, musím mu dát login.</p>
+<p><img class="img-fluid wp-image-798 " src="/images/2017/img_592b0bf8c909f.png" alt="" /></p>
+<p>Ověříme, že všechno dobře dopadlo.</p>
+<p><img class="img-fluid wp-image-799 " src="/images/2017/img_592b0c0b8a74e.png" alt="" /></p>
+<h1>Zapínáme ochranu</h1>
+<p>Jdeme do části protection a nastavíme si co a jak chránit.</p>
+<p><img class="img-fluid wp-image-800 " src="/images/2017/img_592b0c436498c.png" alt="" /></p>
+<p>Spustím průvodce nastavením ochrany.</p>
+<p><img class="img-fluid wp-image-801 " src="/images/2017/img_592b0c65b013f.png" alt="" /></p>
+<p>Zálohovat budu "serverově".</p>
+<p><img class="img-fluid wp-image-802 " src="/images/2017/img_592b0caa73731.png" alt="" /></p>
+<p>Mám agenta na jednom SQL Server, tak si vyberu databáze, které chci zálohovat.</p>
+<p><img class="img-fluid wp-image-803 " src="/images/2017/img_592b0cc941d30.png" alt="" /></p>
+<p>Dále mám agenta na Hyper-V serveru, tak si vyberu VM, které chci zálohovat.</p>
+<p><img class="img-fluid wp-image-804 " src="/images/2017/img_592b0ce102d6b.png" alt="" /></p>
+<p>Jakou chci ochranu? Rád bych měl zálohu v Azure, nicméně současně také nejčerstvější zálohy dostupné lokálně, abych mohl provést rychlé recovery v případě, že si třeba omylem odmažu pár záznamů ve svém SQL serveru.</p>
+<p><img class="img-fluid wp-image-805 " src="/images/2017/img_592b0d252e360.png" alt="" /></p>
+<p>Nejprve si nastavím pravidla pro svou krátkodobou lokální zálohu.</p>
+<p><img class="img-fluid wp-image-806 " src="/images/2017/img_592b0d61af6e5.png" alt="" /></p>
+<p><img class="img-fluid wp-image-807 " src="/images/2017/img_592b0d72771f2.png" alt="" /></p>
+<p>Co budu chtít zálohovat také v Azure? V mém případě všechno, co i lokálně.</p>
+<p><img class="img-fluid wp-image-808 " src="/images/2017/img_592b0d93d40da.png" alt="" /></p>
+<p>Stanovíme si retention policy pro zálohu v Azure. Třeba několik let.</p>
+<p><img class="img-fluid wp-image-809 " src="/images/2017/img_592b0dc42e816.png" alt="" /></p>
+<p>Dokončíme průvodce a uvidíme, jak se nám provádí jednotlivé úlohy.</p>
+<p><img class="img-fluid wp-image-810 " src="/images/2017/img_592b0de26b309.png" alt="" /></p>
+<p>Jak to vypadá? Stále se na tom pracuje.</p>
+<p><img class="img-fluid wp-image-811 " src="/images/2017/img_592b0e09dcebc.png" alt="" /></p>
+<p>Po nějaké době bude vše připraveno.</p>
+<p><img class="img-fluid wp-image-812 " src="/images/2017/img_592b0e24f2a14.png" alt="" /></p>
+<p>Podívejme se teď do Azure portálu. Naše chráněné zdroje tam určitě najdeme.</p>
+<p><img class="img-fluid wp-image-814 " src="/images/2017/img_592b0e4c9205f.png" alt="" /></p>
+<p>Podívejme se třeba na jednu konkrétní chráněnou VM.</p>
+<p><img class="img-fluid wp-image-815 " src="/images/2017/img_592b0e661b878.png" alt="" /></p>
+<p>Obnovu můžeme provádět přímo v Azure Backup Server. Všimněte si, že při volbě zálohy máte informaci zda jde o online backup (uložený v Azure) nebo lokální (dle krátkodobé politiky).</p>
+<p><img class="img-fluid wp-image-816 " src="/images/2017/img_592b0ea5d8e37.png" alt="" /></p>
+<p>Pak už si jen vybereme způsob obnovy.</p>
+<p><img class="img-fluid wp-image-817 " src="/images/2017/img_592b0ebd22e99.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Azure Backup je velmi pěkně integrované řešení pro on-premises i Azure svět. Technologicky vychází z DPM, takže má za sebou už několik let zkušeného provozu. Můžete jej mít samostatně, ale velmi výhodný je jako součást některých OMS balíčků. S maximální variantou OMS E2 dostanete kompletní OMS správu a bezpečnost, licence na celý System Center, dále právě Azure Backup, ale kromě toho i Azure Site Recovery, Azure Automation a Application Insights. </em></p>

@@ -1,0 +1,124 @@
+---
+layout: post
+status: publish
+published: true
+title: Přístup k PaaS SQL nebo Storage z vnitřní sítě Azure VNet
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1439
+wordpress_url: http://tomaskubica.cz/?p=1439
+date: '2017-10-02 05:00:24 +0000'
+date_gmt: '2017-10-02 04:00:24 +0000'
+categories:
+tags:
+- Security
+- Networking
+---
+<p>Platformní služby mají velmi příjemné vlastnosti z hlediska funkcí, ale i škály a cenové dostupnosti. To ale typicky znamená, že pro využití výnosů z rozsahu jsou některé jejich komponenty multi-tenantní - například jejich interní balancer apod. To znemožňuje nebo znesnadňuje (prodražuje) jejich instalaci ve VNET, privátní síti. Většinou to nevadí. Někdy ale chcete ke službám přistupovat z VNETu. Dnes už je to řešitelné - podívejme jak.<!--more--></p>
+<h1>Standardní síťařina pro Azure SQL a Azure Storage</h1>
+<p>Azure SQL i Azure Storage jsou platformní služby, ke kterým přistupujete na jejich URL, tedy public endpoint. To umožňuje skutečně platformní chování se všemi výhodami. Azure kdysi vznikl právě jako platformní služba a má to ve své DNA a jsem přesvědčen, že to je do budoucna ta správná cesta pro většinu vašich aplikací. Využívají se výnosy z rozsahu a koncept oddělených řešení postavených na Azure Service Fabric (něco jako kontejnery) a dovoluje to například migrovat databázi za chodu z jednoho výkonnostního tier do jiného (na pozadí se provádí transakční replikace mezi clustery a pak se to přehodí, obvykle je výpadek cca 4 vteřiny). AWS je příklad cloudu, který vznikl jako infrastrukturní a proto v jeho DNA je tyto platformně laděné služby řešit přímo nad infrastrukturou. Amazon RDS je tak architektonicky značně odlišné od Azure SQL - a to má výhody i nevýhody.</p>
+<p>Zpět k standardní síťařině pro PaaS služby v Azure. Běží tedy na public endpointu. Pokud dvě platformní služby mluví mezi sebou (například App Service s Azure SQL), činí tak přes "public endpointy", nicméně to neznamená, že komunikace jde přes Internet! Microsoft má vlastní síť mezi všemi regiony (ostatně nedávno šla tisková zpráva o tom, jak si Microsoft a Facebook položili další optický kabel do Atlantiku). Veškeré komunikace mezi službami uvnitř i mezi regiony tak zůstává (a to je garantováno nastavením globální Microsoft sítě) uvnitř.</p>
+<p>Moderní aplikace jsou z pohledu bezpečnosti stavěny na robustním šifrování, autentizaci a autorizaci, už to není o zabezpečení tím, že si "nepingnu". To v dnešním světě, kde perimetr v zásadě přestal existovat, je nejrozumnější řešení.</p>
+<p>Přesto - můžete mít vnitřní politiku schovat komunikaci síťově nebo vaše aplikace zatím není stavěna nad robustními šifrovacími a přihlašovacími standardy. Co s tím, můžu i tak použít PaaS? Podívejme se jak na to.</p>
+<h1>Řešení první - separátní deployment do vašeho VNETu</h1>
+<p>U některých PaaS služeb si můžete zvolit i "Amazon styl", tedy deployment do sady VM přímo ve vašem VNETu, o které se ovšem stará Microsoft (tedy zůstává to platformní službou). To má nevýhody. Některé funkce mohou chybět (zejména v oblasti rychlosti škálování a jeho rozsahu, dopadu na provoz), pro SLA potřebujete víc zdrojů (nemůžete využít výnosů z rozsahu velkého clusteru), musíte mít vlastní i komponenty, které by jinak mohly být ve sdíleném (ale výkonnostně i bezpečnostně garantovaném) Service Fabric clusteru (balancing, ověřování, SSL terminace, ...). To vede obvykle k vyšší ceně při zachování míry redundance. Na druhou stranu zdroje skutečně žijí plně ve vašem VNETu.</p>
+<p>Příkladem těchto služeb je Azure App Service Isolated nebo nově ohlášené Azure SQL Managed Instance.</p>
+<h1>Řešení druhé - komunikace přes public endpoint</h1>
+<p>V případě Blob nebo File Storage v minulosti nešel přístup k public endpoint omezit síťařsky, takže celá bezpečnost musela stát na šifrování (HTTPS resp. SMB 3.0) a oveřování (Shared Access Policy, token, access key). Dnes už ovšem můžete v Preview filtrovat podle zdrojové IP adresy.</p>
+<p>U Azure SQL lze filtrovat IP už nějakou dobu. Tak například pokud potřebujete přistupovat k Azure SQL ze své aplikace v on-premises můžete zařídit, že tato komunikace půjde do Internetu s konkrétní public IP adresou (buď sdílenou pro celou firmu nebo klidně dedikovanou pro tento workload - to zajistíte nastavením vašeho hraničního směrovače). Pak tuto IP zadáte jako jedinou povolenou.</p>
+<p id="nljaTOb"><img class="img-fluid wp-image-1442 " src="/images/2017/img_59cde7932a74f.png" alt="" /></p>
+<p>A co v případě přístupu u aplikace, která běží ve VM v Azure? Pokud ji nedáte public IP a dovolíte přístup na Internet, dostane se sice k Azure SQL, ale použitá public IP bude defacto náhodná (přidělená z nějakého sdíleného poolu). Svojí VM můžete ale dát veřejnou IP (tím zajistíte, že ji nemůže použít nikdo jiný) a tuto zadaté do firewallu v Azure SQL.  Síťařský přístup do Azure SQL jste tím vyřešili - komunikace jasně říká kdo s kým a nejde přes Internet, ale jen přes globální Microsoft síť. Nicméně VM má public IP (ale přístup do ní je řízen NSG, tedy stavovým firewallem na VM či subnetu) a musíte ji nechat přístup do Internetu (resp. díky servisním tagů v Preview už ne, ale o tom dále).</p>
+<h1>Řešení třetí - nový způsob síťařiny pro privátní protunelování</h1>
+<p>Na Ignite konferenci byla představena nová varianta, která je zatím v Preview a jen pro omezený výčet služeb a regionů. Nicméně už si ji můžeme vyzkoušet a podívejme se na ni podrobněji.</p>
+<p>V zásadě tato metoda spočívá ve třech klíčových věcech. První je schopnost zabránit přístupu k PaaS službě z Internetu - to u Azure SQL už bylo, ale ne u Azure Storage. Druhá klíčová komponenta je schopnost protunelovat privátní IP z VNETu směrem k Azure Storage nebo Azure SQL. Třetí důležitou součástkou jsou nové servisní tagy do NSG, které umožňují VM povolit přístup na některé PaaS služby, aniž by to znamenalo dát jim přístup do Internetu</p>
+<p>Vyzkoušejme si to.</p>
+<h2>Příprava prostředí</h2>
+<p>Potřebuji VNET a v něm VM bez public IP adresy. Abych se dostal na její ovládání, vytvořím jump server s public IP, přes který se budu připojovat. Také budu potřebovat Azure SQL DB a Storage account.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">## Resource Group
+az group create -n paas-sec -l eastus
+
+## Azure SQL
+az sql server create --admin-user tomas --admin-password Azure12345678 --name tomasnicesql --location eastus --resource-group paas-sec
+az sql db create --name tomasnicedb --resource-group paas-sec --server tomasnicesql --service-objective Basic --edition Basic --sample-name AdventureWorksLT
+
+## Blob Storage
+az storage account create --name tomaspaassecstorage --resource-group paas-sec --sku Standard_LRS --kind BlobStorage --access-tier Hot
+
+## VNet
+az network vnet create -g paas-sec -n paas-sec-net --address-prefix 10.0.0.0/16 --subnet-name paas-sec-sub --subnet-prefix 10.0.0.0/24
+
+## Test VM
+az vm create -n tomasvm -g paas-sec --image UbuntuLTS --admin-username tomas --admin-password Azure12345678 --authentication-type password --size Standard_B1s --storage-sku Standard_LRS --public-ip-address "" --nsg testnsg --private-ip-address 10.0.0.100 --vnet-name paas-sec-net --subnet paas-sec-sub
+
+## Jump VM
+az vm create -n tomasjumpvm -g paas-sec --image UbuntuLTS --admin-username tomas --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --size Standard_B1s --storage-sku Standard_LRS --public-ip-address-dns-name tomaspaassec --nsg "" --vnet-name paas-sec-net --subnet paas-sec-sub</pre>
+<p>Připojím se do cílové VM skrz jump server.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">## Access test VM via Jump VM
+ssh -A -t tomas@tomaspaassec.eastus.cloudapp.azure.com ssh tomas@10.0.0.100</pre>
+<p>Na této VM nainstaluji SqlCmd pro přistupování do SQL.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">## Install SqlCmd
+curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+sudo apt-get update 
+sudo apt-get install mssql-tools unixodbc-dev -y
+echo 'export PATH="$PATH:/opt/mssql-tools/bin"' &gt;&gt; ~/.bashrc
+source ~/.bashrc</pre>
+<h2>Zkouška spojení</h2>
+<p>V Blob Storage jsem si pro jednoduchost vytvořil public kontejner (vypnul jakékoli ověřování - ostatně testujeme síťařinu, tak ať to máme co nejjednodušší) a v něm jednoduchý textový soubor. Ze své VM si ho můžu zobrazit:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl https://tomaspaassecstorage.blob.core.windows.net/public/testfile.txt
+Sample data</pre>
+<p>Abychom otestovali SQL přístup pojďme zcela vypnout firewall tím, že mu povolíme všechny adresy.</p>
+<p id="oskNVJX"><img class="img-fluid wp-image-1445 " src="/images/2017/img_59cdeccd5a23b.png" alt="" /></p>
+<p>A vypíšeme si z VM systémovou tabulku.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sqlcmd -S tomasnicesql.database.windows.net -U tomas -P 'Azure12345678' -Q 'select name from sys.databases'
+name
+--------------------------------------------------------------------------------------------------------------------------------
+master
+tomasnicedb
+
+(2 rows affected)</pre>
+<h2>Protunelujme se z VNETu do Azure SQL</h2>
+<p>Začněme s Azure SQL a smažeme předchozí firewall pravidlo. Můžeme ověřit, že přístup už nám nefunguje.</p>
+<p>Nejprve na VNETu přidáme servisní endpoint pro Azure SQL.</p>
+<p id="IQHwbph"><img class="img-fluid wp-image-1449 " src="/images/2017/img_59cdfae67990b.png" alt="" /></p>
+<p>Následně přidáme nový VNET v nastavení našeho Azure SQL firewallu.</p>
+<p id="eexzSkL"><img class="img-fluid wp-image-1446 " src="/images/2017/img_59cded7917de2.png" alt="" /></p>
+<p>Zadáme naší VNET.</p>
+<p id="QPTqXHz"><img class="img-fluid wp-image-1447 " src="/images/2017/img_59cdeda8e0dc8.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Vyzkoušejme z naší VM přístup do Azure SQL. Funguje!</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sqlcmd -S tomasnicesql.database.windows.net -U tomas -P 'Azure12345678' -Q 'select name from sys.databases'
+name
+--------------------------------------------------------------------------------------------------------------------------------
+master
+tomasnicedb
+
+(2 rows affected)</pre>
+<p>Přístup z Internetu na SQL bude zamítnut, ale zevnitř našeho VNETu se dostaneme kam potřebujeme.  Nutno podotknout, že tento koncept ovšem neřeší přístup z onpremises stroje přes IPSec VPN, je ho možné použít pouze pro VM ve VNET v Azure.</p>
+<h2>Protunelujme se z VNETu do Azure Blob či File Storage</h2>
+<p>Provedeme totéž pro Storage. Nejprve tedy ve VNET vytvoříme servisní endpoint pro Storage.</p>
+<p id="xMRuBCC"><img class="img-fluid wp-image-1451 " src="/images/2017/img_59ce00211fb5d.png" alt="" /></p>
+<p>Následně jdeme do Storage Account a zapneme firewall, který nám umožní omezit přístup na zdrojové IP (to pro naší ukázku nepotřebujeme - tento seznam schválně necháme prázdný, aby do Storage nemohl nikdo z Internetu) a můžeme se napojit na VNET.</p>
+<p id="nXpAQkN"><img class="img-fluid wp-image-1453 " src="/images/2017/img_59ce0175986a2.png" alt="" /></p>
+<p>Vyzkoušejme, že z naší VM ve VNETu můžeme objekt ve storage přečíst.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl https://tomaspaassecstorage.blob.core.windows.net/public/testfile.txt
+Sample data</pre>
+<p>Současně ověřte, že z jiného místa, například ze svého PC, už se k objektu nedostanete. Já ne, funguje to jak potřebujeme!</p>
+<h2>Omezíme Internet pro naši VM</h2>
+<p>Zbývá nám vyřešit ještě jednu věc, pokud jsou naši bezpečáci přísní. Naše VM teď sice hezky privátně přistupuje do Storage i Azure SQL, ale můžem mluvit  z VM do Internetu. To nemusí být problém - ostatně v DevOps scénářích chci mít přístup na stahování aktualizací, balíčků a tak podobně. Nicméně u produkčního systému můžu chtít něčemu takovému zabránit.</p>
+<p>Zkusme přidat do NSG (stavového firewallu) na úrovni VM zákaz Internetu. Použiji tag Internet.</p>
+<p id="rAFzbvQ"><img class="img-fluid wp-image-1455 " src="/images/2017/img_59ce02f6a7243.png" alt="" /></p>
+<p>Povedlo se. Pokud udělám curl na www.microsoft.com, neprojde. VM skutečně nemůže do Internetu a to je co jsem chtěl. Jenže co přístup do storage a SQL? Ten nám také přestal fungovat. Obě služby totiž běží na public endpointech a tag Internet zakázal všechny public IP. Tady přichází ke slovu další komponenta řešení. Potřebovali bychom specificky povolit komunikaci na IP adresy, na kterých běžích SQL a Storage. Jenže to není jediná IP - platformní služba běží ve velikém clusteru a IP adresy se tam mohou čas od času změnit. Co tedy potřebujeme je pravidelně aktualizovaný seznam IP adres, které Azure pro tyto služby používá. A to jsou právě servisní tagy pro služby. Zatím v rámci Preview je jejich výčet a seznam regionů omezen, ale to se bude postupně zlepšovat.</p>
+<p>Přidám tedy záznam s nižším číslem (lepší prioritou), který VM povolí mluvit se servisním tagem (objektem zahrnujícím IP adresy) Storage endpointů v regionu East US.</p>
+<p id="dFiMxUx"><img class="img-fluid wp-image-1456 " src="/images/2017/img_59ce03f483515.png" alt="" /></p>
+<p>A je to. Storage mi zase funguje, Internet pořád ne. Přidáme totéž pro SQL a můžeme vyzkoušet.</p>
+<p id="srOphvX"><img class="img-fluid wp-image-1457 " src="/images/2017/img_59ce044cc8a67.png" alt="" /></p>
+<p>Funguje!</p>
+<p>&nbsp;</p>
+<p><em>Stavíte novou cloud native aplikaci? Použijte na všechno platformní služby a soustřeďte se na bezpečnost na úrovni protokolů. Pokud ale potřebujete ke Storage nebo Azure SQL přistupovat z VM ve VNETu a musíte zajistit striktnější síťové podmínky, můžete. Azure síťařina přidala prostředky, které vám to dovolují - filtraci na firewallu služby, protunelování z VNET přes VNET servisní endpointy a s využitím tagů v NSG můžete udržet funkční napojení do PaaS bez uvolnění přístupu VM do Internetu. Zkuste si to.</em></p>
+<p>&nbsp;</p>

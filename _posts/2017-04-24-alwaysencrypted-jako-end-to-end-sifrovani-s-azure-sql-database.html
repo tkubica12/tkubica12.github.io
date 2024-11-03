@@ -1,0 +1,57 @@
+---
+layout: post
+status: publish
+published: true
+title: AlwaysEncrypted jako end-to-end šifrování s Azure SQL Database
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 145
+wordpress_url: http://tomaskubica.cz/?p=145
+date: '2017-04-24 05:16:10 +0000'
+date_gmt: '2017-04-24 04:16:10 +0000'
+categories:
+tags:
+- SQL
+- Security
+---
+<p>Potřebujete všechna data v databázi šifrovaná a to včetně jejich záloh? Na to je ideální použít Transparent Data Encryption (o tom v jiném článku). Je to jednoduché a v Azure SQL doslova na kliknutí. Někdy ale potřebujete šifrovat tak, že ani administrátor databáze data nepřečte. Možná to ani nemusí být na všechna data, ale jen vybrané sloupečky. V ten okamžik je dobré zašifrovat data aplikačně, tedy zcela mimo databázový systém. To má ale nevýhodu - musíte tuto funkci napsat ve své aplikaci, což znamená určitou náročnost. Druhá starost je pak s klíči - kde budete držet klíč k dešifrování dat? Azure má na obě starosti odpověď.<!--more--></p>
+<h1>AlwaysEncrypted</h1>
+<p>Připomeňme si, co chceme. Šifrovat v aplikaci, ale nemít s tím tolik práce. Řešením je implementovat tuto funkci v knihovně, tedy v kódu, který aplikace používá tak jako tak pro přístup k datům v databázi. Přesně tohle máte s AlwaysEncrypted k dispozici. Ve vaší aplikace se změní pouze ConnectionString, vše ostatní zůstane úplně stejné. Čtete a zapisujete jako bez šifrování a knihovna se bezpečně postará o vše potřebné.</p>
+<p>Schématicky je to znázorněno zde.</p>
+<p id="qSfDNjl"><img class="img-fluid wp-image-152 " src="/images/2017/img_58846630b3375.png" alt="" /></p>
+<h1>Azure Key Vault</h1>
+<p>Druhá potíž je ve správě šifrovacích klíčů. Můžete je samozřejmě uložit v trust store příslušného serveru, kde aplikace běží, ale to není zrovna praktické. Lepší je uložit si klíče do trezoru v Azure (na výběr máte softwarový trezor, ale i hardwarové řešení na speciálních čipech). Šifrovací klíč tak zůstává bezpečně v Azure a vy řídíte kdo si ho tam smí "vyzvednout". Azure Key Vault je perfektně provázán s AlwaysEncrypted, ale je univerzální a můžete trezor použít i pro jiné situace a aplikace, kde potřebujete držet nějaké tajnosti či certifikáty pěkně pod zámkem.</p>
+<h1>Vyzkoušejme si to</h1>
+<p>Vytvoříme si Azure Key Vault.</p>
+<p id="AYMyPVG"><img class="img-fluid wp-image-146 " src="/images/2017/img_5883acfb94301.png" alt="" /></p>
+<p>Vyplníme nějaké jméno a vybereme si uživatele, kteří mohou trezor na klíče využívat.</p>
+<p id="xFxNCHK"><img class="img-fluid wp-image-148 " src="/images/2017/img_588463855ca5d.png" alt="" /></p>
+<p>Pro začátek nebudeme zkoumat podrobnosti jednotlivých práv, vyberte uživatele a dejte mu všechna.</p>
+<p id="jVNTIVy"><img class="img-fluid wp-image-149 " src="/images/2017/img_588463d0dcca2.png" alt="" /></p>
+<p>Teď půjdeme do SQL Server Management Studio a ověříme, že můžeme vypsat tyto sloupečky z jedné z tabulek, které jsou součástí sample databáze.</p>
+<p id="CrpsknD"><img class="img-fluid wp-image-150 " src="/images/2017/img_58846491cd2b6.png" alt="" /></p>
+<p>Příjmení, jak vidíme, získáváme v čitelné podobě. V našem byznysu je to ale extrémně citlivá informace a budeme chtít ji šifrovat přímo na koncovém bodu, tedy v aplikaci.</p>
+<p>Spustíme průvodce zašifrováním sloupce.</p>
+<p id="avgBVzC"><img class="img-fluid wp-image-151 " src="/images/2017/img_5884650ecbe59.png" alt="" /></p>
+<p>V průvodci vybereme náš sloupeček a také zvolíme metodu šifrování. Deterministická způsobí jednoduché zašifrování tak, že ze stejného stupu vždy dostaneme stejný výstup. Díky tomu může políčko třeba i nadále fungovat pro operace typu JOIN, ale je to méně bezpečná varianta - v datech pak lze vypozorovat nějaké vzorce chování a je to nehodné zejména pro slupce, kde je malá variabilita dat (například zašifrovat takto sloupeček "pohlaví" je praticky zbytečné). Randomized je varianta, kdy se použije salt, tedy ke vstupním datům se přidá navíc něco náhodného a teprve to se zašifruje (při rozšifrování se to přidané zase odstraní). Výsledkem je, že i přes stejný vstupní údaj je výsledná šifra pokaždé jiná.</p>
+<p id="AZCjamj"><img class="img-fluid wp-image-153 " src="/images/2017/img_58846749c5c86.png" alt="" /></p>
+<p>Velmi zajímavé je, že klíče můžeme bezpečně držet v Azure Key Vault a přímo z průvodce je tam můžeme generovat. Zvolte tuto volbu a přihlašte se do Azure.</p>
+<p id="tCAUUgp"><img class="img-fluid wp-image-154 " src="/images/2017/img_588467c04b9ed.png" alt="" /></p>
+<p>Vybereme si Key Vault.</p>
+<p id="fZZeXbw"><img class="img-fluid wp-image-155 " src="/images/2017/img_5884680097372.png" alt="" /></p>
+<p>Na konci průvodce sledujme postup prací.</p>
+<p id="LjacitV"><img class="img-fluid wp-image-156 " src="/images/2017/img_588468601ce29.png" alt="" /></p>
+<p>Po chvilce je hotovo - sloupeček je zašifrovaný. V SQL Server Management Studio si znovu vypíšeme data a uvidíme, že sloupeček je skutečně zašifrovaný.</p>
+<p id="ldQzdQZ"><img class="img-fluid wp-image-157 " src="/images/2017/img_58846c54f3bdf.png" alt="" /></p>
+<p>A co na straně klienstké aplikace? Tohle přidejte do Connection stringu a máte hotovo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Column Encryption Setting=Enabled</pre>
+<p>&nbsp;</p>
+<p><em>Potřebujete šifrovat data přímo na straně aplikace, ale přitom nechcete přepisovat váš kód a příslušné klíče držet v centrálním trezoru? Kombinace AlwaysEncrypted a Azure Key Vault je pro to myslím ideální.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

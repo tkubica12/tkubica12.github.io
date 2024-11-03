@@ -1,0 +1,69 @@
+---
+layout: post
+status: publish
+published: true
+title: Azure z PowerShell v Linuxu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 43
+wordpress_url: http://beta.tomaskubica.cz/?p=43
+date: '2017-03-23 09:01:06 +0000'
+date_gmt: '2017-03-23 08:01:06 +0000'
+categories:
+tags:
+- PowerShell
+---
+<p>PowerShell nebo CLI? To je krásný "souboj". Já mám rád oboje. Koncept práce v Linux CLI je velmi úsporný (nemusím tolik ťukat) a na klasické parsovací nástroje typu grep, sed, cut či awk jsem si docela zvykl. Na druhou stranu PowerShell díky pozdějšímu startu (před deseti lety) mohl udělat řadu věcí lépe. Příkazy jsou sice dlouhé, ale přesně vystihují co se děje a i začátečník je dokáže pochopit jen jejich přečtením (Nová-VirtuálníSíť, Odstraň-SqlDatabázi) a hrátky s "pipováním" mi občas přijde dokáží vytušit, co chci udělat (jako kdybychom mluvili o Ruby vs. Java). Zkrátka - podle toho co dělám beru oboje.<!--more--></p>
+<p>Azure CLI nemá omezení, kde běží - na Linux, Windows i na MacOS. PowerShell byl zatím jen pro Windows, ale to se mění. Microsoft PowerShell jde do open source a běží na Linux - zatím tedy v testovací Alpha verzi, ale evidentně se na tom pracuje. Chtěl jsem se tedy podívat jak to může vypadat. Co je PowerShell pro Linux a jak z něj ovládat Azure?</p>
+<h1>PowerShell pro Linux</h1>
+<p>Než začneme - aktuálně je to celé ve verzi Alpha14. To znamená, že spousta věcí ještě nefunguje nebo má limity. Dnes mi nejde o to produkčně ovládat Azure z PowerShell v Linuxu, ale podívat se, jaké to bude, až bude uvolněna ostrá verze. Zkusíte to se mnou?</p>
+<p>Jděte na stránky open source PowerShell pro linux na GitHubu: <a href="https://github.com/PowerShell/PowerShell">https://github.com/PowerShell/PowerShell</a></p>
+<p>Najdeme si instalační balíček, v mém případě pro Ubuntu 16.04. Stáhneme a nainstalujeme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ wget https://github.com/PowerShell/PowerShell/releases/download/v6.0.0-alpha.14/powershell_6.0.0-alpha.14-1ubuntu1.16.04.1_amd64.deb
+$ sudo dpkg -i powershell_6.0.0-alpha.14-1ubuntu1.16.04.1_amd64.deb</pre>
+<p>Instalátor pravděpodobně vyhodí nějaké nesplněné dependencies, což vyřešíme takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo apt-get install -f</pre>
+<p>Vše je připraveno, můžeme skočit do interaktivní Powershell session. Protože budeme určitě chtít rovnou nainstalovat Azure moduly, což vyžaduje administrátorské oprávnění (ostatně na Windows také musíte instalovat modely ze session spuštěné jako Run as Administrator), použijeme sudo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo powershell
+
+PowerShell
+Copyright (C) 2016 Microsoft Corporation. All rights reserved.
+
+PS /home/tomas&gt;</pre>
+<p>Nainstalujeme AzureRM modul. Normálně byhom použili Install-Module AzureRM, ale to je zatím v této Alpha14 rozbité - nicméně lze to vyřešit jinak:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS /home/tomas&gt; Install-Package -Name AzureRM.NetCore.Preview -Source https://www.powershellgallery.com/api/v2 -ProviderName NuGet -ExcludeVersion -Destination  /usr/local/share/powershell/Modules</pre>
+<p>To je vše. Privilegovaný powershell už nepotřebujeme, vyskočíme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS /home/tomas&gt; exit</pre>
+<p>Spusťme powershell a naimportujme AzureRM.NetCore.Preview modul.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ powershell
+PowerShell
+Copyright (C) 2016 Microsoft Corporation. All rights reserved.
+
+PS /home/tomas&gt; Import-Module AzureRM.NetCore.Preview</pre>
+<p>Pojďme se teď nalogovat do Azure. Všimněte si, že proces je jiný, než jak známe z Windows PowerShell. Podubně jako u Azure CLI musíme jít na web, zadat kód a nalogovat se.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS /home/tomas&gt; Login-AzureRmAccount
+VERBOSE: To sign in, use a web browser to open the page https://aka.ms/devicelogin and enter the code CEFWN2QK8 to authenticate.
+
+
+Environment           : AzureCloud
+Account               : xxxxx
+TenantId              : xxxxx
+SubscriptionId        : xxxxx
+SubscriptionName      : mojesub
+CurrentStorageAccount :</pre>
+<p>Naimportujme si moduly a můžeme si prohlédnout třeba resource groupy v mé subscription.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">PS /home/tomas&gt; Get-AzureRmResourceGroup -Name test
+
+
+ResourceGroupName : test
+Location          : westeurope
+ProvisioningState : Succeeded
+Tags              :
+ResourceId        : /subscriptions/xxxxx/resourceGroups/test</pre>
+<p>&nbsp;</p>
+<p><em>V Alpha verzi jsou možnosti omezené, ale vývoj jde rychle dopředu. Ostatně mi šlo především o získání jistého náhledu co to vlastně znamená mít PowerShell v Linuxu. </em></p>

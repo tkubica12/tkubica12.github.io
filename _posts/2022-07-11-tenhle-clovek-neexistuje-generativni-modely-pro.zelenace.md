@@ -1,0 +1,71 @@
+---
+layout: post
+published: true
+title: Tenhle člověk neexistuje - generativní modely pro zelenáče
+tags:
+- AI
+- ML pro zelenáče
+---
+Podívejte se na [https://thispersondoesnotexist.com/](https://thispersondoesnotexist.com/). Zkuste to hned a udělejte pár znovunačtení. Hned takhle zkraje vám prozradím pár triků:
+- Na pozadí nikdy není nějaký nápis a pokud ano, tak nedává smysl.
+- U žen koukněte na náušnice - nejsou občas divné nebo nemají jen jednu?
+- Soustřeďte se na oblečení - dává smysl? Není rameno moc krátké nebo vzor na tričku divný?
+- Na fotce nejsou třeba ruce před obličejem nebo mašle ve vlastech - protože když jo, je to katastrofa (zkuste na takový případ narazit znovunačítáním).
+- Pokud se objeví brýle, ověřte si, že dávají smysl - mají správně nožičky, střední pojítko, nechybí jedno z opírátek na nos?
+
+Jak jste asi pochopili, tohle nejsou skuteční lidé, ale obrázky generované umělou inteligencí postavenou na Generative Adversarial Networks. Není fascinující, že to, že je obličej fake, poznáte primárně z toho, co obličej není? Jinak řečeno to co je cílem, tedy obličej, to jde AI už opravdu skvěle, ostatní je jen otázka velmi blízké budoucnosti. Jak tenhle úžasný trik vlastně funguje?
+
+# Z chaosu k obrázku
+Topologie neuronek může v postupu různě upravovat rozměry. Některé vezmou veliké množství vstupů, redukují ho na daleko menší počet, následně ho jinou metodou nafouknou a pak zase sfouknou na nějaký počet výsledků typu pes/kočka (jako u CNN). Jiné vezmou vstupy, ve skrytých vrstvách si vytvoří nové dimenze, aby je následně sťukli do nízkodimenzionální odpovědi třeba ve formě jediného čísla (např. DNN). Co kdybychom vzali nějaký náhodně generovaný a relativně malý vstup a prohnali ho sítí, která ho nafoukne na hromadu pixelů ve třech kanálech, tedy na pěkný obrázek? Šum přes velké množství parametrů nakonec něco vygeneruje - zpočátku to bude také náhodný šum. Co kdyby ale naše loss funkce nějak dokázala ohodnotit krásu výsledného obrázku? To není klasický supervised learning, protože bychom žádná vstupní ohodnocená data neměli, spíše bychom dávali AI zpětnou vazbu na jeho práci. K tomu se na tomhle blogu ještě dostanu, protože reinforcement learning je hodně zajímavý.
+
+Jenže - kdo bude ochoten s robotem sedět a miliardakrát ho plácat po zádech, když bude hodnotit jeho výtvory? Lidský hodnotitel nebude zrovna praktický.
+
+# Když stojí AI proti AI
+GAN používají velmi zajímavý nápad. Co proti sobě do nepřátelského zápasu postavit dvě AI?
+
+Nejprve naše první AI, generátor, začne z náhodného šumu ladit parametry sítě tak, aby z toho vzešel nějaký výstupní obrázek. V této fázi se nemá z čeho učit, takže výsledkem bude zase náhodný šum. Ta náhoda na vstupu je důležitá. Pokud by byl na vstupu vždy třeba jen vektor nul, bude veškeré učení směřovat na jeden jediný obrázek a to nechceme. Smyslem je generovat náhodné vymyšlené obrázky lidí, ne jen jednoho.
+
+Teď je na tahu druhé AI, detektiv, který si říká discriminator. Jeho úkolem ja naučit se rozpoznat skutečné obrázky obličejů nebo koček oproti podvrhům z generátoru. Je to tedy klasická binární klasifikace na způsob CNN a v této fázi to bude mít trapně jednoduché. Tím je tah detektiva u konce.
+
+Vracíme se ke generátoru. Jeho úkolem je zmást detektiva, aby jeho podvrh považoval za skutečnost (jeho zpětná vazba je škála, takže i z něčeho jen o malinkato většího než 0 se může generátor něco naučit). Díky zpětné vazbě na sobě může generátor pracovat.
+
+Po nějaké době dotrénujeme detektiva. Generátor se nám zlepšil, tak pojďme jeho teď výrazně kvalitnější výtvory společně s reálnými obrázky prohnat učením. S trochou štěstí se detektiv stane úspěšnější v odhalování podvrhů a můžeme zase do dalšího kola. Oba modely mají opačnou snahu - jeden chce druhého zmást a ten druhý se nechce nechat.
+
+Geniální. Je s tím ale pár problémů. Může se snadno stát, že si generátor po nějaké době najde obrázek, který detektiva spolehlivě pokaždé rozloží a v ten okamžik přestane zkoušet různé varianty a to je nám k ničemu. Bránit se tomu dá třeba tak, že generátor bude penalizován, pokud poskytuje výstupy, které jsou si příliš podobné. Druhá potíž je, že vlastně nevíme kdy přestat. Dvě AI si tady něco pinkají a mohou se dostat do neuspokojivého stavu. Například pokud se jedno z nich utrhne a je dramaticky lepší - to pak není hra, toho druhého to nebaví a neučí se dobře. Nebo se trénování dostane do cyklu, kdy se střídá tragický výsledek jednoho a hned v další epoše přesně opačně a tak pořád dokola a výsledky nejsou celkově dobré. Stabilita řešení je zkrátka problematická a bývá potřeba si trochu hrát s hyperparametry a hledat co funguje.
+
+Fascinující je ale uvědomit si tohle - generátor skutečně nikdy neviděl žádný reálný obrázek, má jen zpětnou vazbu na svoje výtvory. Je to unsupervised úloha - počítač se naučí vytvářet obličeje nebo kreslit jako Monet, aniž by s tím od nás potřeboval pomoci. 
+
+Chcete další příklady? Pokud preferujete umění, tak zkuse [https://thisartworkdoesnotexist.com/](https://thisartworkdoesnotexist.com/), jestli kočky, tak tady [https://thiscatdoesnotexist.com/](https://thiscatdoesnotexist.com/).
+
+# Co přidat další rozměr do vstupů, třeba s Conditional GAN
+Protože generujeme obrázky z náhodného šumu, nemáme pod kontrolou nic z výsledku - třeba jestli chceme muže nebo ženu. Do vstupů se dá přimíchat další informace o nějaké kategorizaci, tedy přidat tam nějaké supervized prvky. Díky tomu se vám může podařit generovat obrázky s konkrétními vlastnostmi - blond, s brýlemi, s dlouhými vlasy.
+
+Další techniky, třeba pix2pix, dokáží mít na vstupu obrázek a smyslem je na jeho základě generovat nový odpovídající trénované sadě. Například trénovací vstupy detektiva jsou anime obrázky a vstup pro generátor je běžný obličej - jak by ho nakreslil japonský kreslíř? Nebo můžete na vstupu rukou načrtnout obrázek kočky a nechat si ji vygenerovat jako živou (ale pozor, občas jsou výsledky opravdu děsivé): [https://affinelayer.com/pixsrv/index.html](https://affinelayer.com/pixsrv/index.html).
+
+# Autoencoders - podobné principy, ale jiné známkování
+Tato třída modelů se taky považuje za generativní typ, ale funguje trochu jinak. Opět tu jsou dvě složky, ale místo generátoru a diskriminátora tu je encoder a decoder. Vztahy mezi nimi nejsou kompetitivní, oba pracují na společném výsledku a tím je, aby vstup do encoderu a výstup decoderu byly co nejpodobnější. Jak to funguje a k čemu je to dobré?
+
+Autoencoders ve svém důsledku oddělují zrno od plev, tedy ve vstupu nachází to nejdůležitější, informačně nejbohatší. Encoder totiž z bohatého vstupu přes několik vrstev redukuje výrazně počet dimenzí, tedy vytváří výcuc vstupu. Trénování je postavené na tom, že pak přichází ke slovu decoder a ten musí z takto komprimovaného vstupu vytvořit plný výstup a loss function hledá výstup co nejpodobnější původnímu vstupu do encoderu. 
+
+Jedním ze zajímavých scénářů je posléze využít jen encoder, což reprezentuje úlohu redukce dimenzí. Ty dělají výpočty náročnější, proto je třeba matematika kolem fyzikální teorie strun dost náročná, protože struny mají 9 prostorových dimenzí (a jednu časovou) a M-teorie sjednocující vícero dosavadních strunových ještě o jednu víc. Co všechno ale může rozhodovat o prodejnosti konkrétní zmrzliny? Barva, příchuť, konzistence, způsob servírování, způsob prezentace, venkovní teplota, srážky, rychlost větru - jistě jich bez velkého přemýšlení najdete sto. Hodila by se schopnost zredukovat vstupní dimenze na menší počet, s kterým se dá nějak rozumně počítat. To lze udělat lineárně (metoda PCA), ale někdy to chce nelineární přístupy - a to právě Autoencoders dělají.
+
+Další zajímavý scénář je opravování vstupních dat. Encoder začne být tak dobrý v identifikaci toho podstatného (a decoder ve zpětném rekonstruování - nafouknutí na původní počet dimenzí), že pokud naservírujete drobné vady, opraví je. Typicky jde třeba o odstranění šumu, zejména, pokud je nerovnoměrný (pokud například máte na staré nahrávce šum vzniklý magnetofonovou páskou, ten bude sice možná u každého přístroje jiný, ale v rámci něj konzistentní - v software na zpracování zvuku jednoduše najdete pasáž kde je jen šum, sejmete jeho vzorec a necháte ho odečíst od ostatních pasáží a funguje to skvěle i bez složitých neuronek - stejně dokáže software fotoaparátu redukovat šum vznikající na čipu při nízkém osvětlení).
+
+Kombinace encoder-decoder může nejen při trénování, ale i později zhodnotit, jak moc velký rozdíl je mezi vstupem a výstupem. To znamená, že pokud se model trénoval na milionech obrázků Deli tyčinek v továrně nebo buněk v mikroskopu, bude míra chyby u nových vstupů představovat míru anomálie vůči tomu, na co je model vytrénovaný. Defekty lze detekovat s využitím supervised learningu, pokud máte k dispozici obrovské množství dokonalých i poškozených cukrovinek, ale autoencoder by si mohl vystačit jen s těmi dokonalými, tedy s menší supervizí. Naučíte ho to dobré a on rozezná to špatné aniž mu to špatné vůbec musíte ukazovat (na defekty máte typicky daleko méně dat nebo dokonce žádná, protože nové viry budou buňky poškozovat jiným, dosud nezachyceným způsobem).
+
+Zvláštní variantou je variational autoencoder, který ve svém středu (komprimovaná informace) nemá výsledný vektor, ale pravděpodobnosti příslušností do nějakých škatulek. Jinak řečeno ten zázračný koncentrovaný balíček informací je interpretovatelný (do nějaké míry) a můžeme pak použít jen decoder samostatně k vytváření nových věcí. Jejich cíl je tedy dost podobný GAN, které variational autoencoder (VAE) v oblasti třeba generování obrázků ve vysokém rozlišení zastiňují - nicméně GAN a VAE je možné kombinovat a tím GAN lépe adaptovat na úlohy s nějakou aktivní zadanou transformací (např. "odstraň brýle" nebo "přidej fousy" nebo "zestárni o 20 let").
+
+# Další příklady použití těchto technik
+Zatím jsme se soustředili hlavně na obrazové záležitosti, například generování obrázků jako jsou tváře nebo umělecká díla a také varianty, kdy je obrázek na vstupu a GAN ho přemění třeba na obraz podle stylu nějakého malíře (například v modelu CycleGAN). Podobně se dá postupovat i při generování hudby. Ta je velmi sekvenční, takže na tomto blogu dříve zmíněné Recurrent Neural Networks mají velkou šanci přijít s něčím, co se dá rozumně poslouchat (například MelodyRNN), ale při použití GAN sice může být poslouchatelnost v jistých ohledech o trochu slabší, ale modely mají inovativnější výsledky (třeba MidiNet - takže ve spolupráci s lidským skladatelem a interpretem mohou být GAN modely přínosnější). Použití VAE v hudbě zase umí zajímavě dělat přechody z jednoho materiálu do druhého, například pozvolna měnit smyčku bicích z jednoho stylu do druhého či z jedné melodie do jiné - tak to dělá třeba projekt MusicVAE.
+
+Další (a ne zrovna vždy společensky žádoucí) je využití GAN pro získání "optické iluze" pro AI. Stejně jako náš mozek má díky svým patternům sklon být oklamán - třeba tenhle slavný obrázek, kde políčko A a B mají přesně stejný odstín šedé, což mozek nedokáže vnímat, protože přemýšlí o světle a stínu a dává tomu prioritu oproti pouhým neinterpretovaným vstupům - [https://www.foundalis.com/phi/chessillusion.jpg](https://www.foundalis.com/phi/chessillusion.jpg) ) - tak AI může mít podobné slabiny. [Tady](https://openai.com/blog/adversarial-example-research/) je fascinující příklad, kdy pro nás jasná panda a pračka se může rázem stát opicí a reprákem takovou GAN modifikací, která mozek neoklame, ale AI ano. 
+
+Dále tu jsou variace na předchozí témata. Tak například místo promítnutí stylu Moneta do obrázku můžeme v modelu DiscoGAN přenést styl z jednoho oblečení či doplňku na jiný, tedy například k botám vygenerovat vhodnou kabelku. Komerční použití je myslím zřejmé, ale proč použít GAN místo běžné neuronky na doporučování produktů? Protože tahle je unsupervised a navíc taková kabelka ještě třeba ani neexistuje. Můžete tedy například udělat kombinaci typu z bot vygeneruji vhodnou kabelku a pak přes jiný model najdu nejpodobnější kabelku v aktuálním portfoliu a to všechno ad-hoc, bez nutnosti přeučovat model pro každé nové boty. A pokud se shoda s aktuálním portfoliem moc nenašla, je to určitě dobrý impuls do designu - když se nám takhle skvěle prodávají tyto boty, proč k nim nevyrobit i ideální kabelku do páru?
+
+Už zmíněný pix2pix zase dokáže převést fotku ze dne na noc nebo z léta na zimu. IcGAN umí z obličeje vytvořit verzí mračící se, veselou, blonďatou, starší (Age-cGAN) nebo v opačném pohlaví. Modely odstraňující rozmazání mohou být použity při zpracování snímků z bezpečnostní kamery - např. nejprve nějak detekujeme objekty a pohybu, následně vylepšíme výřez odstraněním rozmazání (přes GAN) a pak nad ostrým objektem uděláme klasifikaci (CNN). Stejně dokáží modely otočit obličej, pokud je třeba trochu z profilu tak, aby se pak lépe provádělo rozpoznání obličeje, které funguje ideálně čistě zepředu. A když jsme u toho generování - co kdyby decoder byl ve 3D a na vstupu bylo 2D? Projekt 3D ShapeNet se o to pokouší - z fotky židle vám sestaví 3D model a můžete si ji třeba vytisknout. Určitě je i hodně prostoru v oblasti rekonstrukcí starých filmů a fotografií, korekce chyb při snímání nebo využití schopnosti "opravovat" k odstranění částí obrázku (třeba logo televize v ukradeném videu nebo odebrání už nemilovaného manžela z rodinné fotky). 
+
+K tomu všemu přidejme už zmíněnou obranu pro Deep Fake - už dnes začíná být pro běžného člověka nemožné odhalit podvržený obraz, video, zvuk nebo text a to může ovlivňovat všechno od voleb přes války až po nákupní chování. Nakonec ten discriminator, který má zatím roli "školení" generátorů, které jsou cílovým produktem, možné bude mít zásadní roli v odhalování podvrhů. Protože to možná není v zájmu některých sociálních sítí (deep fake vzbuzuje pozornost, drží u platformy = přijde víc peněz z reklamy) je možné, že si budete moci detektory koupit jako komerční produkt, získat od neziskové organizace nebo od někoho, jehož obchodní model je postaven jinak (například ve vaší subskripci na služby platformy jako je Windows počítač nebo Apple iPhone).
+
+Komerčně jsou aktuálně možná užitečnější dříve diskutované přístupy typu DNN nebo CNN, ale GAN jsou za mě jednoznačně nejvíc cool. Pokud chcete ohromit na příští párty, tohle bude ideální volba.
+
+

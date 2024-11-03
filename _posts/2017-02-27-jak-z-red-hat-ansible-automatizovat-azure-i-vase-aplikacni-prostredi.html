@@ -1,0 +1,321 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak z Red Hat Ansible automatizovat Azure i vaše aplikační prostředí
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 442
+wordpress_url: http://tomaskubica.cz/?p=442
+date: '2017-02-27 05:34:07 +0000'
+date_gmt: '2017-02-27 04:34:07 +0000'
+categories:
+tags:
+- Automatizace
+---
+{% raw %}
+<p>Z rodiny configuration management nástrojů jako jsou Puppet, Chef, Ansible a Salt Stack mám Ansible osobně nejraději - nebojím se totiž mezer, takže YAML a Python mi vyhovují (pokud jste typ složených závorek či jiných na odsazení nezávislých zápisech, asi půjdete spíše do Chef a JSON :)  ). Víte ale, že z Red Hat Ansible můžete nejen automatizovat instalaci aplikačního prostředí i aplikací a udržovat OS, ale i provisionovat zdroje v Azure? Podívejme se jak na to.<!--more--></p>
+<h1>Připravíme si prostředí</h1>
+<p>Co budete potřebovat? Já použiji Linux stroj, na něm Python, Ansible, dále potřebujeme Azure Python SDK. Pro zjednodušení jsem si připravil Docker image, abych to na svém Windows 10 notebooku mohl řešit jednoduše a efektivně (s Docker for Windows). Spouštím ho tak, aby trvale běžel (proces tail) a pak teprve vyvolám bash (takže když se odpojím, kontejner jede dál).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">docker run --name ansible -d tkubica/ansibleazure tail -f /dev/null
+docker exec -it ansible bash</pre>
+<p>Dnes budu přes Ansible ovládat pouze Azure a Linux VMka v něm, pokud ale budete Ansiblem instalovat komponenty ve Windows OS (což si zkusíme někdy příště), budete v případě Linux hostitele potřebovat ještě pár dalších dependencies (WinRM pro Python, Kerberos).</p>
+<p>Jak se Ansible napojí do vaší Azure subscription? Možností je několik, ale pokud stejně jako já máte dvoufaktorové ověření, je rozhodně nejjednoduší vytvořit service principála. Nejrychlejší cesta k tomu vede přes Azure CLI, ale můžete použít i GUI nebo PowerShell.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/vase-subscription-id"
+{
+  "appId": "blabla1",
+  "displayName": "azure-cli-2017-02-19-08-27-11",
+  "name": "http://azure-cli-2017-02-19-08-27-11",
+  "password": "blabla2",
+  "tenant": "blabla3"
+}
+</pre>
+<p>Není vhodné mít jakákoli hesla přímo součástí playbooků, tedy samotných Ansible předpisů. Důvodem je, že ty chcete obvykle dát do version control systému a sdílet je, což je opak toho, co chcete udělat s hesly. Můžete zvolit jiné soubory, zapsat to do Ansible inventáře, já ale nejraději environmentální proměnné. V rámci mé session tedy stačí udělat tohle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export AZURE_TENANT=blabla3
+export AZURE_CLIENT_ID=blabla1
+export AZURE_SECRET=blabla2
+export AZURE_SUBSCRIPTION_ID=vase-subscription-is</pre>
+<h1>Vytváříme VM v Azure z Ansible</h1>
+<p>Všechny příklady jsem uložil na GitHub: <a href="https://github.com/tkubica12/ansible-azure/tree/master">https://github.com/tkubica12/ansible-azure/tree/master</a></p>
+<p>Náš playbook (infrastrukturní předpis) je v souboru web-servers.yaml (jak uvidíte později používám z něj ještě vnořený web-server.yaml playbook). Prohlédněme si ho postupně.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">- name: Ensure we have one Linux server with tags apache and nginx
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  vars:
+    group: "{{ lookup('env', 'AZURE_RESOURCE_GROUPS') }}"
+    vms:
+      - name: mujApache1
+        tag: apache
+      - name: mujApache2
+        tag: apache
+      - name: mujApache3
+        tag: apache
+      - name: mujNGINX
+        tag: nginx</pre>
+<p>Tohle je popis a vstupní podmínky playbooku. Zaměříme se na vars, tedy proměnné (v praxi bych je asi dal do samostatného souboru, ale nechtěl jsem to komplikovat). Group použijeme později jako název Resource Group v Azure a v playbooku jej beru z proměnné prostředí (místo přímého zápisu zde... ostatně při spuštění můžete také všechno přepsat parametrem -e group=mojeskupina). Dále jsem si vymyslel vms, což je pole objektů, kde každý objekt reprezentuje jednu VM a má atributy name a tag. Tohle použijeme později ve skriptu. Proč i tag? Jde o metadata, kteráuložíme v Azure a později je použijeme k rozhodnutí, co na VM nainstalovat.</p>
+<p>Podívejme se na sekci tasků.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tasks:
+- name: Ensure resource group exists
+  azure_rm_resourcegroup:
+      name: "{{ group }}"
+      location: westeurope
+
+- name: Ensure virtual network exists
+  azure_rm_virtualnetwork:
+    resource_group: "{{ group }}"
+    name: mynet
+    address_prefixes: "10.10.0.0/16"
+
+- name: Ensure subnet exists
+  azure_rm_subnet:
+    name: mysub
+    virtual_network_name: mynet
+    resource_group: "{{ group }}"
+    address_prefix_cidr: "10.10.1.0/24"
+
+- name: Ensure Linux VMs exists
+  include: web-server.yaml
+  with_items: "{{ vms }}"</pre>
+<p>V prvních třech úkolech se ujistíme, že resource group existuje, že v ní je vnet a subnet tak, jak potřebuji. Čtvrtý krok je smyčka, která projde všechy objekty pole vms (tedy všechna požadovaná VMka) a pro každý vyvolá vnořený playbook web-server.yaml. V něm už se budou provádět úkony specifické pro samotné VM.</p>
+<p>Tohle je web-server.yaml:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">- name: Make sure VM exist
+  azure_rm_virtualmachine:
+    resource_group: "{{ group }}"
+    name: "{{ item.name }}"
+    vm_size: Standard_A0
+    admin_username: tomas
+    ssh_password_enabled: false
+    ssh_public_keys:
+      - path: /home/tomas/.ssh/authorized_keys
+        key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex"
+    os_type: Linux
+    image:
+      offer: UbuntuServer
+      publisher: Canonical
+      sku: "14.04.4-LTS"
+      version: latest
+    open_ports:
+      - 22
+      - 80
+    tags:
+      ansiblegroup: "{{ item.tag }}"
+  register: mojelinuxvm
+
+- name: Print IP
+  debug: msg="Access your Linux VM at {{ mojelinuxvm.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress}}"</pre>
+<p>První úloha vytvoří VM o konkrétní velikosti, jménu, SSH klíči a OS. Definuji otevřené porty (NSG) a přiřazuji tag (všimněte si, jak Ansible umí dosazovat proměnné, ať už přímo jednoduše group nebo to z konkrétní iteraci smyčky nad vms). Tato úloha vrátí obrovský JSON výstupů, který registruji do proměnné mojelinuxvm. V druhé úloze právě z toho výstupu vytisknu jednu jedinou věc - veřejnou IP adresu (pokud chcete pro studijní účely vidět všechno, dejte debug: var=mojelinuxvm.</p>
+<h1>Vyzkoušejme si automatizovat poskládání infrastruktury v Azure</h1>
+<p>Otestujeme si teď tento playbook. Nezapomeňte vyexportovat jméno groupy a jedeme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export AZURE_RESOURCE_GROUPS=ansible
+ansible-playbook web-servers.yaml
+ [WARNING]: Host file not found: /etc/ansible/hosts
+
+ [WARNING]: provided hosts list is empty, only localhost is available
+
+
+PLAY [Ensure we have one Linux server with tags apache and nginx] **************
+
+TASK [Ensure resource group exists] ********************************************
+changed: [localhost]
+
+TASK [Ensure virtual network exists] *******************************************
+changed: [localhost]
+
+TASK [Ensure subnet exists] ****************************************************
+changed: [localhost]
+
+TASK [Ensure Linux VMs exists] *************************************************
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+
+TASK [Make sure VM exist] ******************************************************
+changed: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+ "msg": "Access your Linux VM at 13.94.130.144"
+}
+
+TASK [Make sure VM exist] ******************************************************
+changed: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+ "msg": "Access your Linux VM at 52.166.204.184"
+}
+
+TASK [Make sure VM exist] ******************************************************
+changed: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+ "msg": "Access your Linux VM at 13.81.113.13"
+}
+
+TASK [Make sure VM exist] ******************************************************
+changed: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+ "msg": "Access your Linux VM at 40.118.101.66"
+}
+
+PLAY RECAP *********************************************************************
+localhost : ok=15 changed=7 unreachable=0 failed=0</pre>
+<p>Ověřte v GUI, že se toho docela hodně stalo.</p>
+<p id="KoIkNkc"><img class="img-fluid wp-image-448 " src="/images/2017/img_58b1883077495.png" alt="" /></p>
+<p>V mém případě bylo u všech kroků napsáno changed, tedy Ansible došel k závěru, že skutečný stav neodpovídá požadovanému a musel zasáhnout (což je logické, moje resource group vůbec neexistovala). Udělejme teď to, že jednu (pouze jednu) z VM smažu ručně z portálu a spustím playbook znova. Co myslíte, že se bude dít? Všechno pojede mnohem rychleji a v okamžiku, kdy Ansible zjistí rozpor požadovaného a skutečného stavu, vyřeší to.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">ansible-playbook web-servers.yaml
+ [WARNING]: Host file not found: /etc/ansible/hosts
+
+ [WARNING]: provided hosts list is empty, only localhost is available
+
+
+PLAY [Ensure we have one Linux server with tags apache and nginx] **************
+
+TASK [Ensure resource group exists] ********************************************
+ok: [localhost]
+
+TASK [Ensure virtual network exists] *******************************************
+ok: [localhost]
+
+TASK [Ensure subnet exists] ****************************************************
+ok: [localhost]
+
+TASK [Ensure Linux VMs exists] *************************************************
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+included: /ansible-azure/web-server.yaml for localhost
+
+TASK [Make sure VM exist] ******************************************************
+changed: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+    "msg": "Access your Linux VM at 13.94.130.144"
+}
+
+TASK [Make sure VM exist] ******************************************************
+ok: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+    "msg": "Access your Linux VM at 52.166.204.184"
+}
+
+TASK [Make sure VM exist] ******************************************************
+ok: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+    "msg": "Access your Linux VM at 13.81.113.13"
+}
+
+TASK [Make sure VM exist] ******************************************************
+ok: [localhost]
+
+TASK [Print IP] ****************************************************************
+ok: [localhost] =&gt; {
+    "msg": "Access your Linux VM at 40.118.101.66"
+}
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=15   changed=1    unreachable=0    failed=0</pre>
+<h1>Konfigurace OS a dynamický Azure inventář</h1>
+<p>Jak už jsem říkal - Ansible mám rád a mám k tomu dva hlavní důvody. První je ten, že playbooky jsou v YAMLu (já se mezer nebojím), který je lidsky čitelný a neprogramátory neděsí (nebo alespoň méně, než JSON nebo Chef cookook v Ruby). Ten druhý je ale důležitější - Ansible nevyžaduje žádného agenta v OS. Nemusíte řešit, jak ho tam nainstalovat, jak je bezpečně propojit a tohle celé automatizovat (takže odpadají komplikace typu Chef extension v Azure nebo Chef Knife pro provisioning). Stačí vám jen SSH přístup a Python v OS (standardní výbava dnes už každé Linux distribuce) - v případě Windows se používá WinRM, ale o tom jindy.</p>
+<p>Co tedy potřebujeme je v zásadě seznam IP adres rozřazených do skupin podle typu serveru (pokud vás teď napadlo co když VM v Azure nebude mít public IP a vy nechcete mít Ansible server nainstalovaný v Azure, tak vězte, že je možné použít jednu VM ve stejném VNet jako SSH proxy). To je co chceme. Na základě výstupu předchozího tasku si to můžu opsat a vytvořit ručně. Ale co by to pak bylo za automatizaci. Ansible podporuje dynamický inventář pro Azure. V zásadě jde o "očuchávátko". Namíříte na vaši subscription či resource group a ono to stáhne názvy VM, přihlašovací jména do nich a z tagů vytvoří automaticky různé skupiny. V našem případě tedy rozhodně získáme skupinu ansiblegroup_apache a ansiblegroup_nginx a to je přesně to, co nám stačí pro instalaci správného web serveru na tu kterou VM v Azure.</p>
+<p>Takhle vypadá můj playbook hydrate.yaml (slovo vychází z termínu, kdy prázdnou VM jako květináč ze semínkem zalijete a ono vyroste to, co potřebujete).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">- name: Make sure apache is installed on correct system
+  hosts: ansiblegroup_apache
+  gather_facts: no
+  remote_user: tomas
+  become: true
+  tasks:
+    - name: Make sure Apache2 is installed
+      apt: name=apache2 update_cache=yes state=latest
+
+    - name: Enabled mod_rewrite
+      apache2_module: name=rewrite state=present
+      notify:
+        - Restart apache2
+
+    - name: Make sure Apache2 is started
+      service:
+        name: apache2
+        state: started
+
+  handlers:
+    - name: Restart apache2
+      service:
+        name: apache2
+        state: restarted
+
+
+- name: Make sure nginx is installed on correct system
+  hosts: ansiblegroup_nginx
+  gather_facts: no
+  remote_user: tomas
+  become: true
+  tasks:
+    - name: Make sure nginx is installed
+      apt: name=nginx update_cache=yes state=latest
+
+    - name: Make sure nginx is started
+      service:
+        name: nginx
+        state: started</pre>
+<p>Co v něm dělám? Jsou to dva playbooky v jednom souboru - jeden se spouští na serverech, které jsou ve skupině ansiblegroup_apache (tedy tag, který jsme jim dali na začátku) a druhé pro ansiblegroup_nginx. Apache nainstalujeme package managerem (pokud je to potřeba), zapneme apache module (je-li to potřeba a v takovém případě ještě handlerem zrestartujeme službu) a ujistíme se, že je služba spuštěná. U NGINX postupuji podobně, ale jen nainstaluji a ujistím se, že je služba nahoře. Je to jen drobná ukázka - v praxi bychom provedli veškerá potřebná nastavení, rozjeli virtuální servery, vytvořili certifikáty a zapnuli HTTPS, nakopírovali naší webovou aplikaci z Gitu a tak podobně.</p>
+<p>Vyzkoušíme si to. Všimněte si přepínače -i, který definuje inventář. Ale místo statického souboru je to azure_rm.py skript, který Ansible oficiálně vytvořil pro automatickou inventarizaci Azure (autentizace do Azure je stejná jako výše, takže vámi vyexportované údaje stačí). Ještě jedna věc - očekávám, že vaše stanice se může k VM připojit bez hesla (tzn. privátní klíč je v mašině). Můžete použít i různé jiné postupy, ale SSH klíče a password-less autentizace jsou rozhodně best practice. Ještě vypneme cacheování public klíčů, aby nás to neobtěžovalo (správný postup by byl veřejné klíče cílových serverů nějakým způsobem přenést k vám a uložit do autorizovaných klíčů).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export ANSIBLE_HOST_KEY_CHECKING=false
+ansible-playbook -i "azure_rm.py" hydrate.yaml
+
+PLAY [Make sure apache is installed on correct system] *************************
+
+TASK [Make sure Apache2 is installed] ******************************************
+changed: [mujApache2]
+changed: [mujApache1]
+changed: [mujApache3]
+
+TASK [Enabled mod_rewrite] *****************************************************
+changed: [mujApache1]
+changed: [mujApache2]
+changed: [mujApache3]
+
+TASK [Make sure Apache2 is started] ********************************************
+ok: [mujApache1]
+ok: [mujApache2]
+ok: [mujApache3]
+
+RUNNING HANDLER [Restart apache2] **********************************************
+changed: [mujApache2]
+changed: [mujApache1]
+changed: [mujApache3]
+
+PLAY [Make sure nginx is installed on correct system] **************************
+
+TASK [Make sure nginx is installed] ********************************************
+changed: [mujNGINX]
+
+TASK [Make sure nginx is started] **********************************************
+ok: [mujNGINX]
+
+PLAY RECAP *********************************************************************
+mujApache1                 : ok=4    changed=3    unreachable=0    failed=0
+mujApache2                 : ok=4    changed=3    unreachable=0    failed=0
+mujApache3                 : ok=4    changed=3    unreachable=0    failed=0
+mujNGINX                   : ok=2    changed=1    unreachable=0    failed=0</pre>
+<p>Klidně si teď vyzkoušejte, že servery skutečně reagují.</p>
+<p>&nbsp;</p>
+<p><em>Red Hat Ansible je sice původně nástroj pro configuration management, tedy správu "vnitřku vašich VM", ale v poslední době se velmi rozšířil co do možností automatizovat i hodně dalších věcí včetně provisioningu Azure infrastruktury. Někdo půjde cestou ARM šablon (pokud automatizujete jen Azure, jasná volba) a k nim nějaký configuration management. Jiný bude preferovat univerzálnější provisioning infrastruktury různých typu (Azure, VMware, AWS, OpenStack) a půjde do Terraform (to by byla moje volba pro takový scénář) nebo CloudForms a k nim configuration management. Třetí přístup je vzít configuration management, třeba Ansible, a tím udělat všechno od infra až po běžící aplikaci. Volba je na vás.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+{% endraw %}

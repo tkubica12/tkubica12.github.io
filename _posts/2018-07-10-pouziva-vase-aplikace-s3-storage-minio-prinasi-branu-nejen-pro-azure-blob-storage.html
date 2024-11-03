@@ -1,0 +1,57 @@
+---
+layout: post
+status: publish
+published: true
+title: Používá vaše aplikace S3 storage? Minio přináší bránu nejen pro Azure Blob
+  Storage
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2300
+wordpress_url: http://tomaskubica.cz/?p=2300
+date: '2018-07-10 04:32:46 +0000'
+date_gmt: '2018-07-10 03:32:46 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Objektová storage je nejlevnější způsob uložení dat v cloudu a současně nejpříjemnější pro integraci objektů/dat do moderních aplikací. Azure nabízí Blob Storage API, Amazon má S3 API, OpenStack má Swift API. Podívejme na bránu, která překládá S3 na Azure. Ostatně důvodů proč simulovat třeba S3 API nad jiným backendem může být víc - třeba storage přímo v Kubernetes nebo při požadavcích na extrémně vysoký výkon či cache.<!--more--></p>
+<h1>Minio - open source S3 server s podporou mnoha backendů</h1>
+<h2>Důvod první: S3 aplikace a Azure Blob Storage</h2>
+<p>Pokud máte aplikaci pracující s S3 a migrujete do Azure, může být Minio jednoduchý způsob jak přejít bez změny SDK. V zásadě prohodíte endpoint (namíříte na Minio) a vyřešíte problém certifikátu. Buď ho nepoužijete vůbec, což není takový problém jak to zní, protože Minio je tak malé, že ho můžete klidně použít třeba jako side-car kontejner, tedy ho mít přímo u aplikace bez komunikace po síti. Druhá možnost je nastavit v Minio SSL a certifikát třeba z Let's encrypt a pak je otázka použitého SDK, zda to bude problém nebo ne (obvykle není).</p>
+<h2>Důvod druhý: modernizace staré NASky</h2>
+<p>Máte v on-premises NASku a chcete modernizovat aplikace? Připojte NASku do Minio a uděláte z ní S3 objektovou storage.</p>
+<h2>Důvod třetí: výkonnější objektová storage</h2>
+<p>Jak Azure tak Amazon v době psaní tohoto článku nabízí objektovou storage ve standardním výkonu, nikoli v nějakých ultra-SSD variantách. Třeba to přijde, ale fakt je, že na typická nasazení objektové storage to není potřeba (obrázky a dokumenty pro web, video pro přehrávání, zálohy, archivace apod.). Třeba ale máte scénář, kde mít objekty na rychlém SSD dává velký smysl. Minio s tím nemá problém.</p>
+<h2>Důvod čtvrtý: lokální cache</h2>
+<p>Představte si, že máte aplikaci, která z nějakého důvodu musí běžet lokálně v on-premises prostředí nebo na IoT zařízení typu Raspberry. Dále řekněme, že data v objektové storage jsou neměnná a přírůstková (budeme hrnout další fotky, ale modifikovat stávající netřeba). Pokud vaše lokální aplikace data hodně čte, dávalo by smysl, aby je Minio po stažení z backendu třeba v Azure Blob Storage uložilo do lokální cache a při dalším požadavku tak mohlo servírovat odtud. Ano, tohle Minio také umí.</p>
+<h2>Důvod pátý: S3 uvnitř Kubernetes</h2>
+<p>Možná potřebujete S3 pro vaši aplikaci uvnitř Kubernetes vyřešit tak, že to tento cluster vůbec neopustí. Minio je malinkaté a dokáže běžet i jako side-car vašeho hlavního kontejneru nebo jako proces u vaší aplikace ve VM. Celý Minio kontejner má jen 12 MB! Stačí tedy namapovat Volume a svou object storage si můžou kontejnery nosit s sebou nebo si vytvořit S3 uvnitř clusteru s použitím StatefulSet a perzistentních disků, které v AKS můžete implementovat buď jako Azure Disk nebo Azure Files (SMB NASka).</p>
+<p>Nebo pokud váš kontejner potřebuje S3 konverzi do Azure, namíříte ho na loopback (127.0.0.1), kde jako side-car v Podu dáte kontejner Minio v režimu gateway na Azure. Žádné single point of failure (co app instance to minio), žádné úzké hrdlo a sdíleným backendem je Azure Blob Storage.</p>
+<h1>Vyzkoušíme</h1>
+<p>Minio je dostupné v Azure Marketplace. Dostanete se tak k hotovému řešení, pro které si můžete dokoupit podporu třetí strany.</p>
+<p id="CQGxJPb"><img class="img-fluid wp-image-2301 " src="/images/2018/img_5b43a8e0c3791.png" alt="" /></p>
+<p>Já to ve své interní subscription udělat nemůžu a tak sáhnu po Minio v kontejneru. To se v Azure snadno zařídí, protože nemusíte stavět žádná VMka ani clustery. Kontejner spustíte přímo v Azure a předáme mu potřebné parametry:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az container create -g minio \
+    --name minio \
+    --image minio/minio:latest \
+    --cpu 2 \
+    --memory 4 \
+    --ports 9000 \
+    -l westeurope \
+    --command-line "minio gateway azure" \
+    --ip-address Public \
+    -e MINIO_ACCESS_KEY=azureaccountname -e MINIO_SECRET_KEY=azureaccountkey</pre>
+<p>Po chvilce Minio naběhne a můžeme se tam připojit na portu 9000. Přímo z webu mohu zakládat buckety (v terminologii Azure je to container) a uploadovat soubory.</p>
+<p id="dnuvyAh"><img class="img-fluid wp-image-2302 " src="/images/2018/img_5b43a95a8e3dd.png" alt="" /></p>
+<p>Uploaduji soubor.</p>
+<p id="moksyPt"><img class="img-fluid wp-image-2303 " src="/images/2018/img_5b43a96cb3f03.png" alt="" /></p>
+<p>Co se děje v Azure? Ve své Blob Storage nácházím nové objekty.</p>
+<p id="aRYztOo"><img class="img-fluid wp-image-2304 " src="/images/2018/img_5b43a9922286b.png" alt="" /></p>
+<p>A co přístup přes S3 API? Pro jednoduchost nebudu řešit certifikáty. Nainstaluji si CloudBerry, v něm založím S3 kompatibilní připojení a hnedle objekty vidím.</p>
+<p id="enfpKAg"><img class="img-fluid wp-image-2305 " src="/images/2018/img_5b43a9c827da9.png" alt="" /></p>
+<p><em>Pokud přecházíte z jiného cloudu, může být Minio perfektní způsob jak svou S3 aplikaci rychle rozchodit proti Azure Blob Storage. Tak jako u každé takové konverze z dlouhodobého hlediska bude výhodnější přepracovat aplikaci na nativní Azure Blob Storage (není to vůbec nic složitého, konceptuálně je S3, Azure Blob i Swift to samé a SDK do mnoha jazyků jsou k dispozici), abyste naplno využili možností API (třeba per objekt přesouvat mezi Hot, Cool a Archive, využívat WORM vlastností apod.). Nebo si chcete postavit vlastní S3 storage nad SSD disky v Azure? Či snad nechat vzniknout S3 storage uvnitř Azure Kubernetes Service? Mrkněte na <a href="https://minio.io/">https://minio.io/</a></em></p>

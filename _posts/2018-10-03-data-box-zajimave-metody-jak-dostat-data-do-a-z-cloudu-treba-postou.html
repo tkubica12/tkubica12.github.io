@@ -1,0 +1,50 @@
+---
+layout: post
+status: publish
+published: true
+title: Data Box - zajímavé metody jak dostat data do a z cloudu ... třeba poštou
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2523
+wordpress_url: http://tomaskubica.cz/?p=2523
+date: '2018-10-03 05:49:50 +0000'
+date_gmt: '2018-10-03 04:49:50 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Možná potřebujete jednorázově do cloudu dopravit tak velké množství dat, že to přes Internetovou linku vůbec nedává smysl. Nebo vám online přenos tak nevadí, ale nechcete přetahovat myší složky z notebooku a dělat to tak co hodinu třeba 14 dní v kuse. Možná se vaše data generují v nějakém průmyslovém systému v továrně bez velkého IT a chcete tato data (třeba z IoT nebo kamer) lokálně uložit, zpracovat a poslat do cloudu. Na to všechno se může hodit rodina Azure Data Box.</p>
+<p><!--more--></p>
+<h1>Offline transport dat</h1>
+<p>Nejdřív se podívejme na scénář offline přenosu. Někdy je zkrátka pošťák rychlejší, než váš operátor. Mimochodem tyto způsoby síťařiny jsou (pokud jste do klasických síťařských vtipů) popsány v rfc1149 s využitím poštovních holubů.</p>
+<h2>Jak to funguje</h2>
+<p>Přenos funguje tak, že si objednáte nějakou storage jednotku a Microsoft vám ji pošle.</p>
+<p id="FoulJHU"><img class="img-fluid wp-image-2524 " src="/images/2018/img_5bb2e781c750c.png" alt="" /></p>
+<p id="TDhOFBH"><img class="img-fluid wp-image-2525 " src="/images/2018/img_5bb2e7a517741.png" alt="" /></p>
+<p>Krabičku, krabici nebo skříň si připojíte do svého prostředí (o způsobech později). Použijete softwarový nástroj, který pro vás zajistí AES zašifrování kopírovaného obsahu, takže pokud máte vlezlého poštáka, nevadí, stejně z toho nic nepřečte. Tuto storage pošlete zpátky do Azure, tam ji připojí a ve vašem portálu se vám objeví možnost data rozšifrovat (vložit klíč) a nakopírovat do storage v Azure. To celé se dá stihnout do 10 dní pokud se bude jednat třeba o ČR a datové centrum v Amsterodamu.</p>
+<p>Pojďme chvilku počítat. Při rychlosti Internetové linky 1 Gbps jste za ideálních podmínek schopni přenést zhruba 10TB za den. Při 100 Mbps lince už je to jen 1TB.</p>
+<h2>Azure Data Box Disk</h2>
+<p>První varianta je, že si z Azure objednáte dodávku disků s tím, že každý má kapacitu 8 TB raw (7 TB použitelné). Přijde vám to v takové pěkné krabičce s přihrádkama na až 5 disků. Disky se připojují přes USB 3 nebo SATA II či III. Pokud máte jen 100 Mbps linku tak kapacitu pětice disků (35 TB) v balíčku byste přenášeli 35 dní. Tohle bude rychlejší. Na druhou stranu pokud máte 1 Gbps linku, bude to tam sítí teoreticky za 3 dny, takže se disky moc nevyplatí.</p>
+<h2>Azure Data Box</h2>
+<p>Základní model je bedýnka zhruba půl metru na půl metru na 30 cm.  Kapacita je 100 TB raw (80 TB použitelné). Na data se přistupuje síťově protokoly SMB nebo NFS (a v preview je protokol Azure Blob, takže se může tvářit stejně jako ta v Azure) a z toho důvodu má krabice 1/10 Gb porty. Na 100 Mbps lince bychom 80 TB přenášeli 73 dní, takže tam si hodně pomůžeme. Na 1 Gbps to vyjde asi na 8 dní, což je řádově na stejno.</p>
+<h2>Azure Data Box Heavy</h2>
+<p>Tenhle mazlík už je na kolečkách a váží 227 kg. Jeho kapacita je 1 PB raw (800 TB použitelné). Abyste to do něj mohli slušně hrnout je vybaven 40Gb porty (QSFP+). Jak dlouho budeme přenášet 800 TB? U 100 Mbps linky se to bude blížit třem letům a na krásné 1 Gbps lince si počkáme asi 3 měsíce.</p>
+<p>A co když máte třeba 8PB dat, které chcete do cloudu? Objednáte 10 skříní a když si máknete, tak to celé vyřešíte během jediného měsíce. Na mém domácím připojení bych něco takového přenášel cirka 50 let ... nicméně s deseti skříněmi by mě manželka vykázala :)</p>
+<h1>Online transport dat</h1>
+<p>Tak moment - pokud mám připojení, tak data do Azure můžu přece jednoduše nakopírovat třeba přes Storage Explorer nebo do Azure Files, které si namapuji jako síťový disk. Proč potřebuji nějaký Data Box v online režimu? Nějaké případy se najdou.</p>
+<p>Kopírovat hodně dat přes nějaký notebook nebo server nemusí být nejpraktičtější a nejefektivnější. Možná hledáte jednoduchost toho, že data nahrnete na lokální SMB nebo NFS share (rychle) a pak ať se to na pozadí kopíruje do cloudu bez vaší účasti. To celé můžete spravovat z cloudu, takže pro místní uživatele to nepřináší žádné extra nároky na správu. Nebo chcete mít jakousi lokální cache aby nejčastěji přistupovaná data seděla kromě cloudu i na lokálním share pro rychlý přístup. A je tu ještě jedna situace s Edge computingem, ale k tomu se dostanu.</p>
+<h2>Azure Data Box Gateway</h2>
+<p>Jedná se o virtuální appliance do vašeho Hyper-V nebo VMware. Ta vytvoří lokální SMB nebo NFS share, ten je propojen se Storage Account v Azure. Nahrnete tam data a appliance je bude velmi efektivně (skutečně pod tlakem multi-threadově - pokud ji nenastavíte nějaký limit, aby vám nezabrala celou linku) posílat data do Azure. Tu si v některém z příštích článku vyzkoušíme.</p>
+<h2>Azure Data Box Edge</h2>
+<p>Představte si předchozí variantu s tím, že je nainstalovaná na fyzickém serveru, který si u Microsoftu objednáte a na základě měsíčních plateb využíváte. Kromě toho na ní běží Azure IoT Edge runtime a tento server je vybaven speciálním FPGA obvodem pro machine learning (Project Brainwave). Přes IoT Edge (o něm jsem na tomto blogu už psal) můžete do stroje poslat moduly (v zásadě jde o Docker kontejnery) s nějakou logikou. Mohou to být třeba Azure Functions, Azure Stream Analytics nebo právě Azure ML modely. Data tedy nejen odléváte do cloudu, ale dokážete provádět i jejich lokální zpracování. Můžete tak například do tohoto stroje posílat surová data z kamer. Lokální logika se vám může postarat o detekci nějakých událostí na základě strojového učení a lokálně reagovat na situaci (třeba spustit alarm) a to i v případě výpadku kontektivity. Současně ale v okamžiku, kdy konektivitu máte, posílat do cloudu raw data pro archivaci nebo další zpracování. Umím si také představit, že budete něco takového mít v dopravním systému, který má pořádné připojení jen v garáži. Přes den sbíráte data a provádíte lokální zpracování pro detekci nějakých situací. Večer zaparkujete a surová data se vám zaarchivují do Azure.</p>
+<p>Mohli bychom na něco takového použít Azure Stack, ale ten může být pro tyto scénáře moc velký (minimálně 4 servery, síťařina apod.). Můžeme použít IoT Edge, ale to je software, který musíme na něco nainstalovat. Azure Data Box Edge je hotová krabice, která má toto všechno připravené a začnete extrémně jednoduše. Díky cloudovému ovládání ji pošlete kam potřebujete a vzdáleně do ní natlačíte svou logiku a machine learning moduly.</p>
+<p>&nbsp;</p>
+<p>Ceny jednotlivých služeb, co je v GA a co v preview a co se teprve chystá, najdete tady: <a href="https://azure.microsoft.com/en-us/pricing/details/storage/databox/">https://azure.microsoft.com/en-us/pricing/details/storage/databox/</a></p>
+<p>&nbsp;</p>
+<p><em>Potřebujete do cloudu nebo z cloudu opravdu hodně dat a přes síť nestihnete do Vánoc udělat co potřebujete? Podívejte se Azure Data Box v offline režimu. Uvažujete o nějakém automatizovaném odesílání do cloudu jednoduchým způsobem včetně třeba implementace lokální logiky a strojového učení? Prozkoumejte Azure Data Box Gateway a Edge. </em></p>
+<p>&nbsp;</p>

@@ -1,0 +1,128 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Nekonečně velký Docker hostitel: Azure Container Instances'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1715
+wordpress_url: http://tomaskubica.cz/?p=1715
+date: '2017-11-21 05:52:09 +0000'
+date_gmt: '2017-11-21 04:52:09 +0000'
+categories:
+tags:
+- Kontejnery
+---
+<p>V Azure se toho kolem kontejnerů točí hodně. Managed Kubernetes, podpora Docker v App Services, IoT Edge, Azure Batch a tak podobně. Všechna tato řešení jsou ale postavena na principu připravených zdrojů (Kubernetes agentů, App Service plánu apod.) a v těchto více či méně spravovaných VM se pak pouští kontejnery. Co když ale nepotřebujete nějakou platformu ani orchestraci, balancing a podobné vymoženosti? Chcete prostě a jednoduše spustit kontejner - okamžitě, bez nutnosti předtím vytvořit nějakou VM a chcete platit jen za každou vteřinu běhu samotného kontejneru. Pak se podívejme na Azure Container instances.<!--more--></p>
+<h1>Nekonečný Docker hostitel</h1>
+<p>Jak už jsem v úvodu popsal typicky potřebujete začít tím, že si vytvoříte Docker hostitele a v něm pouštíte kontejnery. Dost možná to bude několik VM a nad nimi orchestrátor, který zjistí kam kontejner umístit. Jsem velký fanoušek Kubernetes, ale třeba vám zatím o nějaké sofistikované věci nejde. Chcete prostě pustit na chvilku kontejner - pro otestování něčeho, spuštění úlohy a tak podobně.</p>
+<p>Azure Container Instance přináší Linux nebo Windows kontejner jako zdroj přímo nasaditelný v Azure. Tak jak pro VM nebo storage nepotřebujete žádné hostovací prostředí, ale pouštíte je rovnou v Azure samotném, tak vám ACI umožní takto spustit kontejner. Bez VM, bez dalších návazností. Platit budete za každou vteřinu běhu vašeho kontejneru. Co za to? Samotné nastartování kontejneru vás vyjde na €0.0022 a zbytek záleží na počtu CPU a velikosti paměti. 1GB RAM stojí €0.0000106 za vteřinu a jeden CPU core taky €0.0000106 za vteřinu. Pokud tedy potřebujete pravidelně v noci spustit nějakou úlohu, která bude například dvě minuty zpracovávat nějaký CSV soubor a tlačit ho do databáze a použijete 1 core a 1 GB RAM, tak vás něco takového přijde na asi  €0.025. Při 365 spuštěních nás to za rok bude stát 9 EUR.</p>
+<h1>Spustíme si kontejner</h1>
+<p>Jako první příklad si spusťme Linux image s MS SQL. Příkaz bude trochu složitější o to, že potřebujeme zadat environmentální proměnné, kterými kontejneru předáme souhlas s licenčním ujednáním a vytvoříme heslo do serveru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n aci-group -l eastus
+az container create -n mssql -g aci-group --cpu 2 --memory 4 --ip-address public --port 1433 -l eastus --image microsoft/mssql-server-linux -e 'ACCEPT_EULA=Y' 'SA_PASSWORD=my(!)Password'</pre>
+<p>To je všechno, za chvilku máme na public adrese běžící SQL server!</p>
+<p>Vytáhnu si jeho adresu a také se podívam na logy startujícího SQL.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">export sqlip=$(az container show -n mssql -g aci-group --query ipAddress.ip -o tsv)
+watch az container logs -n mssql -g aci-group</pre>
+<p>Jakmile bude nahoře, přesvědčím se, že opravdu funguje. Použiji SqlCmd (příkazová řádka pro správu SQL z Linux prostředí) a vypíšu si tabulky.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sqlcmd -S $sqlip -U sa -P 'my(!)Password' -Q 'select name from sys.databases'
+name
+
+--------------------------------------------------------------------------------------------------------------------------------
+master
+
+tempdb
+
+model
+
+msdb
+
+
+(4 rows affected)</pre>
+<p>Dejme tomu, že moje integrační testy, které DB potřebovaly, jsou už u konce a kontejner můžeme zase zrušit.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az container delete -n mssql -g aci-group -y
+</pre>
+<h1>Plánovaná úloha</h1>
+<p>Jak už jsem naznačoval ACI můžeme nastavit tak, že jakmile hlavní proces kontejneru vyskočí s exit 0, celý kontejner ukončíme a přestanete platit. ACI je pouze stavební blok, takže ono naplánování kdy co spustit pro vás neudělá (o tom za chviličku), takže to prozatím uděláme ručně. Může to zavánět trochu serverless přístupem, rozdíl tady ale je, že je to nejen drobný kód běžící po dobu vteřin (maximum ve Functions je 10 minut), ale klidně jde o náročnou půl hodiny běžící úlohu ve vlastním kontejneru (v něm může být jakýkoli jazyk, binárka, zkrátka co chcete). Třeba tedy půjde o manipulaci s daty (konverze a import do databáze), přípravu reportu, výpočet sales modelu na příští den či jiná matematická či simulační úloha, konverze obrázků či encoding videa.</p>
+<p>Pro vyzkoušení bude naším taskem pouze sleep, který poběží 20 vteřin. Všimněte si restart politiky, která říká, že restart procesu se provede pouze při nenulové exit hodnotě.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az container create -n containertask -g aci-group --cpu 1 --memory 1 -l eastus --image alpine --command-line 'sleep 20' --restart-policy OnFailure</pre>
+<p>Kontejner se nám spustí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az container show -n containertask -g aci-group --query containers[].instanceView.currentState
+[
+  {
+    "detailStatus": "",
+    "exitCode": null,
+    "finishTime": null,
+    "startTime": "2017-11-15T19:34:12+00:00",
+    "state": "Running"
+  }
+]</pre>
+<p>Po dvaceti vteřinách bude ve stavu Terminated - tedy už a něj neplatím, ale existuje jako objekt v Azure, abych si mohl třeba přečíst jeho logy.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az container show -n containertask -g aci-group --query containers[].instanceView.currentState
+[
+  {
+    "detailStatus": "Completed",
+    "exitCode": 0,
+    "finishTime": "2017-11-15T19:34:32+00:00",
+    "startTime": "2017-11-15T19:34:12+00:00",
+    "state": "Terminated"
+  }
+]</pre>
+<p>Tak a peníze na stůl - co za to. Proces nastartování byl za 56 českých haléřů a 20 vteřin běhu vyšlo na 2 haléře.</p>
+<h1>Konektor do Kubernetes</h1>
+<p>ACI je stavebním blokem, nekonečným Docker hostitelem. Tak jak nad běžného hostitele můžete nasadit chytrou orchestraci, za mne rozhodně Kubernetes, tak totéž lze v Preview (tzn. zatím ne s plnou podporou a funkčností) udělat s ACI. Vzpomínáte, jak jsem před chvilkou říkal, že ACI neumí pravidelně v noci kontejner spustit, že to mu musíme nějak říct? Tohle je jedna možnost.</p>
+<p>V Kubernetes si konektor můžeme nasadit takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: aci-connector
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: aci-connector
+    spec:
+      containers:
+      - name: aci-connector
+        image: microsoft/aci-connector-k8s:latest
+        imagePullPolicy: Always
+        env:
+        - name: AZURE_CLIENT_ID
+          value: "xxx-xxx"
+        - name: AZURE_CLIENT_KEY
+          value: "xxx-xxx"
+        - name: AZURE_TENANT_ID
+          value: "xxx-xxx"
+        - name: AZURE_SUBSCRIPTION_ID
+          value: "xxx-xxx"
+        - name: ACI_RESOURCE_GROUP
+          value: aci-connect
+      nodeSelector:
+        agentpool: linuxpool</pre>
+<p>V ten okamžik se nám s příkazem kubectl get nodes objeví kromě našich klasických agentů ve VM také nový stroj - to nebude VM, ale celé ACI, tedy nekonečný Docker hostitel.</p>
+<p>Při vytváření Kubernetes zdrojů pak stačí jen zadat policy (nodeName), že pod (kontejner) chceme přímo jen a pouze na ACI hostitele.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Pod
+metadata:
+  name: super-mario
+  namespace: default
+spec:
+  containers:
+  - image: pengbai/docker-supermario
+    imagePullPolicy: Always
+    name: super-mario
+    ports:
+      - containerPort: 8080
+  dnsPolicy: ClusterFirst
+  nodeName: aci-connector</pre>
+<p>Logicky tedy můžeme použít i koncept Jobs a úlohu naplánovat. Vaše AKS (managed Kubernetes v Azure) tak může mít klasické nody (VM za které platíte) pro běžný běh aplikací a pro nepredikovatelné, vzácné či testovací úkony si přidat ACI, kde neplatíte za celou VM, ale jen za konkrétní kontejner za dobu kterou běží. Aktuálně je toto řešení skutečně jen Preview a nejsou dořešeny některé věci zejména s ohledem na networking. Nicméně jako ukázka toho jak lze kombinovat ACI jako stavební blok s chytrým orchestrátorem je to myslím pěkné.</p>
+<p>&nbsp;</p>
+<p><em>Potřebujete nasadit webovou aplikaci v Docker kontejneru a hledáte jednoduchou osvědčenou cloudovou platformu? Pak zvolte Azure Web App for Containers (tedy Linuxovou variantu App Services). Pokud potřebujete robustní open source orchestrátor pro složitější situace a mikroslužby, zvolte AKS - managed Kubernetes v Azure. No ale pokud vám jde o to teď na chvilku spustit kontejner a to je celé, tak proč si alokovat zdroje a používat složitější platformy, když vám to ACI dá jedním příkazem a platíte jen přesně tak, jak váš kontejner běží?</em></p>

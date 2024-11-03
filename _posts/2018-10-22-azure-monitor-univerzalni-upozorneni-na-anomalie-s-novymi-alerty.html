@@ -1,0 +1,45 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Monitor: univerzální upozornění na anomálie s novými alerty'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2535
+wordpress_url: http://tomaskubica.cz/?p=2535
+date: '2018-10-22 05:33:10 +0000'
+date_gmt: '2018-10-22 04:33:10 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Až to bude 20, pošli mi email. Fajn. Jak jsem přišel na 20? Proč je víc problém, o kterém chci vědět? A když je to u jednoho systému problém 20 je to tak i u ostatních? Tohle je přesně potíž klasického nastavení alertování v běžném monitorovacím software. Daleko užitečnější je: "řekni mi, až to bude neobvyklé". Podívejme se na univerzální detekci anomálií v číselné řadě pro dynamické thresholdy v alertech Azure Monitor.<!--more--></p>
+<p>Azure Monitor dnes krásně integruje nejrůznější zdroje dat z pohledu telemetrie i logování. Jeho funkce alertů tak dokáže reagovat na telemetrické ukazatele ze systémů jako je Azure samotný (metriky na úrovni platformy), guest monitoringu z OS, aplikační metriky z Application Insights a mnohé další. Současně také dokáže generovat alerty z logů (reagovat na výskyt nějaké události) a to z akcí prováděných v Azure, z logů z různých platformních a infrastrukturních Azure prostředků jako jsou Load Balancer Standard, Network Security Group flow záznamy, databáze, ale i z OS monitoringu jak v Azure tak mimo něj (díky agentovi do Azure Monitor Log Analytics) a také přímo z aplikací přes Application Insights.</p>
+<p>Podívejme se na záložku alertů a vytvoříme si nový:</p>
+<p id="xmqVaZP"><img class="img-fluid wp-image-2536 " src="/images/2018/img_5bc0bda8b58fd.png" alt="" /></p>
+<p>Vybrat si můžeme obrovské množství targetů, tedy zdrojů metrik a logů. Já si vybral VMko.</p>
+<p id="sRokgkC"><img class="img-fluid wp-image-2537 " src="/images/2018/img_5bc0be0661014.png" alt="" /></p>
+<p>Teď přijde to hlavní - kritéria.</p>
+<p id="YvDIWYz"><img class="img-fluid wp-image-2538 " src="/images/2018/img_5bc0be5240b7f.png" alt="" /></p>
+<p>Pro maximální jednoduchost vyberu CPU.</p>
+<p id="gcdUBNa"><img class="img-fluid wp-image-2539 " src="/images/2018/img_5bc0be94e8fc4.png" alt="" /></p>
+<p>Co je na nové konfigurační stránce skvělé je to, že hned vidím graf této metriky.</p>
+<p id="uAOGBGT"><img class="img-fluid wp-image-2540 " src="/images/2018/img_5bc0bec007830.png" alt="" /></p>
+<p>Běžný přístup je statický - měl bych teď pro tuhle VM zadat nějakou hodnotu, při které se má něco dít.</p>
+<p id="svfOPxC"><img class="img-fluid wp-image-2541 " src="/images/2018/img_5bc0befa24a82.png" alt="" /></p>
+<p>Já ale přepnul na detekci anomálie. Graf nahoře mi hned říká jak by to vycházelo pro posledních 24 hodin. Dostal bych jedno hlášení tam v tom velikém zubu.</p>
+<p id="Gccbtre"><img class="img-fluid wp-image-2542 " src="/images/2018/img_5bc0bf2d8cb13.png" alt="" /></p>
+<p>Ta druhá špička není zas tak hrozná, ale chcete vědět i o ní? Zvýšíme citlivost.</p>
+<p id="LGZRCJZ"><img class="img-fluid wp-image-2543 " src="/images/2018/img_5bc0bf748f530.png" alt="" /></p>
+<p>Zatím jsem ale pracoval ve výchozím nastavení, tedy detekce probíhá v 5 minutových oknech a koukáme na předchozí 4 období. Tohle můžeme poladit, pokud nás zajímají jen opravdu dlouhodobější výkyvy.</p>
+<p id="NLnuxQX"><img class="img-fluid wp-image-2547 " src="/images/2018/img_5bc0c2d03742d.png" alt="" /></p>
+<p>Grafík vypadá takhle.</p>
+<p id="qTJKmpB"><img class="img-fluid wp-image-2548 " src="/images/2018/img_5bc0c2e29bbd1.png" alt="" /></p>
+<p>Tohle je myslím perfektní věc. Přesně tyto vlastnosti mě totiž velmi baví ve Smart Detection v Application Insights. Teď mám možnost si něco takového nastavit pro naprosto libovolnou metriku, kterou Azure Monitor zná.</p>
+<p>&nbsp;</p>
+<p><em>Příště se podíváme na další vlastnosti Azure Monitor, například jaké akce můžeme vyvolávat nebo jak vytvářet alerty parsováním logů.</em></p>

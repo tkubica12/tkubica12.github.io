@@ -1,0 +1,54 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Networking v cloudu: packet capture'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 738
+wordpress_url: http://tomaskubica.cz/?p=738
+date: '2017-05-15 05:27:45 +0000'
+date_gmt: '2017-05-15 04:27:45 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Síťaři jistě rádi vzpomínají na doby, kdy servery byly jen fyzické, napojilo se to drátem do switche a dalo se zjistit spoustu věcí, třeba zachytit pakety z konkrétního OS. Virtualizace to všechno zkomplikovala a cloud je jen velký síťový blackbox … ale je to opravdu tak? Azure Network Watcher vám dává náhled do sítě v Azure a několik nástrojů, které vám i v cloudu dopřejí kontrolu nad tím, co se děje. Jedním z nich je packet capture - podívejme se dnes na něj.<!--more--></p>
+<h1>Azure Network Watcher</h1>
+<p>Tato služba byla pro regiony v Evropě uvolněna do produkce na začátku května a do konce srpna běží v režimu zcela zdarma. Kolik pak bude stát a co bude placené ještě nebylo oznámeno, ale očekával bych základní režim zdarma, fajnovosti za drobný příplatek - ale nechme se překvapit.</p>
+<p>Network Watcher dokáže vizualizovat vaši virtuální topologii v Azure, umí efektivně sbírat a zobrazovat logy z network security group (Azure firewallů), analyzovat provoz VPN, simulovat IP spojení a ukazovat co kudy projde a jaké pravidlo bude aplikováno, identifikovat next hop a nebo právě zachycovat síťový provoz.</p>
+<h1>Packet Capture v Azure</h1>
+<p>Cloud funguje jinak a nad fyzickou sítí běží vícero zákazníků. Jsou tedy praktické a bezpečnostní důvody proč nemůže packet capture v cloudu fungovat stejně, jako ve vašem datovém centru. Přesto je potřeba zachytit provoz rozumná a pochopitelná, například z důvodu analýzy aplikačního chování a řešení problémů analýzou typu "komunikace nefunguje, dorazilo to nebo ne a pokud ano jak to vypadá". Azure to vyřešil tak, že k zachycení dojde na úrovni OS instalací agenta (VM Extension - stačí jednou kliknout), takže je to jako jít do serverů a dělat tam TCPDUMP, pouštět Wireshark a tak podobně. Jenže - tady je to centrálně spravované, uděláte to z jednoho místa, výsledky máte centrálně uložené a hlavně - síťař nepotřebuje administrátorský přístup do VM (zachycování paketů je dost nízkoúrovňová záležitost a často potřebujete root/Administrator přístup), což je dost podstatné.</p>
+<p>Najděte si Network Watcher a zasaďte do vaší subscription.</p>
+<p><img class="img-fluid wp-image-739 " src="/images/2017/img_59141d4be1cf3.png" alt="" /></p>
+<p>Řešení se zapíná po regionech, tak pokud jste třeba v North Europe, zapněte si ho tam.</p>
+<p><img class="img-fluid wp-image-740 " src="/images/2017/img_59141d6bec1b7.png" alt="" /></p>
+<p>Podívejte se na topologii s kterou budu pracovat.</p>
+<p><img class="img-fluid wp-image-741 " src="/images/2017/img_59141d8fd6754.png" alt="" /></p>
+<p>Nejprve potřebujeme aktivovat agenta v příslušných Windows nebo Linux VM. To uděláme přes VM Extension.</p>
+<p><img class="img-fluid wp-image-742 " src="/images/2017/img_59141db294369.png" alt="" /></p>
+<p>Přidejte Network Watcher.</p>
+<p><img class="img-fluid wp-image-743 " src="/images/2017/img_59141dcad65d3.png" alt="" /></p>
+<p>To zopakuji i pro vm2 a vm3 a ujistíme se, že deployment v mé resource group dopadl dobře.</p>
+<p><img class="img-fluid wp-image-744 " src="/images/2017/img_59141deb5c992.png" alt="" /></p>
+<p>Přidejme si tedy novou packet capture úlohu.</p>
+<p><img class="img-fluid wp-image-745 " src="/images/2017/img_59141e1eb907f.png" alt="" /></p>
+<p>Vyberu si cílovou VM, na které chci zachytávat provoz. Packet capture pro vás bude dostupný ve standardní pcap formátu a to buď lokálně přímo ve VM (to nepovažuji za zrovna praktické) nebo se uloží do storage accountu (to je lepší, protože síťař nepotřebuje sebemenší přístup do VM).</p>
+<p><img class="img-fluid wp-image-746 " src="/images/2017/img_59141e772a9da.png" alt="" /></p>
+<p>Dost možná není potřeba sbírat úplně všechno. Pokud máte podezření na problém s DNS, zachycujte jen takový provoz. Nebo můžete omezit zachycování na interní systémy, ne uživatele služby, kteří přistupují z veřejných adres.</p>
+<p><img class="img-fluid wp-image-747 " src="/images/2017/img_59141eb3ea492.png" alt="" /></p>
+<p>Nastavil jsem packet capture na dvou VM.</p>
+<p><img class="img-fluid wp-image-748 " src="/images/2017/img_59141edda4914.png" alt="" /></p>
+<p>Výsledný PCAP najdete ve storage accountu a můžeme si ho stáhnout k sobě.</p>
+<p><img class="img-fluid wp-image-749 " src="/images/2017/img_59141efeb5a98.png" alt="" /></p>
+<p>Otevřel jsem tento soubor ve Wiresharku, nastavil zobrazovací filtr na ICMP provoz a je to tady - krásný packet capture.</p>
+<p lang="cs" style="margin: 0in; font-family: Calibri; font-size: 11.0pt;"><img class="img-fluid wp-image-751 " src="/images/2017/img_59141f29a7218.png" alt="" /></p>
+<p>Teď vás možná napadá - ale co když je na OS nastaven firewall, například Windows Firewall? Extension je hlouběji a dokáže tak zachycovat pakety ještě před tím, než se dostanou k softwarovému firewallu v OS. Takhle vypadá situace, když jsem namířil ping na Windows stroj se zapnutým firewallem. Vidíme příchozí ICMP (capture je před firewallem), ale firewall je nepustil dál, takže server negeneruje žádnou odpověď.</p>
+<p><img class="img-fluid wp-image-752 " src="/images/2017/img_59141f54a9d58.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Virtuální sítě v cloudu mohou působit jako black box, což je dané tím, že do hardware z bezpečnostních důvodů nemůže mít klient přístup a vidí softwarově definovanou nadstavbu. To ale neznamená, že Microsoft nerozumí potřebám síťařů. V Azure můžete mít svoje síťové appliance typu Cisco, Check Point, Fortinet, palo Alto, F5, A10, KEMP, Barracuda a tak podobně, směrovat provoz podle potřeby, balancovat, dělat VPN. Kromě toho ale dostáváte i diagnostické a monitorovací nástroje funkčně podobné tomu, co používáte dnes. Network Watcher mimo jiné umožňuje packet capture. O dalších síťařských možnostech v Azure se dočtete v dalších článcích.</em></p>

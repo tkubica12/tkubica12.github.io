@@ -1,0 +1,32 @@
+---
+layout: post
+status: publish
+published: true
+title: Serverless - existují aplikace bez serverů?
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 68
+wordpress_url: http://beta.tomaskubica.cz/?p=68
+date: '2017-02-20 06:03:32 +0000'
+date_gmt: '2017-02-20 05:03:32 +0000'
+categories:
+tags:
+- AzureFunctions
+- Serverless
+---
+<p>Serverless samozřejmě neznamená, že aplikace běží bez serveru (název je to dost zavádějící), ale chce se tím říci, že v tomto konceptu entitu server, VM či kontejner nemusíte vůbec řešit a ani za ni platit. V případě PaaS nabídky možná neplatíte přímo za VM, ale váš účet zahrnuje čas, po který vaše aplikace "běží" a to bez ohledu na to, jestli ji využil jeden uživatel nebo tisíc. Jasně - můžete provádět autoškálování a alokované zdroje průběžně měnit, ale vždy vám alespoň jedna instance běží. Koncept serverless je jiný - platí jen v okamžiku, kdy je váš kód potřeba, kdy je skutečně vykonán.<!--more--></p>
+<h1>Jak funguje serverless?</h1>
+<p>Vaše aplikace se obvykle skládá z několika služeb. Možná je moderně postavená na mikroslužbách, možná je to v jádře tradiční monolitická aplikace, kolem které ale existuje řada menších, které ji obohacují a pomáhají (třeba ji obohacují o modernější API). Některé z těchto služeb jsou velmi malé a úzce zaměřené (login uživatele, jednoduché API), jiné jsou složitější, ale uvnitř mají jednotlivé funkce. Ty jsou vlastně také jakousi "službou" nebo alespoň logickou operací, která na základě nějakého vstupu cosi udělá a vrátí (i když třeba v rámci stejného threadu). Serverless jsou funkce jako služba a v Azure je najdete pod názvem Functions.</p>
+<p>Nejprve si napíšete funkci - nejlépe podporovaný je C#, JavaScript a F#, ale pro některé funkce je v Preview i Python, PowerShell nebo dokonce Bash. Hotovou funkci ale musí něco vyvolat, musíme mít Trigger. Může to být "probuzení" HTTP voláním, spuštění v okamžiku, kdy se v Azure Storage objeví nový soubor, když někdo požádá o webhook, objeví se nová položka v Service Bus nebo Queue nebo se bude funkce vyvolávat pravidelně v nějakém čase. Kromě vstupů například ze samotného HTTP volání může funkce na vstupu přistoupit k Blob storage, Table storage, DocumentDB nebo třeba i souborům uloženým v OneDrive, Box, DropBox, Google Drive nebo FTP/SFTP či externích služeb jak je Sharepoint, DB2, Informix, Salesforce, Dynamics nebo Google Sheet. Výsledky práce funkce odevzdá do výstupu. V případě HTTP to může být pochopitelně response, ale funkce může zapsat do dalších míst podobně jako u vstupů (Box, Salesforce, Dynamics, ...).</p>
+<h1>K čemu je to dobré?</h1>
+<p>Zásadní mi připadají dvě výhody - jednoduchost a cenová efektivita.</p>
+<p>S Azure Functions se vůbec nemusíte starat o to, jestli něco běží, jak se řeší vysoká dostupnost, nespravujete žádný OS, nemusíte si hlídat, abyste měli dostatek zdrojů ve VM nebo PaaS servisním plánu, nestaráte se o aplikační prostředí, ve kterém se kód spouští. Ani nemusíte přebírat odpovědnost za vytváření nějakého kontejneru. Jednoduše napíšete funkci a začleníte ji do vašich plánů (na co reaguje a jaké má vstupy a výstupy).</p>
+<p>Druhá zásadní výhoda je, že platíte jen za to, co využíváte, ale s jemností, která dosahuje dokonalosti. Pokud využíváte Azure IaaS, můžete na noc některé VM vypnout nebo dokonce nasadit automatické škálování (přidat/ubrat VM do balancovaného clusteru podle zátěže). To je fajn, ale takovou operaci budete (vzhledem k době startu VM apod.) dělat třeba jednou za hodinu. S využitím PaaS vlastností je to vlastně stejné, ale efektivnější, takže škálovací operace můžete efektivněji dělat častěji (služba v Service Fabric, kontejner v Container Service nebo aplikace v App Services startují velmi rychle). Stále ale platí - existuje nějaká minimální alokace zdrojů, za kterou platíte vždy a také při zvýšení výkonu bude znatelný nějaký reakční čas, po který může při mohutném prudkém zvýšení trpět uživatelská zkušenost (nejvíce u škálování VM, nejméně asi u Service Fabric). U Functions platíte za každé spuštění (a také kolik v rámci spuštění chcete mít paměti a jak dlouho se funkce vykonává).</p>
+<h1>Kolik to tedy stojí?</h1>
+<p>První milion spuštění každý měsíc s limitem 400 000 GB/s je zdarma. To znamená například 1 milion spuštění funkce, která zvládne svou úlohu za vteřinu a stačí jí 384 MB paměti. Nebo třeba 80 000 spuštění nějaké náročnější funkce, která potřebuje 5 vteřin a 1 GB paměti. Kolik vás stojí, když měsíčně potřebujete víc? Tak co když pro funkce vaší aplikace chcete utratit 100 EUR měsíčně? Pokud by šlo o nějaké drobné úlohy (128 MB do jedné vteřiny), vystačí vám takový rozpočet na 90 milionů spuštění. Pokud by šlo o něco náročnějšího, třeba zase 1 GB paměti a 5 vteřin na zpracování, dostanete se s rozpočtem na 1,5 milionu spuštění.</p>
+<p><em>Serverless je dost možná budoucnost škálovatelných cloud-native aplikací, v jistém smyslu je to další krok po kontejnerech. Na Azure Functions se na tomto blogu rozhodně podívám detailněji.</em></p>

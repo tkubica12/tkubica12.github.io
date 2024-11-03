@@ -1,0 +1,243 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Networking v cloudu: Routing a service insertion v Azure'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1102
+wordpress_url: http://tomaskubica.cz/?p=1102
+date: '2017-08-16 05:29:19 +0000'
+date_gmt: '2017-08-16 04:29:19 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Azure VNET nabízí váš vlastní L3 prostor se směrováním mezi subnety, napojením na VPN a tak podobně. Jak vlastně směrování ve VNETu funguje? Dá se nějak ovlivnit, například do dráhy paketu vsunout vaše vlastní virtuální bezpečnostní zařízení, ať už je to Linux, Cisco, Palo Alto, Fortinet, A10, KEMP, Check Point, F5, Barracuda nebo nějaké jiné? Dnes se podíváme na podrobnosti.<!--more--></p>
+<h1>Směrování ve VNETu</h1>
+<p>L2 forwarding, který běžně používáte ve svém datovém centru, neškáluje pro potřeby Azure dostatečně. Fyzická síť v Microsoft datových centrech se postavena na L3 a to včetně směrování přímo z hostitele (fyzického serveru). To je ovšem implementační detail, který vás trápit nemusí (resp. v Azure Stack už ano z pohledu BGP napojení vašeho vlastního Azure do vaší vlastní sítě). Daleko důležitější je pro nás pochopit jak funguje SDN, tedy to, co jako uživatelé vidíme.</p>
+<p>V Azure si můžete vytvořit několik VNETů, které můžeme ze síťařského pohledu považovat za jistou analogii VRF. Máte tedy plně pod kontrolou adresní prostor a můžete si vytvářet různé subnety. Azure mezi nimi automaticky směruje. Místo bezestavových ACL, které můžete znát z klasických switchů, se používají Network Security Group, které můžete nasadit buď na úrovni NIC (v klasickém nevirtualizovaném DC by to třeba bylo ACL na portu nevirtualizovaného fyzického serveru) nebo na úrovni subnetu. Na rozdíl od ACL nebo jiných veřejných cloudů jsou NSG stavové, jde tedy o skutečné firewally! Ale o NSG budu psát jindy, jen zmiňme, že tím můžete omezit komunikaci tam, kde vám to dává smysl. Kromě toho, že Azure směruje mezi vašimi subnety tak také bude směrovat do VPN či ExpressRoute přes gateway subnet (o tom už jsem zde psal).</p>
+<p>Koncept subnetů je síťařům jistě známý a příjemný na pochopení, ale ve skutečnosti je to především abstrakce, ne technická implementace. L2 ve VNETu vlastně neexistuje - nemůžete použít broadcast mezi vašimi VM. I pokud váš stroj pošle broadcast ARP dotaz, Azure SDN distribuované na každém nodu přímo odpoví (= ani ARP broadcasty po síti necestují, protože síť se z principu nepotřebuje učit - IP adresy a MAC adresy jsou objekty vznikající při vytváření zdrojů, Azure o všech přesně ví kde jsou). Dá se vlastně říci, že komunikace mezi VM v jednom VNETu je vždy přímá, nikdy nejde přes nějaký externí router. Funkce směrování (= přehazování MAC adres) je distribuovaná do každého fyzického serveru. Router (a to včetně NAT nebo NSG) je distribuovaný. Jinak řečeno gateway, kterou VM vidí, je ve skutečnosti vždy jeho fyzický server. Routovací tabulka stejně jako NSG a to i v případě, že ho máte nastaveno na subnetu, je ve skutečnosti implementována na úrovni virtuální NIC.</p>
+<p>Pro účely dnešního článku použiji Azure CLI (všechno ale jde i v GUI a v PowerShellu). Nejprve vytvoříme resource group, síť a dva subnety.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n routing -l westeurope
+az network vnet create -g routing -n rvnet --address-prefix 10.0.0.0/16 
+az network vnet subnet create -g routing --vnet-name rvnet -n sub1 --address-prefix 10.0.1.0/24
+az network vnet subnet create -g routing --vnet-name rvnet -n sub2 --address-prefix 10.0.2.0/24</pre>
+<p>Pak můžeme pustit dvě VM - po jednom v každém subnetu. Dáme jim i public IP (k tomu za chvilku).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az vm create -n sub1vm -g routing --image ubuntults --vnet-name rvnet --subnet sub1 --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A0 --public-ip-address sub1vmip --nsg "" --storage-sku Standard_LRS --no-wait
+
+az vm create -n sub2vm -g routing --image ubuntults --vnet-name rvnet --subnet sub2 --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A0 --public-ip-address sub2vmip --nsg "" --storage-sku Standard_LRS --no-wait</pre>
+<p>VM naběhnou a budou mít pravděpodobně IP 10.0.1.4/24 s GW 10.0.1.1 a druhá VM bude 10.0.2.4/24 s GW 10.0.2.1. Přihlašte se do nich přes SSH na veřejné adrese a zkuste si mezi nimi pingnout na vnitřní síti - samozřejmě to funguje.</p>
+<h1>Floating veřejná IP</h1>
+<p>Jak v Azure funguje přístup do Internetu a přiřazení veřejné adresy? Pokud se ve své VM podíváte na adresu, žádná veřejná tam není, a přesto jste se na ni připojili.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ip a show eth0
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 00:0d:3a:23:40:a3 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.1.4/24 brd 10.0.1.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::20d:3aff:fe23:40a3/64 scope link
+       valid_lft forever preferred_lft forever
+</pre>
+<p>Jak je to možné? Azure SDN, protože máte k NIC přiřazenu veřejnou IP, automaticky provádí 1:1 NAT. Pakety odcházející z VM se z 10.0.1.4 přemapují na přidelenou veřejnou IP. Opačně jakmile do Azure přijde paket namířený na tuto veřejnou IP, Azure ho přeloží na 10.0.1.4 a pošle do vaší VM (samozřejmě musí brát v úvahu do jakého tenantu, chcete-li VRF, ta veřejná IP patří, protože podobnou privátní adresu zvolilo třeba tisíc dalších zákazníků také).</p>
+<p>A když veřejnou IP přiřazenou nemáte? I tak se VM dostane na Internet (pokud to nezakážete s použitím NSG). V tomto případě Azure automaticky provede PAT, tedy z některé z veřejných IP v poolu si odřízne jeden port pro vás (session timeout jsou 4 minuty) - funguje to tedy stejně jako váš domácí router.</p>
+<h1>Ovlivníme směrování obdobou statické routy</h1>
+<p>Představme si teď, že mezi naše dva subnety potřebujeme vložit speciální bezpečnostní zařízení - třeba vámi oblíbený firewall nějakého výrobce nebo v mém případě obyčejná Linux VM se zapnutým směrováním. Jak vynutit, aby komunikace z VM v sub1 musela projít mojí bezpečnostní appliance před tím, než se dostane do VM v sub2? Na to musíme použít uživatelské routy (UDR) a IP Forwarding (povolit NIC v Azure přijímat i pakety, které nemají Destination IP této appliance, což normálně nemohou, ale router to potřebuje).</p>
+<p>Přidejme si další subnet - DMZ.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network vnet subnet create -g routing --vnet-name rvnet -n dmz --address-prefix 10.0.0.0/24
+</pre>
+<p>V něm si připravíme bezpečnostní appliance, v mém případě obyčejný Linux. Vytvořím Public IP.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network public-ip create -g routing -n routerip
+</pre>
+<p>Vytvořím síťovku a u té povolím IP Forwarding, tedy vypnu dropování paketů, které na ni směřují správně po L2 (destination MAC je OK), ale v L3 mají jinou IP (to je typické pro routing - MAC je adresa routeru, ale destination IP je adresa konečného příjemce). Zároveň si také řeknu u konkrétní privátní adresu, ať se mi dobře pamatuje (ale je to jedno).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network nic create -g routing --vnet-name rvnet --subnet dmz -n routernic --ip-forwarding --private-ip-address 10.0.0.250 --public-ip-address routerip
+</pre>
+<p>Vytvořím VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az vm create -n mujrouter -g routing --image ubuntults --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A0 --nics routernic --storage-sku Standard_LRS --no-wait
+</pre>
+<p>Až naběhne, přes její Public IP se přihlásím přes SSH a modifikuji soubor /etc/sysctl.conf tak, aby v něm stálo:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">net.ipv4.ip_forward=1
+</pre>
+<p>Restartuji. Tím jsme v Linuxu povolili IP forwarding (možná ještě budete muset vypnout firewall, například sudo ufw disable v Ubuntu).</p>
+<p>Pusťte ping z VM v sub1 do VM v sub2 a v našem "routeru" (Linux VM) zapněte odchyt paketů s filrem na ICMP. Vidíme něco? Vůbec nic...</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes</pre>
+<p>Jak teď vložíme "router" do dráhy paketu aniž bychom museli měnit síťové nastavení kterékoli z VM? V subnetu sub1 potřebujeme říct, že provoz do 10.0.2.0/24 se nemá běžně odroutovat, ale má jako next-hop mít můj "router", tedy IP adresu 10.0.0.250. To uděláme tak, že vytvoříme tabulku s tímto pravidlem a přiradíme ji k subnetu sub1.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network route-table create -n sub1tabulka -g routing
+az network route-table route create -n toSub2 --address-prefix 10.0.2.0/24 -g routing --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.0.250 --route-table-name sub1tabulka
+az network vnet subnet update -n sub1 -g routing --vnet-name rvnet --route-table sub1tabulka
+</pre>
+<p>Totéž potřebujeme udělat z druhé strany, tedy na subnetu sub2.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network route-table create -n sub2tabulka -g routing
+az network route-table route create -n toSub1 --address-prefix 10.0.1.0/24 -g routing --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.0.250 --route-table-name sub2tabulka
+az network vnet subnet update -n sub2 -g routing --vnet-name rvnet --route-table sub2tabulka
+</pre>
+<p>Co se děje v "routeru"? Provoz jde přes něj!</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+08:51:47.248489 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 1, length 64
+08:51:47.248524 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 1, length 64
+08:51:47.249986 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 1, length 64
+08:51:47.249998 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 1, length 64
+08:51:48.268502 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 2, length 64
+08:51:48.268516 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 2, length 64
+08:51:48.269387 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 2, length 64
+08:51:48.269397 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 2, length 64
+08:51:49.199421 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 3, length 64
+08:51:49.199452 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 3, length 64
+08:51:49.200620 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 3, length 64
+08:51:49.200638 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 3, length 64
+08:51:50.205914 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 4, length 64
+08:51:50.205948 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 4, length 64
+08:51:50.207199 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 4, length 64
+08:51:50.207213 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 4, length 64
+08:51:51.230783 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 5, length 64
+08:51:51.230825 IP 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3736, seq 5, length 64
+08:51:51.231701 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 5, length 64
+08:51:51.231716 IP 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3736, seq 5, length 64</pre>
+<p>Síťaři teď možná říkají: tak moment, vždyť ten "router" nemá interface ani v sub1 ani v sub2. SDN v Azure funguje skutečně trochu jinak a nic takového není potřeba. Routovací tabulka "routeru" je tady:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ip r
+default via 10.0.0.1 dev eth0
+10.0.0.0/24 dev eth0  proto kernel  scope link  src 10.0.0.250
+168.63.129.16 via 10.0.0.1 dev eth0
+169.254.169.254 via 10.0.0.1 dev eth0</pre>
+<p>To nám stačí. VM dostane paket z 10.0.1.4, má zapnutý forwarding a podle tabulky je jasné, že skočí na svojí bránu 10.0.0.1 (tou je jak už jsem říkal ve skutečnosti vždy hostitel samotný, takže na rozdíl od fyzické sítě můžete forwardovat přímo i do sítě, ve které nemáte NIC) a odtamtud už jdeme do cíle 10.0.2.4.</p>
+<p>Možná stojí za to podívat se i na MAC. Paket přijde na mojí MAC, já ho zaroutuji (tzn. nemění L3, ale srcMAC jsem já a dstMAC je adresa gateway).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump -e icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+10:48:11.085288 54:7f:ee:8c:12:81 (oui Unknown) &gt; 00:0d:3a:25:40:ea (oui Unknown), ethertype IPv4 (0x0800), length 98: 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3877, seq 42, length 64
+10:48:11.085332 00:0d:3a:25:40:ea (oui Unknown) &gt; 12:34:56:78:9a:bc (oui Unknown), ethertype IPv4 (0x0800), length 98: 10.0.1.4 &gt; 10.0.2.4: ICMP echo request, id 3877, seq 42, length 64
+10:48:11.087122 54:7f:ee:8c:12:81 (oui Unknown) &gt; 00:0d:3a:25:40:ea (oui Unknown), ethertype IPv4 (0x0800), length 98: 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3877, seq 42, length 64
+10:48:11.087135 00:0d:3a:25:40:ea (oui Unknown) &gt; 12:34:56:78:9a:bc (oui Unknown), ethertype IPv4 (0x0800), length 98: 10.0.2.4 &gt; 10.0.1.4: ICMP echo reply, id 3877, seq 42, length 64
+
+$ ip l show eth0
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/ether 00:0d:3a:25:40:ea brd ff:ff:ff:ff:ff:ff
+
+$ arp
+Address                  HWtype  HWaddress           Flags Mask            Iface
+10.0.0.1                 ether   12:34:56:78:9a:bc   C                     eth0
+</pre>
+<p>Z pohledu síťového zařízení se to může jevit neobvyklé a skutečně někteří výrobci trvají na tom, že všechny sítě, do kterých má router směrovat, musí mít svoje interface. To samozřejmě není problém - můžete postupovat také tak, že této VM dáte rozhranní do obou subnetů. Z pohledu Azure SDN to ale není nutné... nicméně i tak to jde.</p>
+<h1>Vlastní brána do Internetu</h1>
+<p>Přes statické routy můžeme změnit samozřejmě i kudy nám provoz odchází do Internetu. Než to začneme zkoušet, udělejme jedno opatření - jsem připojen na public IP svých VM přes SSH a nechci se odstřihnout. Buď tedy nasadím jednu další VM jako jump server nebo si dám pozor, aby mé machinace se směrováním neodstřihly přímo mě.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network route-table route create -n domu --address-prefix 90.181.122.97/32 -g routing --next-hop-type Internet --route-table-name sub1tabulka
+az network route-table route create -n domu --address-prefix 90.181.122.97/32 -g routing --next-hop-type Internet --route-table-name sub2tabulka</pre>
+<p>Zbytek provozu do Internetu ať nejde přímo, ale je donucen dojít do mé virtuální appliance.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network route-table route create -n InternetDMZ --address-prefix 0.0.0.0/0 -g routing --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.0.250 --route-table-name sub2tabulka
+az network route-table route create -n InternetDMZ --address-prefix 0.0.0.0/0 -g routing --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.0.250 --route-table-name sub1tabulka
+</pre>
+<p>Počkejte nějakou dobu a podívejme se na efektivní směrovací tabulku na interface mojí VM v subnetu 1:</p>
+<p id="QTphYUh"><img class="img-fluid wp-image-1105 " src="/images/2017/img_596754c19e6e1.png" alt="" /></p>
+<p>Výchozí cesta do Internetu je přepsána mojí statickou routou do mé virtuální appliance. Ostatně pokud teď z VM (a pokud jsem do ní připojen přes SSH na její veřejné adrese, tak nám zafungovala i předchozí host routa ke mě) zkusím pingnout IP adresu v Internetu, měl bych tento provoz zachytit ve svém "routeru". Zkusme z VM v sub1 pingnout 208.67.222.222.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump -n icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+11:07:28.649263 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 386, length 64
+11:07:28.649305 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 386, length 64
+11:07:29.673980 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 387, length 64
+11:07:29.674022 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 387, length 64
+11:07:30.599507 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 388, length 64
+11:07:30.599549 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 3879, seq 388, length 64
+</pre>
+<p>Tohle nám funguje. Provoz z VM v sub1 ale ne, protože "router" není nastaven na NAT směrem do Internetu. Můžeme třeba zapnout NAT v iptables:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to 10.0.0.250
+</pre>
+<p>Ping začne fungovat - pohledem do dumpu v naší virtuální appliance se můžeme přesvědčit, že se děje co potřebujeme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump -n icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+13:20:10.213559 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 10046, seq 27, length 64
+13:20:10.213616 IP 10.0.0.250 &gt; 208.67.222.222: ICMP echo request, id 10046, seq 27, length 64
+13:20:10.218854 IP 208.67.222.222 &gt; 10.0.0.250: ICMP echo reply, id 10046, seq 27, length 64
+13:20:10.218893 IP 208.67.222.222 &gt; 10.0.1.4: ICMP echo reply, id 10046, seq 27, length 64
+13:20:11.226138 IP 10.0.1.4 &gt; 208.67.222.222: ICMP echo request, id 10046, seq 28, length 64
+13:20:11.226173 IP 10.0.0.250 &gt; 208.67.222.222: ICMP echo request, id 10046, seq 28, length 64
+13:20:11.231548 IP 208.67.222.222 &gt; 10.0.0.250: ICMP echo reply, id 10046, seq 28, length 64
+</pre>
+<p>Čeho jsme tedy právě dosáhli? Provoz do Internetu z VM v našem VNETu není (s výjimkou jediné IP destinace viz výše) směrován Azure SDN routerem, ale naší virtuální appliance (Linux routerem). Tímto způsobem tedy můžete použít váš oblíbený firewall, třeba Check Point, Fortinet, Palo Alto nebo Cisco vASA.</p>
+<h1>Sdílení appliance či VPN brány s ostatními subscription</h1>
+<p>VNET zasahuje pouze do jediného regionu (to je dobře, vytváří to oddělené fault domény apod., pokud chcete spojit dva VNET mezi regionu, lze použít VPNku) ale hlavně také pouze do jedné subscription. Ta tvoří vršek hierarchie oddělení zdrojů, typicky se například používá subscription pro jednotlivé byznys jednotky firmy, pro různá oddělení či způsoby použití. Znamená to, že svou oblíbenou virtuální appliance s firewallem musím mít pro každou subscription zvlášť? Nevyjde to draho? A jak jako síťař mám podporovat všechny fakulty či obchodní jednotky, které chtějí mít svou vlastní subscription a já chci, aby používaly mnou spravovaný firewall? Řešením je VNET peering. Můžete tento náš VNET napeerovat (směrovat - něco jako route leaking ve VRF) na VNET v jiné subscription (ale v rámci jednoho zákaznického subjektu) a v něm vynutit routing jen přes náš VNET. Jinak řečeno bude jen jeden VNET, ve kterém jsou moje virtuální appliance, VPN do on-premises datových center apod. s tím, že tato je využívána ostatními VNETy.</p>
+<p>Vytvořme si jiný VNET, ale takový, který nebude konfliktní z hlediska IP adresace (abychom je mohli proroutovat). Rovnou si tam spustím testovací VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network vnet create -g routing -n marketing --address-prefix 10.1.0.0/16 
+az network vnet subnet create -g routing --vnet-name marketing -n subnet --address-prefix 10.1.0.0/24
+az vm create -n marketingvm -g routing --image ubuntults --vnet-name marketing --subnet subnet --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A0 --public-ip-address marketingip --nsg "" --storage-sku Standard_LRS --no-wait
+</pre>
+<p>Uděláme si peering obout VNETů. V první řadě vězte, že služba není zdarma - je tam malý poplatek za přenesená data, tak s tím počítejte. Druhá věc je, že k propojení dochází na SDN úrovni, takže z pohledu kapacity a rychlosti je to stejné jako uvnitř VM, není tam větší latence nebo tak (nejde o VPNku). Zjistíme si ID obou VNETů, což najdete pohodlně třeba v GUI.</p>
+<p id="LuOibBg"><img class="img-fluid wp-image-1108 " src="/images/2017/img_59677b80054df.png" alt="" /></p>
+<p>Napeerujeme oba VNETy. V mém případě nemá žádný z nich VPN či ExpressRoute bránu (toto naleznete v článku o VPN), takže provedeme napeerování takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network vnet peering create -n sitariToMarketing --remote-vnet-id /subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/routing/providers/Microsoft.Network/virtualNetworks/marketing -g routing --vnet-name rvnet --allow-forwarded-traffic --allow-gateway-transit --allow-vnet-access
+
+az network vnet peering create -n marketingToSitari --remote-vnet-id /subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/routing/providers/Microsoft.Network/virtualNetworks/rvnet -g routing --vnet-name marketing --allow-vnet-access</pre>
+<p>Ujistěte se, že peering state je Connected.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network vnet peering show -n sitariToMarketing -g routing --vnet-name rvnet
+{
+  "allowForwardedTraffic": true,
+  "allowGatewayTransit": true,
+  "allowVirtualNetworkAccess": true,
+  "etag": "W/\"2ba75738-7803-48d8-acaf-1a5ab1397398\"",
+  "id": "/subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/routing/providers/Microsoft.Network/virtualNetworks/rvnet/virtualNetworkPeerings/sitariToMarketing",
+  "name": "sitariToMarketing",
+  "peeringState": "Connected",
+  "provisioningState": "Succeeded",
+  "remoteVirtualNetwork": {
+    "id": "/subscriptions/a0f4a733-4fce-4d49-b8a8-d30541fc1b45/resourceGroups/routing/providers/Microsoft.Network/virtualNetworks/marketing",
+    "resourceGroup": "routing"
+  },
+  "resourceGroup": "routing",
+  "useRemoteGateways": false
+}</pre>
+<p>Ověříme, že z původní VM (10.0.1.4) můžeme pingnout VM v napeerovaném VNETu (10.1.0.4).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ ip a show eth0
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 00:0d:3a:23:40:a3 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.1.4/24 brd 10.0.1.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::20d:3aff:fe23:40a3/64 scope link
+       valid_lft forever preferred_lft forever
+tomas@sub1vm:~$ ping 10.1.0.4
+PING 10.1.0.4 (10.1.0.4) 56(84) bytes of data.
+64 bytes from 10.1.0.4: icmp_seq=1 ttl=64 time=0.917 ms
+64 bytes from 10.1.0.4: icmp_seq=2 ttl=64 time=1.19 ms
+^C
+--- 10.1.0.4 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+rtt min/avg/max/mdev = 0.917/1.057/1.198/0.144 ms
+</pre>
+<p>Perfektní. Teď můžeme zařídit, že provoz z marketingového VNETu (kromě mojí osobní IP) půjde výhradně přes síťařský VNET do mojí virtuální appliance.</p>
+<p>Vytvoříme tedy uživatelskou tabulku pro subnet marketingu, cestu k mojí IP necháme přes Internet a zbytek pošleme do mé virtuální appliance.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az network route-table create -n marketingtabulka -g routing
+az network route-table route create -n domu --address-prefix 90.181.122.97/32 -g routing --next-hop-type Internet --route-table-name marketingtabulka
+az network route-table route create -n vychozi --address-prefix 0.0.0.0/0 -g routing --next-hop-type VirtualAppliance --next-hop-ip-address 10.0.0.250 --route-table-name marketingtabulka
+az network vnet subnet update -n subnet -g routing --vnet-name marketing --route-table marketingtabulka
+</pre>
+<p>Pingám z marketingu do Internetu a skutečně - provoz jde přes appliance!</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump -n -e icmp
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+16:35:36.405737 a4:4c:11:34:e7:01 &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 10.1.0.4 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 14, length 64
+16:35:36.405787 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 10.0.0.250 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 14, length 64
+16:35:36.409992 12:34:56:78:9a:bc &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.0.0.250: ICMP echo reply, id 2520, seq 14, length 64
+16:35:36.410015 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.1.0.4: ICMP echo reply, id 2520, seq 14, length 64
+16:35:37.433764 a4:4c:11:34:e7:01 &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 10.1.0.4 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 15, length 64
+16:35:37.433807 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 10.0.0.250 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 15, length 64
+16:35:37.438289 12:34:56:78:9a:bc &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.0.0.250: ICMP echo reply, id 2520, seq 15, length 64
+16:35:37.438313 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.1.0.4: ICMP echo reply, id 2520, seq 15, length 64
+16:35:38.441845 a4:4c:11:34:e7:01 &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 10.1.0.4 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 16, length 64
+16:35:38.441892 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 10.0.0.250 &gt; 208.67.222.222: ICMP echo request, id 2520, seq 16, length 64
+16:35:38.446164 12:34:56:78:9a:bc &gt; 00:0d:3a:25:40:ea, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.0.0.250: ICMP echo reply, id 2520, seq 16, length 64
+16:35:38.446195 00:0d:3a:25:40:ea &gt; 12:34:56:78:9a:bc, ethertype IPv4 (0x0800), length 98: 208.67.222.222 &gt; 10.1.0.4: ICMP echo reply, id 2520, seq 16, length 64
+</pre>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>Určitě by stálo zato se i pobavit o tom, jak řešit redundanci takových virtuálních síťových appliance, ale o tom až někdy příště stejně, jako o distribuovaných stavových firewallech (NSG) pro mikrosegmentaci.</p>
+<p>&nbsp;</p>
+<p><em>Azure SDN sítě vám nabízí mnoho možností a rozhodně umožňují síťařům implementovat i velmi složité politiky a topologie. To všechno virtuálně, automatizovatelně, na kliknutí nebo z jednoho okna příkazové řádky. Takhle vypadají moderní sítě v cloudovém prostředí.</em></p>
+<p>&nbsp;</p>

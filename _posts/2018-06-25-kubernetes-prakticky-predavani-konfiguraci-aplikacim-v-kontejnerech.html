@@ -1,0 +1,278 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: předávání konfigurací aplikacím v kontejnerech'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2254
+wordpress_url: http://tomaskubica.cz/?p=2254
+date: '2018-06-25 05:16:03 +0000'
+date_gmt: '2018-06-25 04:16:03 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Kontejnerový image s aplikací je immutable a obraz vybudovaný v rámci Continuous Integration pro vývoj a testování má být naprosto identický jako ten, který se přes staging dostane až do produkce například v rámci Continuous Deployment procesu. Pak je tedy potřeba mít schopnost ovlivnit aplikační nastavení mimo samotný kontejnerový image - connection stringy, klíče pro API, certifikáty, feature flagy a tak podobně. Jak je do kontejneru dostat při používání Kubernetes?<!--more--></p>
+<h1>Environmentální proměnné v definici Podu</h1>
+<p>První nejjednodušší způsob jak předat kontejnerům nějaké vstupní parametry je použití environmentálních proměnných přímo v definici Podu:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="no-highlight">kind: Pod
+apiVersion: v1
+metadata:
+  name: envPod
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]
+      env:
+        - name: mykey
+          value: myvalue
+        - name: mykey2
+          value: myvalue2</pre>
+<p>Pustíme si Pod.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl apply -f envPod.yaml
+</pre>
+<p>Následně do něj skočíme a vypíšeme si env.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl exec env -- env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=ubuntu
+mykey2=myvalue2
+mykey=myvalue
+...</pre>
+<p>Jednoduché a na začátek účinné. Přesto ne ideální.</p>
+<h1>ConfigMap</h1>
+<p>Předchozí příklad trpí některými obtížemi.</p>
+<p>Co jsme udělali je to, že jsme zcela spojili životní cyklus parametrů s definicí výpočetního zdroje, což není ideální praxe. Znamená to, že definici Podu musíme modifikovat mezi jednotlivými nasazeními. Řešením by bylo nepoužívat přímo Kubernetes soubory, ale přejít na Helm šablony (o tom podrobně jindy). Ty výše uvedený soubor mohou parametrizovat a hodnoty env můžeme měnit vstupními parametry Helm šablony.  Přesto ale zůstává, že pro modifikaci parametrů musíme provést redeployment i zdrojů (Podu).</p>
+<p>Druhá potíž je v tom, že environmentální proměnné se hodí pro jednoduché hodnoty typu feature flag nebo connection string, ale ne pro složité parametry. Pokud jich potřebujete předávat třeba 30, začne to být nepřehledné. Navíc často potřebujete pro middleware či aplikaci přechroupat tyto hodnoty do komplexnějšího konfiguračního souboru třeba my.cnf pro MySQL. Museli bychom pak složitě uvnitř kontejneru vybudovat takový soubor z env. Jednodušší by byla schopnost předat celý obsah my.cnf jako takový, ale to přes env neuděláme díky omezením na použité znaky a délku.</p>
+<p>Třetí možný problém je v tom, že tyto proměnné se aplikují pouze při startu kontejneru. Pokud je změníme, toto se v kontejneru nebude reflektovat, takže nějaké změny konfigurace za živa nejsou možné.</p>
+<p>Čtvrtá starost je v tom, že parametry nejsou z bezpečnostního hlediska nijak chráněné. V systému jsou plně viditelné a v clusteru jsou uložené v plain textu. Stejně tak bychom mohli potřebovat rozdělit odpovědnosti, tedy nechť jeden člověk má na starost vytváření hesel a někdo jiný deployment. Pokud se nám potkávají v jednom zdroji (definici Podu), nemůžeme použít RBAC na oddělení práv.</p>
+<p>První tři potíže pojďme vyřešit použitím ConfigMap.</p>
+<p>Použijme tuto ConfigMapu:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfigmap
+data:
+  mycfgkey: myvalue
+  mycfgkey2: myvalue2
+  configfile.ini: |
+    [default]
+    something=azure
+    somethigelse=false</pre>
+<p>Všimněte si, že definujeme key/value páry, ale u configfile.ini jsme s využitím symbolu | vložili několik řádek celého konfiguračního souboru aplikace.</p>
+<p>Založme objekt ConfigMap v Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f configMap.yaml</pre>
+<p>Použijeme teď následující definici Podu. Env nebudeme definovat uvnitř, ale načteme si celý obsah ConfigMap jako env dovnitř kontejneru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: cfg1
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]
+      envFrom:
+      - configMapRef:
+          name: myconfigmap</pre>
+<p>Podívejme se, co to udělá.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl exec cfg1 -- env
+
+kubectl exec cfg1 -- env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=cfg1
+configfile.ini=[default]
+something=azure
+somethigelse=false
+
+mycfgkey=myvalue
+mycfgkey2=myvalue2
+...</pre>
+<p>Hodnoty jednoduchých klíčů se nám všechny načetly v pořádku. Takhle to tedy můžeme používat, ale config.ini je tam špatně. Obsahem proměnné prostředí nemůže být řádkování a Linux tomu neporozumí správně. K tomu se dostaneme.</p>
+<p>Pojďme tedy do env natáhnout jen to, co dává smysl. Možná také budeme potřebovat změnit její název. V ConfigMap můžeme mít data uložena pod nějakým klíčem, ale v různých kontejnerech potřebujeme tyto hodnoty pod jiným názvem. Co uděláme takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: cfg2
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]
+      env:
+        - name: newnamekey1
+          valueFrom:
+            configMapKeyRef:
+              name: myconfigmap
+              key: mycfgkey
+        - name: newnamekey2
+          valueFrom:
+            configMapKeyRef:
+              name: myconfigmap
+              key: mycfgkey2</pre>
+<p>Vytvoříme pod a koukneme se, jak to dopadlo.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f cfg2Pod.yaml
+
+kubectl exec cfg2 -- env
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=ubuntu
+newnamekey1=myvalue
+newnamekey2=myvalue2
+...</pre>
+<p>Výborně. Z ConfigMap můžeme použít jen co nám dává smysl a ještě si to případně přejmenovat. Ale co s tím ini souborem?</p>
+<p>Hodnoty můžeme do kontejneru také namapovat jako soubor. Funguje to tak, že do kontejneru připojíme Volume na nějakou cestu v soborovém systému a jednotlivé klíče pak budou název souboru a value jeho obsah. Můžeme samozřejmě vytahovat jen určité a ještě vytvářet stromovou strukturu. Pro zjednodušení tam pošlu všechno.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: cfg3
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]
+      env:
+        - name: newnamekey1
+          valueFrom:
+            configMapKeyRef:
+              name: myconfigmap
+              key: mycfgkey
+        - name: newnamekey2
+          valueFrom:
+            configMapKeyRef:
+              name: myconfigmap
+              key: mycfgkey2
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        name: myconfigmap</pre>
+<p>Vytvořme tento Pod, skočíme dovnitř a prohlédneme si soubory.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f cfg3Pod.yaml
+
+kubectl exec cfg3 -it -- bash
+root@cfg3:/# ls /etc/config
+configfile.ini  mycfgkey  mycfgkey2
+root@cfg3:/# cat /etc/config/configfile.ini
+[default]
+something=azure
+somethigelse=false</pre>
+<p>Je to tam! Tímto způsobem tedy můžeme přidat kompletní konfigurační soubor. Publikování přes souborový systém má ještě jednu výhodu. Na rozdíl od řešení přes proměnnou prostředí se tyto informace dokáží dynamicky aktualizovat, takže pokud si vaše aplikace z tohoto místa pravidelně čte, dozví se o změně (ne okamžitě, může to nějakou dobu trvat - obvykle tak do minuty).</p>
+<p>Proveďme tedy změny v ConfigMap.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myconfigmap
+data:
+  mycfgkey: CHANGEDmyvalue
+  mycfgkey2: CHANGEDmyvalue2
+  configfile.ini: |
+    [default]
+    something=azure
+    somethigelse=false</pre>
+<p>Bez restartu Podu se připojíme a po krátké době budou v souborech nová data zatímco env se nezměnil.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f configMap2.yaml
+kubectl exec cfg3 -it -- bash
+root@cfg3:/# env | grep key
+newnamekey1=myvalue
+newnamekey2=myvalue2
+
+root@cfg3:/# cat /etc/config/mycfgkey
+CHANGEDmyvalue
+</pre>
+<p>Pokud se jedná skutečně o konfigurační soubory, možná se vám nechce je přepisovat do YAML předpisu. Můžete ConfigMap založit přes kubectl a poslat ho buď na jednotlivé soubory nebo celý adresář.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl create configmap novamapa --from-file=./configs/
+</pre>
+<p>Když si ConfigMap vypíšu, uvidím tam dva soubory, které jsem v adresáři měl.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl describe cm novamapa
+
+Name:         novamapa
+Namespace:    default
+Labels:       &lt;none&gt;
+Annotations:  &lt;none&gt;
+
+Data
+====
+config.ini:
+----
+[configs]
+something=azure
+somethingelse=false
+otherconfig.cfg:
+----
+useSomething;
+seeSomething;
+name = "hopla";
+Events:  &lt;none&gt;</pre>
+<p>První tři body jsme tedy vyřešili. Oddělili jsme konfiguraci od definice Podu, dokázali jsme předávat komplexní konfigurace a aktualizovat je bez restartu Podu. A jak s bezpečností předávaných hesel?</p>
+<h1>Secrets</h1>
+<p>Pro poskytování tajností je v Kubernetes objekt Secret. V okamžiku vzniku u něj nebyl prakticky žádný implementační rozdíl oproti ConfigMap. Oddělení je žádoucí, protože procesy kolem konfigurací jsou zkrátka často jiné než kolem certifikátů a hesel. Kubernetes postupně přidával funkce a bude v tom jistě pokračovat. Někdy kolem verze 1.7 začalo být možné tyto informace v platformě ukládat zašifrované, takže pokud by někdo penetroval cluster nebudou snadno dostupné (musel by najít i místo, kde je uložen šifrovací klíč k tajnostem, což je o dost složitější). Ve verzi 1.10 se objevila možnost klíče šifrovat s využitím externích systémů jako je Azure Key Vault. Klíč je zašifrován a vložen do obálky, která je šifrovaná informací z externího zdroje jako je právě Azure Key Vault. Tato možnost je velmi čerstvá a v době psaní článku není v Azure Kubernetes Service ještě k dispozici, ale podle dostupných informací bude poměrně brzy.</p>
+<p>Jak tedy fungují Secrets? Skoro stejně jako ConfigMap, jen se posílají v base64 kódování (což ale není šifra, považujte to za plain text). Tím, že je to odlišný objekt a API můžete oddělit práva pro vytváření ConfigMap od Secret.</p>
+<p>Nejprve si zakódujeme secret do base64, což je dobré pro zabránění nějakých problémů s interpretací znaků apod.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">echo -n 'Azure12345678' | base64
+QXp1cmUxMjM0NTY3OA==</pre>
+<p>Následně base64 výsledek použijeme v definici.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: Secret
+metadata:
+  name: secret1
+type: Opaque
+data:
+  password: QXp1cmUxMjM0NTY3OA==</pre>
+<p>A pošleme do Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f secret.yaml
+</pre>
+<p>Můžeme také vytvořit Secret přímo z jenoho a více souborů přes kubectl, který base64 kódování provede za nás.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">echo -n 'Azure87654321' &gt; ./heslo.txt
+kubectl create secret generic secret2 --from-file=./heslo.txt</pre>
+<p>Přístup k heslům je podobný ConfigMap - buď přes env nebo soubory.</p>
+<p>Vytvořme si Pod a namapujme do něj secrets z obou Secret.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: sec
+spec:
+  containers:
+    - name: ubuntu
+      image: ubuntu
+      command: ["tail"]
+      args: ["-f", "/dev/null"]
+      env:
+        - name: SECRET1
+          valueFrom:
+            secretKeyRef:
+              name: secret1
+              key: password
+        - name: SECRET2
+          valueFrom:
+            secretKeyRef:
+              name: secret2
+              key: heslo.txt</pre>
+<p>Pošleme do Kubernetes a ověříme, že je tam máme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl create -f secretPod.yaml
+kubectl exec sec -- env
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=sec
+SECRET1=Azure12345678
+SECRET2=Azure87654321
+...</pre>
+<h1>Dynamické konfigurace mimo Kubernetes platformu</h1>
+<p>V některých případech můžete chtít zcela oddělit konfiguraci systémů od jakýchkoli Kubernetes konstruktů tak, aby to fungovalo v kontejneru, ve VM nebo třeba platformní službě. Dobrým způsobem v takovém případě je vytažení konfigurací do centrálního repozitáře.</p>
+<p>Často nasazovaným systémem, který používá i sám Kubernetes pro svoje potřeby, je Etcd nebo jeho alternativa Consul. Jde o distribuovaná řešení pro tzv. distribuovaný konsenzus. Jde v zásadě a silně konzistentní vysoce redundantní konfigurační databázi, kterou lze použít i pro další problémy distribuovaných systémů jako volba lídra, semafory či service discovery. Nadstavbou nad tím může být configd, což je vyráběč konfiguračních souborů. Sleduje jaké parametry jsou v Etcd a z nich montuje konfigurační soubory. Dokáže detekovat změny, upravit konfiguraci a případně otočit nějakou službu tak, aby si změny natáhla (například NGINX to potřebuje, ale třeba Envoy proxy už to dokáže sama).</p>
+<p>Tyto řešení jsou na samotný článek, tak se k nim vraťme někdy později.</p>
+<h1>Ukládání tajností do trezoru mimo Kubernetes</h1>
+<p>Možná nechcete certifikáty a hesla vůbec vztahovat ke Kubernetes jako takovému. Scénář je opět takový, že musí jít o oddělený systém fungující pro kontejnery, VM i platformní služby. Perfektním řešením je Azure Key Vault. O něm už jsem na tomto blogu psal a psát ještě budu.</p>
+<p>&nbsp;</p>
+<p><em>Při vytváření immutable kontejnerových obrazů se neobejdete bez předávání parametrů. Kubernetes na to myslí. Zapněte si Azure Kubernetes Service a vyzkoušejte si.</em></p>

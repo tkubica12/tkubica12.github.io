@@ -1,0 +1,88 @@
+---
+layout: post
+published: true
+title: Pohled na hybridní svět IT nově i s Azure Arc
+tags:
+- Monitoring
+- Security
+- Governance
+- IoT
+- AzureStack
+- Kubernetes
+- Arc
+---
+Na listopadové konferenci Ignite Microsoft oznámil další strategický krok v oblasti hybridních řešení - Azure Arc. Jak vypadá nasazení cloudového modelu nad vaší vlastní infrastrukturou, hostingem či libovolným cloudem nebo Kubernetes clustery od kohokoli a kdekoli? A jak to doplňuje technologii Azure Stack nebo IoT Edge? Dnes se na to podíváme konceptuálně a příště si první preview střípky vyzkoušíme.
+
+# Cloudový model IT
+Zakazníci, kteří začnou využívat Azure, brzy zjistí, že způsob operování a governance takového prostředí je velmi mocný a začnou si říkat, že by bylo skvělé tohle mít i ve svých on-premises a edge systémech. Jde například o tyto aspekty:
+- Monitoring z jednoho místa co do logů, telemetrie, bezpečnosti, infrastrury, dat i aplikací včetně workbooků a custom pohledů
+- Můžete použít granulární auditing a politiky, takže víte přesně v jakém stavu se co nachází a místo směrnic v PDF máte technické prostředky jejich implementace včetně politik pro OS, Kubernetes, datovou vrstvu nebo infrastrukturu
+- Granulární řízení přístupů s integrací na Azure Active Directory včetně vícefaktorového ověřování apod.
+- Inventarizace s koncepty typu resource group, tagging a Azure Resource Graph search vlastnostmi
+- Cloudový model licencování s možností pay-as-you-go pro jednoduché škálování, bursting, testování
+- Všechno je softwarově definované s možností plné automatizace - celé datové centrum včetně compute, sítí, storage, databází, analytiky, kontejnerů, aplikačních platforem, IoT i AI postavíte ze šablony, máte tedy kompletní Infrastructure as Code
+- Cloud snadno začleníte do kompletní CI/CD pipeline, kdy už nenasazujete jen binárky automaticky, ale všechno co aplikace potřebuje od infra po kód a monitoring
+- Platformní služby, kdy se pro vás upgrady a škálování stanou automatickým procesem, o který se nemusíte starat a můžete se tak primárně soustředit na to, co vás odlišuje od konkurence - aplikace a data
+- Obrovská variabilita řešení i specializovaný hardware na kliknutí
+- Granulární řízení nákladů - víte přesně kolik vás co stojí
+
+Bylo by skvělé tohle mít konzistentním způsobem k dispozici i pro řešení, která potřebujete mít ve svém datovém centru nebo na edge (v továrně, na pobočce, v místě zákazníka) či v jiném cloudu/hostingu, ale kompletně to asi nepůjde. Nicméně Microsoft dělá hodně proto, aby co nejvíc toho opravdu šlo. Pro Microsoft není hybridní svět jen dočasný stav, než bude všechno v cloudu, ale vnímá hybrid jako stav trvalý kdy zejména v oblasti edge budete potřebovat z důvodů latencí, přenosové kapacity či compliance lokální technologie ve své výrobě, pobočce apod.
+
+Jak tedy dostat cloudový model IT do prostředí mimo cloud?
+
+# První cesta - přivezte si cloud technologie k sobě s Azure Stack rodinou
+První varianta, o které jsem už mnohokrát psal, je dovézt si Azure technologie do svého datového centra nebo edge. Myšlenka spočívá v tom, že technologii si vyzmete už od železa nahoru, tedy připravíte si jen elektřinu a síťové napojení a jedete.
+
+## Azure Stack Hub
+Azure Stack Hub (ano, je to Azure Stack, jen se mu k názvu přidalo jedno slovo) je způsob, jak můžete od základních vrstev železa přes hypervisor až po virtuální sítě, softwarově definovanou storage i compute v podobě VM, Kubernetes nebo WebApp a serverless provozovat u sebe prostředí konzistentní s Azure. Na rozdíl od ostatních variant tady máte řešení od železa nahoru a tím jste schopni dosáhnout nejvyšší konzistence, protože tu funguje zcela nativně ARM, RBAC a tak podobně. Nicméně to také znamená, že musí být optimalizovaný celý stack technologií, takže to nenainstalujete z cédéčka na vaše stávající systémy (logicky - pokud mám mít konzistenci i pro automatizaci jako Azure, musí pod tím být opravdu Azure svět, ne VMware nebo AWS). Azure Stack Hub si kupujete jako hotové řešení - proste objednáte velkou bednu a tu vám přivezou. 
+
+## Azure Stack Edge
+Někde je zbytečné mít celý šelmostroj Azure Stack Hub - stačí vám podstatně méně výkonu, chcete menší zařízení a to možná i takové, které se vleze do batohu a můžete s ním pobíhat po fabrice, po poli nebo jako zachranáři v oblasti povodní. Azure Stack Edge je pokračováním (přejmenováním a doplněním) technologie Azure Data Box Edge, o kterém už jsem psal. Nově jsou ale různé další varianty krabiček, takže kromě formátu do racku jsou tu i menší zařízení pracující na baterie upravené do terénu, aby vám mohly bez následků spadnout na zem a daly se dát do prašného prostředí továrny nebo do batohu. Modely mohou být vybaveny nejen CPU, ale i jinými typy compute určenými pro akceleraci Machine Learning funkcí jako je FPGA nebo GPU. Všechny zařízení řídíte z cloudu a jste schopni do nich posílat v cloudu odladěné moduly jako je Stream Analytics pro zpracování dat, lokální IoT Hub pro napojení IoT zařízení, machine learning modely, kognitivní moduly nebo váš vlastní serverless kód. Novinkou je plán umožnit nejen spouštění kontejnerizovaných modulů, ale i klasických VM pro případ, že váš software něco takového potřebuje. Současně zařízení funguje jako datové překladiště a je schopné synchronizovat nebo pushovat data do cloudu pro další zpracování. Box si objednáte v Azure portálu a platíte měsíční poplatek.
+
+Shrnuto - Azure Stack Hub a Edge znamenají doručení technologického stacku Azure k vám. Buď rack konzistentní technologie (Hub) kterámá lokální portál a ARM nebo jen jednu krabičku řízenou z cloudu, na kterou můžete jednoduše poslat cloudové funkce pro lokální zpracování a sbírat výsledná data do Azure.
+
+# Druhá cesta - řešte svoje IoT z cloudu s Azure Sphere a Azure IoT Edge
+Ve světě IoT potřebujete na sloup pověsit rozhodně něco menšího, než rack s Azure Stack Hub. Na to je myšleno v IoT strategii Azure. V zásadě jde o to získat schopnost IoT zařízení napojit na cloud a řešit tam jejich bezpečnost (!), správu, deployment, nastavení, push logiky a kódu, příjem a zpracování dat nebo obousměrnou komunikaci.
+
+## Azure Sphere
+O Azure Sphere už jsem tu také psal. Jde o Microsoftem navržený mikrokontroler - system on čip obsahující hardwarový bezpečnostní modul, ARM procesor pro OS, dva další ARM procesory pro real-time OS a modul síťové konektivity. K tomu je Azure Sphere OS - operační systém postavený na Linuxu a podporovaný Microsoftem ve stávající formě minimálně do roku 2031 včetně over-the-air updatů pro trvalou bezpečnost (srovnejte s tradičními krabičkami, které výrobce po krátké době přestane aktualizovat, protože ma "nový lepší" model). Zařízení můžete napojit na Azure IoT Hub a to buď ve velkém Azure nebo v Azure Stack Hub nebo na Azure IoT Edge zařízení (například Raspberry Pi).
+
+## Azure IoT Edge
+Azure Sphere čip má 4MB paměti, takže tam zázraky neuděláte (jdete po velikosti, spotřebě a ceně). Nicméně bývá potřeba IoT zařízení napojit do lokální chytřejší brány pro lokální zpracování dat, detekci anomálií, gateway pro napojení do velkého Azure a tak podobně. Tady už se bavíme o chytřejších krabičkách jako je Raspberry Pi s ARM procesorem nebo x86/amd64 platformách třeba s Linux nebo Windows. Na tento box jste schopni nainstalovat Azure software a napojit ho do cloudu. Následně můžete zařízení řídit z cloudu a také mu z cloudu posílat funkční moduly. Například Azure Stream Analytics, Azure SQL Database Edge (i pro ARM64), serverless kód, machine learning modely exportované z Azure, kognitivní služby a tak podobně. Mimochodem je i možnost nasazované moduly spravovat přes Kubernetes API díky Virtual Kubelet pro Azure IoT Hub.
+
+# Třetí cesta - "zcloudujte" co máte napojením na Azure Arc
+Co když ale potřebujete něco většího, ale nemůžete tomu vyměnit podvozek (tedy přivést si tam Azure Stack Hub) - váš VMware, Hyper-V ve vlastním DC nebo hostingu, VM u jiného poskytovatele nebo váš vlastní Kubernetes cluster? I to je součástí hybridní strategie Microsoft nově s Azure Arc.
+
+## Azure Arc pro virtuální mašiny
+Je logické, že když vaše VM běží v non-Azure prostředí, nemůžete automatizovat tvorbu VM, sítí nebo storage tak, jak to jde u Azure Stack Hub. Nicméně to neznamená, že vám tady cloud nemůže pomoci. Už dnes jste schopni napojit svoje VM běžící kdekoli do Azure Monitor a sledovat telemetrii, analyzovat logy, dělat update management, inventarizaci nainstalovaného software nebo využít cloudový SIEM Azure Sentinel. To je dnes součást strategie Azure Arc, ale ten jde pro VM ještě o kousek dál. V čem to spočívá?
+
+Objekty mimo Azure sice můžete přes Azure Monitor krásně sledovat, ale nemají svou reprezantaci v Azure Resource Manageru. Azure Arc vám umožní na VM nainstalovat Arc agenta, který způsobí, že se z toho VM stane resource v Azure tak, jak třeba Azure VM. To má dost zásadní přínosy jak pro současné preview služby, tak ještě víc do budoucna:
+- Tím, že je z VM resource v Azure, bude vypadat jako objekt, který si dáte do nějaké subskripce, resource groupy, dáte mu nějaké tagy a tak podobně. Z inventárního hlediska se tak stane součástí Azure a můžete třeba použít Azure Resource Graph pro vyhledávání, evidenci a jednotným způsobem se koukat na zdroje v Azure i mimo něj.
+- V Azure můžete automatizovat dění uvnitř VM přes VM Extensions, které pro vás zpracovává Azure Agent. Arc Agent tohle bude umět taky. Můžete tak využít extensions třeba pro instalaci dalších agentů, spouštění skriptů a tak podobně.
+- Zařazení do Resource Manager a jeho subskripcí, resource group a tagování není jen pro evidenci, ale i pro řízení dalších služeb jako je například Update Management nebo Desired State Configuration. Tak, jak můžete říct "zazáplatuj VM v resource group A" pro Azure VM, tak to bude možné i pro ty mimo něj. Nebo v rámci Desired State Configuration budete moci rozhodnout, že všechny VM v dané resource group mají mít nějaký state, třeba nainstalované IIS a to jak u Azure VM, tak u jiných.
+- Jakmile má VM svoje ID v Resource Manager, můžete na něj aplikovat autoraziční zálěžitosti s RBAC. Dám příklad, kdy se to strašlivě hodí - RBAC role pro přístup do logů Azure Monitor. V rámci monitoringu Azure jste schopni dostat všechny logy a telemetrii na jedno místo a nad ním vyhledávat, reportovat, dělat workbooky. To všechno ale umí RBAC, takže v logách uvidím jen ty VM, na které mám oprávnění. Tím, že je vaše VM běžící mimo Azure projektováno do ARMu, platí to i pro něj. Jeden člověk tak může vidět logy a telemetrii ze všech VM (bez nutnosti hrabat se různými instancemi Log Analytics nebo dělat náročné cross-workspace query) a současně aplikační tým uvidí jen logy ze svých mašin. Všechno je na jednom místě a přesto máte granulární řízení, kdo jaký log vidí a to všechno naprosto konzistentním způsobem ať už vám VM běží kdekoli.
+- Azure Policy vám umožňuje auditovat, jestli jsou vaše VM v nastavení, které jako firma potřebujete především s ohledem na bezpečnostní věci a to i s možností tyto stavy jednoduše opravovat. Pokud je VM mimo Azure, tak samozřejmě nelze sledovat, jaká jsou pravidla na firewallu před ní (v Azure to jde - NSG je také ve správě Azure a ten dokáže tuto korelaci udělat). Nicméně existují i guest OS policy, které jsou řešené agentem a to vám díky Azure Arc bude chodit i pro VM mimo Azure. Mám správnou verzi bezpečnostního software na každé mašině? Mám zakázané SMBv1, protože není bezpečné? Azure Governance je díky Azure Arc k dispozici i pro VM mimo Azure.
+
+## Azure Arc pro Kubernetes
+Kubernetes je úžasný infrastrukturní systém nové generace, orchestrátor kontejnerů. V Azure ho můžete monitorovat, sbírat z něj logy a telemetrii a díky Azure Policy (v preview) řídit bezpečnostní politiky (omezovat kontejnerové registry, vynutit jen podepsané obrazy, zakázat kontejnery spuštěné pod rootem, dropnout Linux capabilities, implementovat Pod security a tak podobně). Také si Azure Kubernetes Service snadno začleníte do vaší CI/CD pipeline v Azure DevOpS Pipelines nebo GitHub Actions.
+
+Azure Arc cílí na to, přenést tohle všechno do Kubernetes běžících kdekoli - v Azure Stack Hub, na vašem železe, v jiném cloudu. V zásadě do něj nainstalujete jistou formu agenta a policy kontroleru a z cloudu monitorujete a řešíte governance, tedy bezpečnostní a provozní pravidla vašich clusterů, a komplexní monitoring (logy, telemetrie). 
+
+Dokážete také moderním GitOps způsobem implementovat základní deployment do clusterů, tedy třeba všude mít stejnou verzi NGINX kontroleru, připravené namespace dev/test/prod, RBAC pravidla nebo omezení na zdroje pro různé namespaces. Díky GitOps můžete kolaborovat v rámci například Azure DevOps nebo GitHub a začlenit governance a bezpečnost do vašich CI/CD pipeline. Git se tak může stát zdrojem pravdy pro to, jak má být cluster  nastavený a jaká základní komponenty mají být nasazené (Ingress kontroler, Service Mesh, DAPR, Cert-manager). Můžete jít ještě dál a v Gitu držet jaké aplikace v jaké verzi mají být nasazené. To může být ideální scénář pro edge nasazení (místo deploymentu přes složitou CI/CD pipeline budete mít pro edge clustery  centrální zdroj pravdy a stačí z nich outbound konektivita).
+
+## Azure Arc pro datové a další služby
+Dostávám se k tomu, co mi na Azure Arc připadá největší revoluce. V Azure se o managed služby stará Microsoft (PaaS) a získáváte tak například hotovu databázi a neřešíte nic jiného. Microsoft ji pro vás updatuje, řeší problémy, škáluje a tak podobně. Bylo by skvělé něco takového mít v on-premises, ale to asi nepůjde, nebo ano? Z pohledu nějakého celkového SLA ne, protože PaaS je i o správě celého železa, hypervisoru, sítí a storage technologií pod tím. Nicméně některé aspekty by se možná řešit daly. Například aktualizace v cloudu neprobíhají tak, že se někdo připojí do VM a nainstaluje patche. Ve skutečnosti se připraví nový image, který už aktualizace obsahuje, a tím se bezvýpadkově nahradí předchozí instance. Je to dost promakaný proces. Jenže tohle těžko udělat, když to není v Azure. Ledaže by existoval nejaký infrastrukturní komponent, který je připraven na takové moderní zacházení a je dostupný v jiných cloudech nebo on-premises. A takové řešení existuje - Kubernetes.
+
+V plánu je tedy to, že vezmete Kubernetes běžící kdekoli, napojíte ho na Azure Arc a tím Microsoft získá jednotný infrastrukturní systém. Stále je na vás řešit Kubernetes a všechno co je pod ním (hypervisor, sítě, storage) a to lze udělat buď samostatně, nebo z jiného cloudu jako služba nebo v rámci Azure Stack Hub. Ve společné vrstvě Kubernetes se pak Microsoft může vyřádit a s použitím různých technologií jako je Kubernetes Operator vám nabídnout některé služby o dost cloudovějším modelem, než tak, že vám pošle cédéčko se SQL Server. Microsoft pro vás tedy ve vašem Kubernetes rozjede nějakou službu a bude řešit i proces aktualizace na novější verze, škálování a vysokou dostupnost. Současně s tím bude vědět kolik té služby konzumujete, takže může nasadit cloudový model licencování - nemusíte si tedy koupit nějaký papírek s klíčky na rok, ale platit jako v cloudu třeba od hodiny. Dostanete tedy službu s přidanou hodnotou, které má nemálo vlastností PaaS řešení v Azure (ale samozřejmě Microsoft půjde jen do úrovně služby samotné, pokud vám nefunguje Kubernetes nebo infrastruktura pod ním, musíte řešit vy - nebo si pod to dát Azure Stack Hub).
+
+První služby v rámci zatím privátního preview budou Azure SQL Database a Azure Database for PostgreSQL v režimu hyperscale (Citus technologie). Můžeme očekávat i další datové služby, zejména v oblasti ML a kognitivek (ty už dnes kontejnery také podporují, takže je to spíš otázka vyřešení managmentu přes Arc). K dispozici ale postupně budou i nedatové služby pro vývojáře, například Azure API Management má v preview schopnost vystrčit některé své nody právě do on-premises světa přes Azure Arc (a potažmo váš Kubernetes). Billing bude cloudový - podle reálného využívání služby.
+
+Sečteno podrtrženo - Azure Arc je zajímavý způsob, jak dostat cloudové chování do vašich systémů, ať už beží naprosto kdekoli a na čemkoli.
+
+# Ultimátní cesta - kombinujte tohle všechno dohromady
+Jak už jsem naznačil, dává smysl i přístupy kombinovat. Například vzít Azure Stack Hub, který do vašeho datového centra dostane API konzistentní s Azure a vyřeší pro vás i vrstvy hypervisoru, ARM, softwarově definované storage a sítě. V něm můžete provozovat IoT Hub a napojit do něj například IoT Edge, Azure Sphere nebo Azure Stack Edge. Také v něm můžete s plnou podporou provozovat AKS-engine (Kubernetes) - no a ten přes Arc může být základem například pro managed datové služby.
+
+# Sečteno, podtrženo
+Hybridní strategie je pro Microsoft klíčová. Kromě zmíněných technologií je i celá řada dalších, které hybridní scénáře podporují - Azure Site Recovery pro DR mezi on-premises a cloudem, Azure Sentinel jako cloudový SIEM pro všechno včetně SaaS služeb, identitní systém AAD díky synchronizaci s AD, hybridní správa pracovních stanic a tak podobně.
+
+Z pohledu Azure tedy můžete přivést kousek Azure technologie k sobě, napojit svůj IoT svět na cloud a distribuovat cloudové vlastnosti do svých zařízení nebo díky Azure Arc napojit svoje stávající prostředí ať běží kdekoli do cloudu z důvodu správy, governance, bezpečnosti, compliance, monitoringu a využívání některých služeb cloudu u sebe. Bude na tom určitě hodně práce a vše se bude rychle rozvíjet. Strategické i technologické základy jsou položeny myslím velmi pevně.

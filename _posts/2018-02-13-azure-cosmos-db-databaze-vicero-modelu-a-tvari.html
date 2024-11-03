@@ -1,0 +1,55 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Cosmos DB: databáze vícero modelů a tváří'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1890
+wordpress_url: http://tomaskubica.cz/?p=1890
+date: '2018-02-13 06:44:51 +0000'
+date_gmt: '2018-02-13 05:44:51 +0000'
+categories:
+tags:
+- CosmosDB
+---
+<p style="text-align: left;">Chcete se pustit do nerelačních systémů? Hledáte jednoduchý key-value store, definovanou strukturu wide-column databáze, programátorskou přívětivost JSON document DB nebo schopnost modelovat vazby mezi objekty s graph databází? A jaké chcete API? Něco podobného SQL? Nebo MongoDB? OData? Nebo Cassandra? A co graph API jako je Gremlin? A víte, že tohle všechno může být jediná databáze? Seznamte se s Azure Cosmos DB.<!--more--></p>
+<h1>Proč NoSQL</h1>
+<p>Termín relační databáze má na svědomí pan Codd z IBM v roce 1970. Opravdu tedy jde o technologii osvědčenou, tak proč ji měnit?</p>
+<ul>
+<li>Pro některé situace (a dnes díky různým IoT apod. to není cizí ani v enterprise oblasti, už to není jen o gigantech) relační systém díky své volbě v rámci CAP teorému a ACID transakcím neškáluje na výkony a velikosti, které jsou někdy potřeba (všechno vlastně začalo potřebou Googlu pracovat pro vyhledávač s tabulkou s miliardy řádků s milionem sloupců, což tenkrát pro relační systémy bylo docela smrtící). Možná pro vaše potřeby lze pořídit dostatečně velký relační server, ale pro stejný výkon může stačit trojice malých scale-out serverů s NoSQL DB a významně ušetříte.</li>
+<li>Relační model je pro programátory složitý, neodpovídá objektům reality, které oni často reflektují v kódu. Normalizace dat je dává do tabulek, kdy data pro jedinou uživatelskou obrazovku (např. jak si konkrétní student vede ve škole) konstrujete JOINy z pěti tabulek. Programátor musí neustále převádět (na pomoc mu přichází entity framework a jiné). Vývojář má data ze stránky v jednom JSON objektu ... co kdyby mohl takový JSON uložit do databáze rovnou jak je?</li>
+<li>Relační databáze nejsou nejvhodnější pro globální distribuované systémy. Co když potřebujete data v Evropě i USA v jedné DB a přitom mít nízké latence a jednoduchý programovací model?</li>
+<li>Relační databáze (přestože název mluví o "vztahu") jsou nevhodné (vykonnostně i funkčně) na modelování souvislostí mezi objekty (graph).</li>
+</ul>
+<h1>Typy NoSQL modelů</h1>
+<p>Podívejme se na typy NoSQL modelů a hned dopředu si řekněme, že Cosmos DB umí úplně všechny!</p>
+<h2>Key-Value store</h2>
+<p>Tyto systémy jsou jednoduché – data máte vždy uložena v páru, kdy první je klíč a druhý hodnota. Když se zeptáte co je uloženo pod nějakým klíčem, dostanete odpověď – například jakou velikost boty (to je value) má Tomáš (to je key). To je všechno. Nemůžete se ptát podle hodnoty (kdo má botu tři-a-čtyřicítítku?) ani shlukovat klíče podle nějaké příslušnosti ke skupině apod. Jako value může být nejen číslo nebo řetězec, ale také třeba BLOB (tedy bytová sekvence, obrázek - to není přímo příklad Cosmos DB, ale takhle funguje Azure Blob Storage).</p>
+<p>Perfektní využití najdete zejména v nasazení jako in-memoring KVS (key-value store), velmi typicky jako cache. Nejčastější implementace je asociativní pamětí na bázi hash – tedy z klíče se hash funkcí (pravděpodobně s modulo výsledku) získá adresa, ze které se už jen přečte hodnota – žádné hledání. Mým nejoblíbenějším zástupcem v této kategorii je Redis, například as a service implementace v Azure Redis. Ted nejen umožňuje implementaci in-memory, ale také může data odlévat na disk (není míněno jako náhrada jiných typů databází, probíhá co pár vteřin), ale hlavně podporuje distribuovaný clustering (Redis dokáže běžet na několika nodech a dohromady vytváří jeden adresní prostor). Podobných vlastností ale dostanete i s Cosmos DB se všemi výhodami, které s tím souvisí - zejména možností distribuovanosti mezi regiony.</p>
+<h2>Document (JSON)</h2>
+<p>Vezměte si znovu Key, které bude nějaké generované ID, ale hodnota bude ve skutečnosti složená struktura, dokument. Nepředstavujte si to jako nějaký text ve Wordu, spíše půjde o JSON/BSON (pokud neznáte jde v zásadě o něco podobného jako xml). Pakliže dokument bude představovat jednoho člověka, tak uvnitř najdete jeho atributy (jméno, adresu), pole obsahující výčet jeho zájmů, pole vnořených objektů jeho adres pro zasílání zboží (kde každá obsahuje adresu a PSČ) a pole vnořených objednávek, kde každá obsahuje nějaké položky zboží a tak podobně. Všechny relevantní informace o zákazníkovi máte v tomto dokumentu – krásně pohromadě a rychle k dispozici. Navíc nepotřebujete nic vymýšlet dopředu – u jednoho uživatele můžete mít informace o jeho oblíbené značce bot, u jiného ne – nemusíte definovat struktury tabulek a jejich vztahů. Přesto většinou můžete v záznamech vyhledávat, třeba vypsat si všechny zákazníky, kteří si od vás někdy koupili bačkory. Dnes už tyto systémy dokáží agregační operace a mají indexovaná políčka uvnitř JSON.</p>
+<p>Typickým zástupcem je Azure Cosmos DB, MongoDB nebo CouchDB. Mají odlišné přístupy k namíchání CAP polévky. MongoDB je CP systém (zjednodušeně řečeno má mastera, který řídí zápisy – je volen a udržován, zajišťuje dobrou konzistenci), zatímco CouchDB je typicky AP (multi-master, zapisovat můžete kamkoli, ono se to dopíše a konflikty se řeší časovou značkou – takže můžete mít CouchDB třeba v mobilu, víte, že máte všechno lokálně, že tam klidně můžete i psát a ono se to dosynchronizuje v okamžiku, kdy se připojíte do sítě). Azure Cosmos DB má laditelnou konzistenci a dokáže se tak přizpůsobit vašim požadavkům.</p>
+<h2>Wide-column oriented (column family)</h2>
+<p>Tabulky typu column family (pozor - nejde o typ relačních tabulek optimalizovaných na práci se sloupci pro agregační dotazy, což zní podobně, ale je to něco jiného) vznikly především jako reakce na to, že není dost dobře možné pracovat s tabulkou a velikosti miliardy řádků na miliony sloupců. Google si pro svoje účely vytvořil proprietární BigTable, ale popsal principy fungování, takže později vznikla open source implementace jako je Apache Cassandra nebo HBase (ta využívá Hadoop jako vrstvy pod sebou - v Azure ji můžete získat v rámci HDInsight).  Cassandra je skutečný závoďák mezi NoSQL systémy (a o relačních samozřejmě ani nemluvě) a dosahuje neuvěřitelné škálovatelnosti. Není tak flexibilní jako dokumentové NoSQL, ale přesto vás nenutí mít u každého řádku stejné sloupce – nepočítejte ale s vnořenými strukturami a tak podobně. Cassandra nabízí jazyk CQL, který je velmi podobný SQL (ale nemá relační vlastnosti typu JOIN).</p>
+<h2>Graph</h2>
+<p>Relační, tedy v překladu “vztahová” databáze je nevhodná k ukládání informace o vztazích mezi objekty. Říkám nadneseně, ale je to tak. Ovšem ani předchozí NoSQL si v tomto nevedou dobře. Když si například položíme otázku, zda vy a já máme nějakého společného známého, vyžaduje to v klasickém systému opravdu hodně chroupání. A co teprve když budeme hledat, zda se někdo z mých známých nezná s někým z vašich známých. A teď si ještě představte, že u těch vztahů potřebuji znát nějaké vlastnosti (míru příbuznosti, vzdálenost v kilometrech apod.). Podobné je to třeba s hledáním nejkratší cesty v logistice, propleteností vašich zájmů, návštěv obchodů nebo analýza jazyka. Tato speciální kategorie NoSQL systémů je často spojována s populárním Neo4J nebo jazykem Gremlin.</p>
+<h1>Cosmos DB a jeho API</h1>
+<p>Jak už jsem naznačoval Azure Cosmos DB má oddělenou interní reprezentaci od externě přístupného modelu a API. Dokáže se tak chovat různě, což je fascinující a nejtransfrormovatelnější databáe v public cloudu (opravdu tady Azure skutečně o dost vede). Mimochodem všechny položky v dokumentech jsou automaticky indexovány. Všechny. Jaké API tedy můžete použít?</p>
+<h2>JSON dokumenty s SQL přístupem (Document DB)</h2>
+<p>První API, které Cosmos DB měla, bylo Document DB (ostatně to byl i předchozí název téhle databáze). Dokumenty jsou datové struktury v JSON, ale pro práci s nimi používáte jazyk velmi podobný klasickému SQL. Pokud do Cosmos DB přicházíte třeba z MS SQL nebo Oracle, velmi dobrá volba.</p>
+<h2>JSON dokumenty se standardním MongoDB binárním API</h2>
+<p>Cosmos DB je kompatibilní s MongoDB API. Můžete tedy vzít aplikaci napsanou pro MongoDB a beze změn ji použít proti Cosmos DB. Tohle API je jiné, binární (dost rychlé) a podporuje zajímavý model agregací (agregační pipeline).</p>
+<h2>Tabulky s Table API (OData)</h2>
+<p>Už od začátku Azure je k dispozici Azure Table, jednoduchá key-value tabulková DB používající REST a OData jako query interface. Tohle API je podporováno i v Cosmos DB. Znáte a používáte OData? Pak perfektní volba pro vás.</p>
+<h2>Wide-column řešení s Cassandra API</h2>
+<p>MongoDB se stalo populární mezi vývojáři, ale Cassandra se etablovala tam, kde jsou potřeba perfektní výkony a datově náročné operace. Cosmos DB takové vlastnosti má a díky podpoře Cassandra API nemusíte svoje aplikace měnit - nahraďte vlastní instalaci Cassandra, o kterou se musíte stále starat, platformním Cosmos DB s SLA na výkon, dostupnost, konzistenci i latence.</p>
+<h2>Graph databáze s Gremlin API</h2>
+<p>Potřebujete analyzovat vztahy mezi hráči, zákazníky, zjistit jaké knihy či filmy si obvykle nějaká sorta lidí půjčuje, dávat zákazníkům eshopu doporučení na další produkty, které pro ně mohou být relevantní, analyzovat jízdy vaší flotily taxíků nebo analyzovat dodavatelské řetězce? Graph databáze je na to ideální a Cosmos DB podporuje standardní dotazovací jazyk Gremlin.</p>
+<p>&nbsp;</p>
+<p><em>Azure Cosmos DB je databáze mnoha tváří a snadno na ni přejdete ať už jdete ze světa SQL, OData, MongoDB, Cassandra nebo Gremlin. V dalších článcích se podíváme na jednotlivé možnosti konkrétně. Vyzkoušejte Cosmos DB ještě dnes.</em></p>

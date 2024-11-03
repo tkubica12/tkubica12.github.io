@@ -1,0 +1,69 @@
+---
+layout: post
+status: publish
+published: true
+title: Ochraňte svojí aplikaci v Azure s WAF a Security Center
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1745
+wordpress_url: http://tomaskubica.cz/?p=1745
+date: '2017-12-11 08:54:59 +0000'
+date_gmt: '2017-12-11 07:54:59 +0000'
+categories:
+tags:
+- Security
+---
+<p>Máte v infrastrukturní službě v Azure nasazenou aplikaci ve VM a chcete ji chránit před útoky na úrovni protokolu a aplikace jako SQL injection a podobně? Nebo chcete využít veřejného endpointu v cloudu pro ochranu vaší on premise aplikace? Podívejme se, jak Azure Security Center mimo jiné umí automatizovaně nasadit bezpečnostní řešení různých firem (Microsoft, F5, Imperva, Barracuda či Fortinet) - vytvořit i nakonfigurovat tak, že nemusíte být expertem na zmíněné technologie na to, abyste začali svou aplikaci chránit.<!--more--></p>
+<h1>Azure Security Center</h1>
+<p>Azure shromažďuje věci kolem bezpečnosti v tomto centru, které je dostupné jak pro prostředky v Azure tak hybridním modelem pro VM umístěné kdekoli (Azure Security Center využívá prostředků OMS, o kterých už na tomto blogu byla mnohokrát řeč - tedy agentů nainstalovaných v OS ať běží kdekoli).</p>
+<p id="FbdXqam"><img class="img-fluid wp-image-1746 " src="/images/2017/img_5a2e22502e4a3.png" alt="" /></p>
+<p>K dispozici máme doporučení v různých oblastech, ale nás teď budou zajímat ta aplikační. Moje aplikace (kromě jedné) nejsou chráněny webovým aplikačním firewallem.</p>
+<p id="gEmErek"><img class="img-fluid wp-image-1747 " src="/images/2017/img_5a2e228d3c985.png" alt="" /></p>
+<p>Rozkliknu konkrétní aplikaci a dostávám doporučení nasadit WAFku.</p>
+<p id="vqLGLjk"><img class="img-fluid wp-image-1748 " src="/images/2017/img_5a2e22ac3d2ff.png" alt="" /></p>
+<h1>Nasazujeme automatizovaně WAFku ze Security Center</h1>
+<p>Bezpečnostní centrum nám umožňuje na pár kliknutí nasadit WAFku. Já už jednu od F5 mám, tak bych ji mohl využít k přidání další aplikace (jedna WAFka tak může sloužit několika aplikacím), ale nejdřív se podívejme na průvodce nasazením nové.</p>
+<p id="DMQHedm"><img class="img-fluid wp-image-1749 " src="/images/2017/img_5a2e2319d729c.png" alt="" /></p>
+<p>Na výběr mám velmi známá a analytiky oceňovaná (ale finančně náročnější) řešení Imperva a F5 (lídři v Gartner MQ), dále jsou v nabídce velmi populární a cenově dostupné WAFky Fortinet a Barracuda a v neposlední řadě také nativní Azure řešení Application Gateway (to nabízí slušnou WAFku, ale především vysokou míru "cloudovosti" díky nativní funkci v Azure).</p>
+<p id="BnRHGzH"><img class="img-fluid wp-image-1750 " src="/images/2017/img_5a2e23e82e189.png" alt="" /></p>
+<p>Já dnes zvolím F5, ale vy klidně použijte to, co vám vyhovuje nejvíc.</p>
+<p>V průvodci vytvořím Resource Group.</p>
+<p id="PJKswXn"><img class="img-fluid wp-image-1751 " src="/images/2017/img_5a2e242f48663.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Vybereme si verzi WAFky, vytvoříme jméno a heslo pro přístup a v tomto případě použijeme bring-your-own-license, takže zadáme svou F5 licenci.</p>
+<p id="dlouUNu"><img class="img-fluid wp-image-1752 " src="/images/2017/img_5a2e2536cfd0f.png" alt="" /></p>
+<p>Dále si vybereme síťařinu. Pokud chcete chránit aplikace tak, že samotné VM nebudou mít veřejnou IP (to bych doporučoval), vyberte si zde existující VNET - v něm nechť jsou vaše aplikace s privátními adresami případně VPN spojení do on-premises pro ochranu aplikací běžících tam. Druhá varianta je chránit aplikace běžící na veřejné IP adrese (DNS přesměrujete na public IP ve WAFce, takže uživatelé aplikace jdou tamtudy, a na úrovni aplikace použijete firewall, který bude propouštět pouze komunikaci přicházející z WAFky).</p>
+<p id="yLMIMix"><img class="img-fluid wp-image-1753 " src="/images/2017/img_5a2e27627868a.png" alt="" /></p>
+<p>Na další stránce už jsou konfigurační parametry specifické pro F5.</p>
+<p id="TvlhhjO"><img class="img-fluid wp-image-1755 " src="/images/2017/img_5a2e2dd056cdb.png" alt="" /></p>
+<p>Můžeme si vybrat režim ("rešifrování" s HTTPS, SSL offload apod.), vybíráme si i připravený F5 balíček pravidel, například pro WordPress.</p>
+<p id="WwvygJW"><img class="img-fluid wp-image-1756 " src="/images/2017/img_5a2e2e47e9390.png" alt="" /></p>
+<p>Dále specifikujeme úroveň přísnosti a můžeme uploadovat certifikát pro HTTPS naší aplikace.</p>
+<p>Pak už jen všechno potvrdíme a po chvilce je hotovo, stačí poslat DNSkou uživatele na aplikaci zkrz F5. Pokud následně vygenerujeme útok uvidíme tyto události přímo integrované do Azure Security Center.</p>
+<p id="WayxKTZ"><img class="img-fluid wp-image-1757 " src="/images/2017/img_5a2e2eb4a915c.png" alt="" /></p>
+<h1>Co pro nás průvodce vytvořil?</h1>
+<p>Azure Security Center provedlo deployment virtuální F5 a souvisejících Azure zdrojů a také nakonfigurovalo F5 pro ochranu naší aplikace. Přesto do ní zůstává plný přístup, takže můžete jít přímo do WAFky a ladit si ji dle potřeby.</p>
+<p>Podívejme se na všechny Azure zdroje, které průvodce nasadil.</p>
+<p id="DlBYtLM"><img class="img-fluid wp-image-1758 " src="/images/2017/img_5a2e2f2c2da94.png" alt="" /></p>
+<p>Je tam samozřejmě VM s F5 a to v Availability Setu. Já jsem nasadil jen jednu, ale průvodce pro nás může udělat i redundantní cluster s balancovaným výkonem, což se jistě pro produkční nasazení hodí lépe.</p>
+<p id="qTjfmoc"><img class="img-fluid wp-image-1759 " src="/images/2017/img_5a2e2ff743841.png" alt="" /></p>
+<p>Před samotnou F5 byl přidán Azure Load Balancer. Funguje to tak, že pokud teď přidáme ochranu další aplikace, Azure přidá další veřejnou IP na tento balancer a současně si vymyslí další nestandardní port, na kterém bude F5 poslouchat. Díky tomu na F5 stačí jeden interface pro větší množství aplikací. Všimněte si, že LB pravidlo poslouchá na standardních portech 80 a 443 a tyto směruje na WAFku na portech 880 a 8445.</p>
+<p id="ETjaenX"><img class="img-fluid wp-image-1760 " src="/images/2017/img_5a2e3046c9d88.png" alt="" /></p>
+<p>Do WAFky se můžeme přihlásit a prohlédnout si nastavení tam. Uvidíme virtuální server poslouchající na portech 880 (ten zajišťuje redirect na HTTPS) a 8445 (ten posílá na mojí aplikaci).</p>
+<p id="TezEHYr"><img class="img-fluid wp-image-1762 " src="/images/2017/img_5a2e3764707f2.png" alt="" /></p>
+<p>Dále si můžeme všimnout pravidla pro logování, kdy F5 posílá hlášky přímo přes REST API do Azure Security Center.</p>
+<p id="DpMKVPP"><img class="img-fluid wp-image-1763 " src="/images/2017/img_5a2e37850c945.png" alt="" /></p>
+<p>Průvodce nám samozejmě také vytvořil příslušný backend (v mém případě na veřejné IP a aktuálně je offline, ale to na principu nic nemění).</p>
+<p id="znukUgq"><img class="img-fluid wp-image-1764 " src="/images/2017/img_5a2e37c82d038.png" alt="" /></p>
+<p>Pokud vám nevyhovuje výchozí bezpečnostní politika, můžete si dle libosti upravit.</p>
+<p id="cInIVUm"><img class="img-fluid wp-image-1765 " src="/images/2017/img_5a2e383dbf7a5.png" alt="" /></p>
+<p>Výborně. Máme zabezpečeno a Azure Security Center si s F5 hezky popovídal.</p>
+<p id="yEBjctc"><img class="img-fluid wp-image-1766 " src="/images/2017/img_5a2e387080f9d.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Aplikační bezpečnost webových aplikací je zejména pro vaše veřejně dostupné služby jistě velmi důležitá. Využijte integrace s Azure Security Center ať už se rozhodnete pro základní řešení s Azure Application Gateway nebo pro pokročilé zabezpečení od třetích stran.</em></p>
+<p>&nbsp;</p>

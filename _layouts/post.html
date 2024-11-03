@@ -1,0 +1,60 @@
+---
+layout: default
+---
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('/images/front.jpg'); background-size: cover; background-position: center center;">
+  <link href="/assets/css/syntax.css" rel="stylesheet" >
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="page-heading mx-auto" style="padding-top: 120px; padding-bottom: 80px;">
+          <h2>{{ page.title }}</h2>
+          <span class="meta">{{ post.date | date: '%-d. %-m. %Y' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+
+      <p class="post-meta">
+      {{ page.date | date: '%-d. %-m. %Y' }}
+      </p>
+
+      {{ content }}
+
+      <div class="clearfix">
+
+          {% if page.previous.url %}
+          <a class="btn btn-primary float-left" href="{{ page.previous.url | prepend: site.baseurl | replace: '//', '/' }}" data-toggle="tooltip" data-placement="top" title="{{ page.previous.title }}">&larr; Předchozí<span class="d-none d-md-inline"> příspěvek</span></a>
+          {% endif %}
+          {% if page.next.url %}
+          <a class="btn btn-primary float-right" href="{{ page.next.url | prepend: site.baseurl | replace: '//', '/' }}" data-toggle="tooltip" data-placement="top" title="{{ page.next.title }}">Další<span class="d-none d-md-inline"> příspěvek</span> &rarr;</a>
+          {% endif %}
+  
+        </div>
+
+        <br>
+        {% if related_posts != empty %}
+        <hr>
+        <div class="clearfix" id="related-posts">
+        <h3>Podobné příspěvky</h3>
+        <ul>
+            {% for p in related_posts %}
+            <li>
+                <a href="{{ p.url }}" data-score="{{ p.score }}">{{ p.title }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        </div>
+        {% endif %}
+
+        {% include related.html %}
+  </div>
+</div>
+</div>

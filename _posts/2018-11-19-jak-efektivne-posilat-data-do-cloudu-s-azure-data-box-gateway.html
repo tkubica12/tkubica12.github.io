@@ -1,0 +1,62 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak efektivně posílat data do cloudu s Azure Data Box Gateway
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2590
+wordpress_url: http://tomaskubica.cz/?p=2590
+date: '2018-11-19 06:36:37 +0000'
+date_gmt: '2018-11-19 05:36:37 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Potřebujete jednoduše, efektivně a pravidelně posílat data do Azure? Výborným způsobem je použít Azure Data Box varianty s online režimem. Konkrétně jde o Data Box Edge, tedy hardwarové řešení, které si můžete pronajmout (hardware nekupujete, Microsoft vám ho zašle). Kromě online posílání do Azure podporuje i IoT Edge, takže na zařízení můžete nahrát logiku pro předzpracování dat včetně Azure Functions, Stream Analytics nebo Azure Machine Learning. My se dnes ale zaměříme na Data Box Gateway - virtuální appliance, která vám zajístí jednoduchý způsob posílání dat do cloudu.<!--more--></p>
+<h1>Připravíme si Data Box Gateway</h1>
+<p>V Azure si přidáme Data Box Gateway a pro online režim si můžeme vybrat pronájem Data Box Edge, my ale použijeme Data Box Gateway, tedy virtuální appliance. Aktuální cenovky reprezentují zlevněné preview s 50% slevou.</p>
+<p id="ScqJOWD"><img class="img-fluid wp-image-2592 " src="/images/2018/img_5bf2453fc465b.png" alt="" /></p>
+<p>Jakmile bude brána připravena můžeme si stáhnout virtuální appliance pro VMware nebo Hyper-V.</p>
+<p id="xbEWSZx"><img class="img-fluid wp-image-2593 " src="/images/2018/img_5bf2455dc8bb6.png" alt="" /></p>
+<p>Appliance jsem si nainstaloval v Hyper-V a postupoval podle návodu. Pokud máte potřebu statické IP adresy, použijte příkaz Set-HscIpAddress. Po iniciální konfiguraci se rozsvítí lokální portál pro správu (výchozí heslo je Password1, které budete hned přinuceni změnit).</p>
+<p id="hEiZTCo"><img class="img-fluid wp-image-2595 " src="/images/2018/img_5bf245aa9c518.png" alt="" /></p>
+<p>Takhle vypadá lokální portál pro konfiguraci zařízení.</p>
+<p id="JoheNtJ"><img class="img-fluid wp-image-2596 " src="/images/2018/img_5bf245d0db2de.png" alt="" /></p>
+<p>Nejprve půjdu do Azure a vygeneruji si pro něj klíč.</p>
+<p id="buuVAGy"><img class="img-fluid wp-image-2597 " src="/images/2018/img_5bf245e5c00c2.png" alt="" /></p>
+<p>&nbsp;</p>
+<p id="XtFxNuw"><img class="img-fluid wp-image-2598 " src="/images/2018/img_5bf245f00708c.png" alt="" /></p>
+<p>Ten zadám v portálu zařízení.</p>
+<p id="UmXaqzT"><img class="img-fluid wp-image-2599 " src="/images/2018/img_5bf245ffe5617.png" alt="" /></p>
+<p>Zařízení dám rovnou do online režimu a aplikuji nastavení.</p>
+<p id="UeyLzNV"><img class="img-fluid wp-image-2600 " src="/images/2018/img_5bf246193bb4e.png" alt="" /></p>
+<p>Ověřte, že všechno funguje, je na to testovací tlačítko přímo v zařízení. Pokud ne, opravte co je potřeba - nastavení web proxy, časového serveru apod. Následně už uvidíme zařízení online v Azure portálu.</p>
+<p id="KfzuOBD"><img class="img-fluid wp-image-2601 " src="/images/2018/img_5bf246556ffe9.png" alt="" /></p>
+<p>Od teď už bude probíhat veškerá správa v cloudu, na zařízení už přistupovat nemusíme.</p>
+<h1>Vytvoříme share a napojení do storage v Azure</h1>
+<p>Celý koncept spočívá v tom, že zařízení poskytuje lokální storage interface. Aktuálně je to SMB, ale pro některé případy se vám může lépe hodit univerzální NFS. Pokud jsem správně pochopil na roadmapě produktu je i Blob storage protokol, tedy lokální implementace Blob rozhraní.</p>
+<p>Dále share napojíme na storage v cloudu. Perfektní zprávou je, že podporuje nejen Files (podobně jako jednoduchá Azure Files synchronizace), ale i Blob. To je užitečné, protože Blob je nejlevnější způsob uložení dat včetně podpory pro různé tiery jako je Hot, Cool a Archive.</p>
+<p id="kyTlDqz"><img class="img-fluid wp-image-2603 " src="/images/2018/img_5bf24718f353e.png" alt="" /></p>
+<p>Připojil jsem se na tento lokální share z lokální sítě a nahrál do něj nějaké soubory. Výborná věc je, že to je velmi rychlé a nemusím čekat, až data doputují do cloudu. Nahraji na lokální share a můžu se odpojit a jít domů.</p>
+<p id="zqpUyAL"><img class="img-fluid wp-image-2604 " src="/images/2018/img_5bf2472ebf404.png" alt="" /></p>
+<p>Téměř okamžitě jsou dostupné v mé Azure Blob Storage.</p>
+<p id="mbrQRNX"><img class="img-fluid wp-image-2605 " src="/images/2018/img_5bf247545a3c8.png" alt="" /></p>
+<p>Synchronizace je velmi efektivní. Systém dokáže použít vícero vláken a natlačit data do cloudu opravdu pod tlakem. Někdy až moc, takže může negativně ovlivnit vaše připojení do Internetu zejména v pracovních hodinách. Na to je myšleno a můžete nastavit omezení propustnosti. To se dělá tak, že omezení je možné naplánovat. Dáte tak omezené pásmo v pracovní době a v noci buď neomezené nebo jiné.</p>
+<p id="VQIzXrH"><img class="img-fluid wp-image-2606 " src="/images/2018/img_5bf247fc86f7f.png" alt="" /></p>
+<p id="glRmCMt"><img class="img-fluid wp-image-2607 " src="/images/2018/img_5bf2480476316.png" alt="" /></p>
+<p>Mimochodem všimněte si záložky Edge compute. Ta je v mém případě zašedlá, protože mám Data Box Gateway. V případě Data Box Edge ale můžu do zařízení poslat moduly ve standardu Azure IoT Edge, o kterém už jsem psal. Může jít například o Azure Function, která bude provádět lokální zpracování dat, například filtraci dat nebo jejich konverzi před odesláním. Také může jít o Azure Stream Analytics, kdy budu chtít do cloudu posílat jen agregované průměry. Velmi zajímavá je i možnost vystrčení Azure Machine Learning modulu. Data Box Edge je výpočetně velmi slušná mašina, takže s tím dokážete dost věcí. Navíc toto zařízení bude vybaveno speciálním FPGA obvodem z Project Brainwave. Bude tedy schopné hardwarové akcelerace ML úloh, takže můžete použít i náročné neuronové sítě a zpracovávat data velmi rychle, efektivně a přímo na krajním zařízení.</p>
+<p id="YeJMmlW"><img class="img-fluid wp-image-2608 " src="/images/2018/img_5bf2491d351dc.png" alt="" /></p>
+<p>Data nahraná do Data Box Gateway se na pozadí kopírují do cloudu, ale nejčerstvější kousky tam zůstávají. Zařízení tedy slouží i jako cache a drží si kompletní metadata, tedy informace i o objektech, které už nemá a jsou jen v cloudu. Mimochodem dokáže signalizovat klientovi situaci, kdy je cache zcela zaplněna tak, aby to klientovi nijak nevadilo. Pokud se tedy vejdete do cache, kopírování je velmi rychlé. V okamžiku, kdy se celá cache zaplní a data se nestíhají odesílat, zařízení zpomalí zápisy na úroveň vašeho uploadu - kopírování tedy nijak neselže a pokračuje dál.</p>
+<p>A co když nakopírujete data jiným způsobem přímo do Blob storage? Budou vidět v Data Box Gateway? Není to sice primární způsob použítí, ale udělat se to dá.</p>
+<p id="qYiTxeV"><img class="img-fluid wp-image-2609 " src="/images/2018/img_5bf249cca83f1.png" alt="" /></p>
+<p>Po nakopírování souboru napřímo jsem kliknul na refresh, což způsobí kompletní synchronizaci metadat se zařízením.</p>
+<p id="vGfNNMu"><img class="img-fluid wp-image-2610 " src="/images/2018/img_5bf249e83cfe3.png" alt="" /></p>
+<p>Soubor se tak objevil v mém lokálním share.</p>
+<p id="qQrLdjC"><img class="img-fluid wp-image-2611 " src="/images/2018/img_5bf249faaaaaf.png" alt="" /></p>
+<p><em>Přemýšlíte o tom, jak efektivně kopírovat data do cloudu? Nechce se vám psát skripty a řešit jejich logiku (retry při výpadku spojení, optimalizaci výkonu přes vícero vláken, omezování propustnosti v pracovní době)? Potřebujete něco jednoduchého pro uživatele i aplikace, kde nepotřebují přístup do Azure ani nějaké speciální implementace protokolů? Použijte Azure Data Box Gateway. A pokud to potřebujete někam, kde ani nechcete nic instalovat na svoje servery a potřebujete data před odesláním zpracovat včetně akcelerovaného Machine Learning, pronajměte si Azure Data Box Edge. Objednáte, Microsoft vám pošle hardware, zapojíte a frčíte.</em></p>

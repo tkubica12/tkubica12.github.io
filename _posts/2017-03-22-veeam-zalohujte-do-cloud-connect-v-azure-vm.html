@@ -1,0 +1,92 @@
+---
+layout: post
+status: publish
+published: true
+title: Veeam - zálohujte do Cloud Connect v Azure VM
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 511
+wordpress_url: http://tomaskubica.cz/?p=511
+date: '2017-03-22 08:05:31 +0000'
+date_gmt: '2017-03-22 07:05:31 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Chcete využít výhod zálohování do Azure, ale používat svůj oblíbený Veeam zálohovací software? Proč do cloudu? Odvezete data mimo ohnisko rizika, uloží se vám velmi spolehlivě 3x nebo 6x, platíte jen za to, co skutečně potřebujete. Veeam s Azure nabízí tři zajímavé varianty nasazení. Použití StorSimple (lokální storage, která je tierovaná do cloudu) jako targetu pro Veeam, spojení Veeam s Cloud Connect v Azure VM a Recovery to Azure umožňuje Veeamu obnovit on-premise VM přímo do Azure. Dnes se podívám na variantu s Cloud Connect v Azure.<!--more--></p>
+<h1>Veeam, Azure a Cloud Connect</h1>
+<p>Co kdyby byl Veeam jak on-premise na zálohovacím serveru, tak běžel a se stejnými algoritmy fungoval v cloudu? Mohli byste pak využít prakticky všechny jeho chytristiky a elegantně se dostat do cloudu. Azure tohle nabízí na předinstalované VM. Výhodou jsou plné Veeam funkce, ale nevýhodou je ukládání dat ve virtuálních discích v rámci IaaS. Ty jsou cenově náročnější, než Azure Blob Cool Storage.</p>
+<h1>Vyzkoušejme si to</h1>
+<h2>Připravíme si Cloud Connect VM</h2>
+<p>Šel jsem do Azure obchodu a našel tam Veeam Cloud Connect.</p>
+<p id="XrlDBKr"><img class="img-fluid wp-image-512 " src="/images/2017/img_58c5a18f8f73c.png" alt="" /></p>
+<p>Po té co mi VM nastartovala potřebuji přidat datové disky podle toho, kolik jich budu potřebovat.</p>
+<p id="zKRSNqq"><img class="img-fluid wp-image-513 " src="/images/2017/img_58c5a1c5746a9.png" alt="" /></p>
+<p>Přidám první 1TB disk.</p>
+<p id="FTsmmHA"><img class="img-fluid wp-image-514 " src="/images/2017/img_58c5a1deab984.png" alt="" /></p>
+<p>Pak tam dám ještě druhý a výsledek bude vypadat nějak takhle:</p>
+<p id="pTYnvkc"><img class="img-fluid wp-image-515 " src="/images/2017/img_58c5a1f11e44b.png" alt="" /></p>
+<p>Připojím se do Veaam VM přes RDP a disky si zařadím do poolu.</p>
+<p id="MuzCCah"><img class="img-fluid wp-image-516 " src="/images/2017/img_58c5a20b881a8.png" alt="" /></p>
+<p>Dám mu nějaké jméno.</p>
+<p id="EQPGEat"><img class="img-fluid wp-image-517 " src="/images/2017/img_58c5a219cc492.png" alt="" /></p>
+<p>Označím oba svoje disky.</p>
+<p id="StyzCeq"><img class="img-fluid wp-image-518 " src="/images/2017/img_58c5a225b703e.png" alt="" /></p>
+<p>Následně ve svém novém poolu vytvořím virtuální disk.</p>
+<p id="UJiYpeN"><img class="img-fluid wp-image-519 " src="/images/2017/img_58c5a23fdb583.png" alt="" /></p>
+<p>Dám mu jméno.</p>
+<p id="mcDMaFm"><img class="img-fluid wp-image-520 " src="/images/2017/img_58c5a24b5389a.png" alt="" /></p>
+<p>Použiji jednoduché sdružení (disky jsou v Azure redundantní sami o sobě).</p>
+<p id="LzRvPXb"><img class="img-fluid wp-image-521 " src="/images/2017/img_58c5a2705434a.png" alt="" /></p>
+<p>Dám mu veškerý prostor.</p>
+<p id="ZlfkuNI"><img class="img-fluid wp-image-522 " src="/images/2017/img_58c5a27ddf91c.png" alt="" /></p>
+<p>Pak už stačí v něm udělat volume, inicializovat, naformátovat a objeví se mi nové písmenko v OS.</p>
+<p id="IprsWCb"><img class="img-fluid wp-image-523 " src="/images/2017/img_58c5a2a6e1194.png" alt="" /></p>
+<p>A je to, mám nové "géčko".</p>
+<p id="FzqBFkh"><img class="img-fluid wp-image-524 " src="/images/2017/img_58c5a2b7a84cf.png" alt="" /></p>
+<h2>Nakonfigurujeme Veeam v Cloud Connect VM</h2>
+<p>V dalším kroku si nastavíme Veeam v této VM. V okamžiku, kdy jsem tohle psal, byla verze v Azure myslím 6.0 a já chtěl použít mojí 6.5 on-premise, tak jsem ho upgradoval. Nejprve si v této VM přidáme nový backup repozitář.</p>
+<p id="waRWqAn"><img class="img-fluid wp-image-525 " src="/images/2017/img_58c5a3315d17a.png" alt="" /></p>
+<p>Bude typu Windows Server, protože půjde o lokální disky.</p>
+<p id="xtvBAXk"><img class="img-fluid wp-image-526 " src="/images/2017/img_58c5a344ef031.png" alt="" /></p>
+<p>Vyberu server.</p>
+<p id="shNnmGx"><img class="img-fluid wp-image-527 " src="/images/2017/img_58c5a350d1974.png" alt="" /></p>
+<p>Vyberu "géčko".</p>
+<p id="YltDKVK"><img class="img-fluid wp-image-528 " src="/images/2017/img_58c5a36481213.png" alt="" /></p>
+<p>Další krok bude vytvořit jméno/heslo, na které se bude připojovat náš on-premise Veeam. Přidejme tenanta.</p>
+<p id="PgvvXqA"><img class="img-fluid wp-image-529 " src="/images/2017/img_58c5a385ae275.png" alt="" /></p>
+<p>Zadáme jméno a heslo.</p>
+<p id="KrForXB"><img class="img-fluid wp-image-530 " src="/images/2017/img_58c5a396c48ce.png" alt="" /></p>
+<p>Přidejte sem teď backup repozitář.</p>
+<p id="nLZvfPR"><img class="img-fluid wp-image-531 " src="/images/2017/img_58c5a3a9ac45e.png" alt="" /></p>
+<p>Můžeme ještě pro tohoto uživatele přidat nějakou kvótu, omezení.</p>
+<p id="HmmQwNl"><img class="img-fluid wp-image-532 " src="/images/2017/img_58c5a3bfe6269.png" alt="" /></p>
+<p>Ještě jedna věc bude potřeba. Veeam software na Cloud Connect VM neví, že IP adresa, kterou vidí v OS, není ta, kterou vidí okolní svět. Musíme mu jeho public IP sdělit (resp. můžete ještě propojit svoje on-premise prostředí a Azure třeba VPNkou nebo ExpresRoute, tedy MPLS linkou od providera a pak můžete namapovat Azure adresy přímo na svoje on-premise). Jděte do nastavení gateway.</p>
+<p id="eElCcis"><img class="img-fluid wp-image-533 " src="/images/2017/img_58c5a43a71ec8.png" alt="" /></p>
+<p>Řekněte Veeamu jeho veřejnou IP (najdete v Azure portálu).</p>
+<p id="QsDCaWL"><img class="img-fluid wp-image-534 " src="/images/2017/img_58c5a453ccdb7.png" alt="" /></p>
+<h2>Nastavíme svůj on-premise Veeam</h2>
+<p>Teď pojďme do vašeho on-premise Veeamu a přidejme service providera.</p>
+<p id="QwltNUO"><img class="img-fluid wp-image-535 " src="/images/2017/img_58c5a489b5fee.png" alt="" /></p>
+<p>Zadejte adresu vašeho Cloud Connect v Azure.</p>
+<p id="eoxRfBP"><img class="img-fluid wp-image-536 " src="/images/2017/img_58c5a49dda13b.png" alt="" /></p>
+<p>Přidejte login informace.</p>
+<p id="eWaTkIO"><img class="img-fluid wp-image-537 " src="/images/2017/img_58c5a4ad1bd4c.png" alt="" /></p>
+<p>Máme připraveno.</p>
+<p id="kfiYfmS"><img class="img-fluid wp-image-538 " src="/images/2017/img_58c5a4bb874e2.png" alt="" /></p>
+<h2>Spustíme zálohování</h2>
+<p>Teď už vytvoříme nový backup job.</p>
+<p id="WxevENv"><img class="img-fluid wp-image-539 " src="/images/2017/img_58c5a4dc24ad6.png" alt="" /></p>
+<p>Namiřte zálohu "na cloud".</p>
+<p id="scFkcTr"><img class="img-fluid wp-image-540 " src="/images/2017/img_58c5a4ee10e9f.png" alt="" /></p>
+<p>A to je všechno - záloha už pěkně pokračuje.</p>
+<p id="JIatNqy"><img class="img-fluid wp-image-541 " src="/images/2017/img_58c5a50230a40.png" alt="" /></p>
+<p>Mimochodem to si může ověřit i v Cloud Connect:</p>
+<p id="wURgPys"><img class="img-fluid wp-image-542 " src="/images/2017/img_58c5a517189e4.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Máte on-premise Veeam a chcete zálohovat do cloudu tak, že v něm bude sedět druhý Veeam a získáte tak maximální funkce vašeho oblíbeného produktu? Nasaďte Cloud Connect v Azure, funguje to výborně.</em></p>

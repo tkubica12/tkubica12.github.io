@@ -1,0 +1,69 @@
+---
+layout: post
+status: publish
+published: true
+title: Monitoring Azure a aplikací z open source Grafana
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1685
+wordpress_url: http://tomaskubica.cz/?p=1685
+date: '2017-11-15 06:02:11 +0000'
+date_gmt: '2017-11-15 05:02:11 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Nadšenci do open source jistě znají projekt Grafana - grafické řešení pro vizualizaci různých metrik. Třeba to používáte pro MySQL či PostgreSQL, možná tak zobrazujete informace z Elasticsearch, z InfluxDB pro time-series data, pro cloud-native aplikace v kontejnerech je to třeba Prometheus. Nemyslím, že by tyto pohledy byly lepší (ale ani horší) než to, co je integrované v Azure portálu. Jste zvyklí na Grafana? Sledujte tím i Azure! Chcete jednotný pohled na metriky z Azure a AWS? Zkuste Grafana.<!--more--></p>
+<h1>Co všecho Azure sbírá?</h1>
+<p>Azure Monitor je v portálu zabudované řešení pro sledování mimo jiné i telemetrie. V jeho sekci Metric najdete jednak klasickou, ale také novou podobu (Preview), která graficky vychází z Application Insights. Můžete se podívat na metriky, které v rámci svých zdrojů uvidíte.</p>
+<p id="LcezREp"><img class="img-fluid wp-image-1689 " src="/images/2017/img_5a0a8d69df392.png" alt="" /></p>
+<p>Všechny tyto metriky jsou dostupné také přes API a právě toho využívá Data source plugin pro Grafana. Do ní tedy dostanete stejná data, čili úplnou sadu.</p>
+<h1>Deployment Grafana ze šablony</h1>
+<p>Grafanu si můžete samozřejmě nainstalovat kdekoli a jakkoli potřebujete, ale můžete také jednoduše použít hotové šablony v Azure.</p>
+<p id="BeylfYp"><img class="img-fluid wp-image-1686 " src="/images/2017/img_5a0a8acccc532.png" alt="" /></p>
+<p>Zadáme parametry VM a také vytvoříme heslo do Grafana.</p>
+<p id="MZmbXlR"><img class="img-fluid wp-image-1687 " src="/images/2017/img_5a0a8b272babb.png" alt="" /></p>
+<p>Otevřete public IP připravené VM na portu 3000 a můžete se přihlásit do Grafana účtem admin a heslem co jste zadali při deploymentu šablony.</p>
+<p id="JljBGCC"><img class="img-fluid wp-image-1690 " src="/images/2017/img_5a0a8dd936d2b.png" alt="" /></p>
+<p>Na úvodní stránce si všimněte, že šablona nám rovnou nainstalovala Azure plugin.</p>
+<p id="wwNcMlr"><img class="img-fluid wp-image-1691 " src="/images/2017/img_5a0a8e303537e.png" alt="" /></p>
+<p>Kliknu na přidání Data source.</p>
+<p id="aIglnVh"><img class="img-fluid wp-image-1692 " src="/images/2017/img_5a0a8e8947d45.png" alt="" /></p>
+<p>Vybereme si Azure Monitor.</p>
+<p id="sOhwDLT"><img class="img-fluid wp-image-1693 " src="/images/2017/img_5a0a8ea2f30a4.png" alt="" /></p>
+<p>Na další stránce musíme uvést přístupové údaje k Azure a pokud chceme také napojit Application Insights, tak API a klíč.  Kde je najdete?</p>
+<p>Pro přístup potřebujete účet service principála. Ten založíte v Azure Active Directory.</p>
+<p id="zrYundK"><img class="img-fluid wp-image-1695 " src="/images/2017/img_5a0b2a25d566c.png" alt="" /></p>
+<p id="nHRhIJX"><img class="img-fluid wp-image-1696 " src="/images/2017/img_5a0b2a52c348e.png" alt="" /></p>
+<p>Tohle je vaše Client ID</p>
+<p id="qdNqbEf"><img class="img-fluid wp-image-1697 " src="/images/2017/img_5a0b2b779c07a.png" alt="" /></p>
+<p>Tady si vygenerujte Client Secret</p>
+<p id="oADqutJ"><img class="img-fluid wp-image-1698 " src="/images/2017/img_5a0b2ba0c3425.png" alt="" /></p>
+<p>V Properties vašeho Azure Active Directory je k nalezení Tenant Id.</p>
+<p id="URaDaDe"><img class="img-fluid wp-image-1699 " src="/images/2017/img_5a0b2c2a3725e.png" alt="" /></p>
+<p>... a číslo subskripce najdete v patřičné sekci v portálu.</p>
+<p id="BUXfDSO"><img class="img-fluid wp-image-1700 " src="/images/2017/img_5a0b2c57b1391.png" alt="" /></p>
+<p>Pokud chcete napojit také svoje Application Insights (monitoring aplikací v cloudu i on-premises), svoje ID najdete v GUI a k němu si vytvořte klíč.</p>
+<p id="EjHzdFY"><img class="img-fluid wp-image-1701 " src="/images/2017/img_5a0b2ddd571c6.png" alt="" /></p>
+<p>Údaje zadáme a všechno by mělo proběhnout v pořádku.</p>
+<p id="OqgFfCa"><img class="img-fluid wp-image-1706 " src="/images/2017/img_5a0bc486aedfd.png" alt="" /></p>
+<h1>Koukáme se z Grafany</h1>
+<p>Vyzkoušejme nějaký jednoduchý pohled. Přidáme nový dashboard a do něj objekt typu Graph.</p>
+<p id="ZpGXdtI"><img class="img-fluid wp-image-1707 " src="/images/2017/img_5a0bc4d233a90.png" alt="" /></p>
+<p>Klikneme na název panelu a dáme Edit.</p>
+<p id="ojNlAtV"><img class="img-fluid wp-image-1708 " src="/images/2017/img_5a0bc512e5201.png" alt="" /></p>
+<p>Všimněte si, že datový zdroj nám hezky načítá seznam našich resource group, zdrojů, metrik apod.</p>
+<p id="TMfStBn"><img class="img-fluid wp-image-1709 " src="/images/2017/img_5a0bc54053dfb.png" alt="" /></p>
+<p id="ctKawXe"><img class="img-fluid wp-image-1710 " src="/images/2017/img_5a0bc56851e05.png" alt="" /></p>
+<p>Já jsem si například takhle udělal jednoduchý graf na odchozí traffic z jedné z mých VM.</p>
+<p id="stptgHr"><img class="img-fluid wp-image-1711 " src="/images/2017/img_5a0bc5acb9cc1.png" alt="" /></p>
+<p>Podobně můžete přistupovat k měřením v Application Insights.</p>
+<p id="gJhBeiL"><img class="img-fluid wp-image-1712 " src="/images/2017/img_5a0bc812dcb62.png" alt="" /></p>
+<p>Grafana toho dokáže daleko (DALEKO!) víc, ale dneska nebylo mým záměrem procházet detaily Grafany, ale spíše ukázat funkční napojení na Azure.</p>
+<p>&nbsp;</p>
+<p><em>Azure Monitor nabízí myslím velmi elegantní a krásně integrovaný způsob sledování metrik vašich zdrojů v Azure včetně možnosti si ty nejzajímavější přidat na plochu, sdílet je apod. Přesto pokud chcete sledovat velmi heterogenní metriky z různých prostředí a standardizujete na open source projektu Grafana, rozhodně ji použijte. V jednom prostředí tak můžete sledovat Azure infrastrukturu, platformu i aplikace, současně metriky z on-premises prostředí či jiných cloudů, ale také metriky z Kubernetes nebo MySQL.</em></p>

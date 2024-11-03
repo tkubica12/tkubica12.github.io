@@ -1,0 +1,74 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Stack: jak funguje portál pro administrátora, plnění IaaS katalogu a
+  nabídky subskripcí'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2348
+wordpress_url: http://tomaskubica.cz/?p=2348
+date: '2018-08-29 05:24:38 +0000'
+date_gmt: '2018-08-29 04:24:38 +0000'
+categories:
+tags:
+- AzureStack
+- Compute
+---
+<p>V Azure je to Microsoft, který definuje typy subskripcí, výchozí kvóty na zdroje a plní nabídku IaaS katalogu. U Azure Stacku jste to vy - administrátor. Podívejme se jak to funguje a co se s tím dá dělat.<!--more--></p>
+<h1>Portál administrátora</h1>
+<p>Po instalaci Azure Stacku máte k dispozici dva endpointy (URL). Jeden je pro tenanty, tedy to, kam se uživatelé připojují. Druhý endpoint je určen pro administrátory Azure Stacku.</p>
+<p id="dXOCxnl"><img class="img-fluid wp-image-2349 " src="/images/2018/img_5b750cc1b33fa.png" alt="" /></p>
+<p>Můžeme v něm sledovat kapacitu, aktualizovat Azure Stack, kouknout na hlášky například o nutnosti vyměnit disk, odstavit node z provozu za účelem opravy nebo přidávat další nody či instalovat další resource providery, například PaaS služby jako je Application Services (Web App, API App a Azure Functions). O tom všem se pobavíme někdy později, dnes nás bude zajímat, jak se přidávají položky do IaaS katalogu a pracuje se subscription a kvótami.</p>
+<h1>IaaS katalog</h1>
+<p>V Azure najdete marketplace a v něm obrovské množství položek. Některé z nich mají podoru pro Azure Stack. Když otevřete Azure Stack poprvé, nebude v něm nic. Můžete si přidávat vlastní položky do katalogu, ale pro rychlý začátek by bylo lepší využít toho, co už je. Po registraci Azure Stack máte možnost si projít marketplace jako administrátor a vybrat si položky, které chcete stáhnout a nabídnout svým uživatelům.</p>
+<p id="pGQIrln"><img class="img-fluid wp-image-2350 " src="/images/2018/img_5b750dacd2d09.png" alt="" /></p>
+<p>Čeká na vás už poměrně velké množství položek. Jsou to jednak operační systémy - různé varianty Windows, Ubuntu, CentOS, Debian, CoreOS od Red Hatu nebo SUSE. Red Hat Enterprise Linux zatím nemá k dispozici přímo stažitelnou položku do katalogu, ale plně Azure Stack podporuje a na jeho stránkách najdete návod, jak si připravit Image a používat v Azure Stacku. Dále jsou tam předinstalované aplikační komponenty. Z dílny Microsoftu zejména SQL Server, Machine Learning Server nebo Service Fabric, od různých open source vendorů typu Bitnami hotové image s produkty jako MySQL, PostgreSQL, LAMP stack, MongoDB, ELK, WordPress a hromada dalších. Naleznete tam také image pro Puppet nebo Chef. Dalšími položkami jsou virtuální síťové appliance, kde je aktuálně ke stažení F5, CheckPoint, Barracuda nebo Palo Alto. Posledním typem položek jsou VM Extensions, které podobně jako v Azure umožňují automatizaci při provisioningu zdrojů, například automatické zařazení VM do domény, spuštění Linux nebo PowerShell skriptu apod.</p>
+<p>Položku si vyberete a kliknete do Download.</p>
+<p id="JZFmxJP"><img class="img-fluid wp-image-2351 " src="/images/2018/img_5b75103a9773d.png" alt="" /></p>
+<p>Po stažení toho co potřebujete bude váš katalog vypadat třeba takhle.</p>
+<p id="VeloLvA"><img class="img-fluid wp-image-2352 " src="/images/2018/img_5b75106866576.png" alt="" /></p>
+<p>Můžete si vytvořit i svojí položku, dát jí svůj image a ikonku. To dnes dělat nebudu, podíveme se na to někdy příště. V zásadě jde o to, že připravíte podklady ve formě JSON dokumentů (manifest soubor, UI definici, VHD image) a přes například PowerShell dostanete dovnitř.</p>
+<h1>Subscription, plány a offeringy</h1>
+<p>Co vlastně chcete uživatelům nabídnout se organizuje do plánů.</p>
+<p id="hsTxJnw"><img class="img-fluid wp-image-2354 " src="/images/2018/img_5b7511462ec43.png" alt="" /></p>
+<p>Při jeho vytváření zadám jméno a budeme definovat dvě podstatné vlastnosti - podporované služby (resource providery) a kvóty.</p>
+<p id="bzezeiI"><img class="img-fluid wp-image-2355 " src="/images/2018/img_5b75118053265.png" alt="" /></p>
+<p>Při definici dostupných služeb si vybírám resource providery, které mají v plánu být. Azure Stack zatím podporuje infrastrukturně laděné věci a Key Vault a také Application Services (PaaS) a existuje i SQL provider (to není čistokrevný PaaS, ale způsob jak automatizovat uživatelům vytváření databází na SQL Serveru, který ovšem spravujete vy - třeba i mimo Azure Stack). V budoucnu se ale bude seznam významně rozšiřovat, takže může dávat smysl vytvářet různé plány s různou funkčností.</p>
+<p id="PwpdgtX"><img class="img-fluid wp-image-2356 " src="/images/2018/img_5b7511fbb3111.png" alt="" /></p>
+<p>Druhé, co můžeme definovat, jsou kvóty. Můžeme omezit počet VM a core, počet externích IP adres, počet VNETů a subnetů, prostor ve storage apod.</p>
+<p id="nuntzJs"><img class="img-fluid wp-image-2357 " src="/images/2018/img_5b75124b59b81.png" alt="" /></p>
+<p id="pFONiyo"><img class="img-fluid wp-image-2358 " src="/images/2018/img_5b751261f09b2.png" alt="" /></p>
+<p>Já jsem si z pohledu IaaS vytvořil dva plány. Jeden je trial a jsou v něm přísná omezení ve kvótě a také produkční plán, kde kvóty buď nejsou nebo jsou hodně vysoko.</p>
+<p id="JpFHEuy"><img class="img-fluid wp-image-2359 " src="/images/2018/img_5b7512a0e2d29.png" alt="" /></p>
+<p>Plány se potom použivají při vytváření Offer, kterou berme jako typ subscription, kterou může uživatel získat. Do Offer můžete dát jeden a více základních plánů a také použít Add-On plány (něco, co je by default uživateli nedostupné, ale ten si o to může dodatečně zažádat - napříkad Add-On může povýšit jeho kvóty).</p>
+<p>Já jsem si udělal dva Offery. Jeden trial s omezením a jeden produkční bez omezení.</p>
+<p id="OWWMkkc"><img class="img-fluid wp-image-2360 " src="/images/2018/img_5b751316a24f7.png" alt="" /></p>
+<p>Takhle vypadá moje trial Offer. Všimněte si, že je označena jako Public a mám přehled o tom kolik subscription je v tomto plánu vytvořeno, můžu si je vypsat a určit plány, které jsou její součástí.</p>
+<p id="RSuarNf"><img class="img-fluid wp-image-2361 " src="/images/2018/img_5b75136f9a9c3.png" alt="" /></p>
+<p>Můj produkční plán je označen jako Private.</p>
+<p id="GJKUSAg"><img class="img-fluid wp-image-2362 " src="/images/2018/img_5b751399d5594.png" alt="" /></p>
+<p>V čem je rozdíl? Uživatel, který dostane přístup do Tenant portálu si může subscription vytvářet bez omezení sám, pokud jsou tyto typu Public.</p>
+<p id="yrTYzuW"><img class="img-fluid wp-image-2363 " src="/images/2018/img_5b7513e239e78.png" alt="" /></p>
+<p id="PwCfxNt"><img class="img-fluid wp-image-2364 " src="/images/2018/img_5b7513f50d8ba.png" alt="" /></p>
+<p>Produkční subskripce, které v mém případě nemají nastavenou kvótu, chci lidem vytvářet já jako administrátor sám. V admin portálu to najdeme tady:</p>
+<p id="TekxIwn"><img class="img-fluid wp-image-2365 " src="/images/2018/img_5b751443660eb.png" alt="" /></p>
+<p>Jako administrátor mám přístup ke všem nabídkám.</p>
+<p id="zFDWAIH"><img class="img-fluid wp-image-2366 " src="/images/2018/img_5b75146418c22.png" alt="" /></p>
+<p>Políčko uživatel slouží k vyplnění vlastníka subskripce, který pak může v rámci Tenant portálu pozvat další uživatele a dát jim různé role. Všimněte si ještě políčka Directory tenant. Ve výchozím stavu typickém pro enterprise budeme mít Azure Stack určený pro jednu organizaci (AAD případně ADFS, ale o tom jindy). Existuje ale i možnost mít napojeno AAD tenantů víc, což může být příklad použití Azure Stacku od lokálního providera. Ten nastaví trust mezi jeho Azure Stackem a vaším AAD a může ho tak nabízet vícero zákazníkům multi-tenantním způsobem.</p>
+<h1>Mám subskripci, co dál?</h1>
+<p>Jako uživatel s jednou nebo více subskripcemi si je mohu ve svém Tenant portálu prohlédnout.</p>
+<p id="IISIiuX"><img class="img-fluid wp-image-2367 " src="/images/2018/img_5b7515225519b.png" alt="" /></p>
+<p>Pokud na ni kliknu, uvidím něco podobného co ve velkém Azure.</p>
+<p id="hLdhXko"><img class="img-fluid wp-image-2368 " src="/images/2018/img_5b7515469bebe.png" alt="" /></p>
+<p>Na záložce Access Control mohu do subskripce pozvat další uživatele nebo skupiny z tenantu a dát jim potřebné granulární role. Stejně tak to můžu udělat jen na úrovni Resource Group nebo individuálního zdroje. Zkrátka je to pořád Azure a chová se to stejně.</p>
+<p id="ezETfEU"><img class="img-fluid wp-image-2370 " src="/images/2018/img_5b7516a838b18.png" alt="" /></p>
+<p>V katalogu samozřejmě uvidím položky, které pro mě administrátor připravil.</p>
+<p id="TWNsuoG"><img class="img-fluid wp-image-2371 " src="/images/2018/img_5b7516d861718.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Takhle se tedy pracuje se subscription a marketplace. V dalších článcích se podíváme blíže na další administrátorské úkony v rámci Azure Stacku, zaměříme se i na PaaS a budeme se věnovat i některým technickým detailům z pohledu třeba storage ve smyslu co je pod kapotou a jak to vypadá v portálu. Čeká nás i nasazování dalších technologií jako je Service Fabric nebo Kubernetes cluster a tak podobně. Vracejte se pro další porci Azure Stacku -podmnožiny vašeho Azure, která se rozjela u vás ve sklepě.</em></p>

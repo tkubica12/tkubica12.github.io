@@ -1,0 +1,53 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak naučit starou Linuxovou aplikaci pracovat s Azure Blob Storage bez změny
+  kódu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1578
+wordpress_url: http://tomaskubica.cz/?p=1578
+date: '2017-11-03 08:31:16 +0000'
+date_gmt: '2017-11-03 07:31:16 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Jak už jsem na tomto blogu psal hned v několika příspěvcích použitím Azure Files si tyto můžete namapovat do souborového systému Windows i Linux. Díky tomu beze změny aplikace můžete pracovat se soubory v cloudu. Pokud vám ale primárně vyhovuje Azure Blob Storage a potřebujete jen jednu část Linoxové aplikace naučit s ní mluvit, existuje ještě jedna nová možnost: azure-storage-fuse.<!--more--></p>
+<h1>Proč Blob místo Files</h1>
+<p>Na sdílení souborů jsou Azure Files naprosto ideální. Je to enterprise služba s plnou podporou, univerzální a jednoduché řešení pro Windows i Linux a zejména nedávno uvedený Azure File Sync umožní dělat různé hybridní scénáře jako je záloha share do cloudu či cloud tiering. Proč by tedy vůbec někdo přemýšlel o Blob storage?</p>
+<p>Důvodů je hodně a začnu těmi technickými. Blob storage má podstatně menší omezení co do kapacity, počtu objektů či velikosti jednotlivých objektů. Zejména ale tím, že jde o objekt, s ní můžeme pracovat "napřímo". Operace s bloby jsou HTTP, takže při správném nastavení mohou obrázky v Blob storage být přímo vykreslovány na vaší webové stránce. Pokud do blobu uložíte video, můžete jej z něj rovnou přehrávat přímo na webu nebo VLC či jiném streaming přehrávači, nemusíte si nic stahovat dopředu, můžete přeskakovat a tak podobně. Blob je také perfektně integrován do analytických nástrojů v Azure, například umístěné objekty můžete zpracovat v Azure Data Lake Analytics, natáhnout je a streamovat s Azure Media Services a tak podobně.</p>
+<p>Další důvody mohou být cenové. Files jsou složitější a pokročilejší služba, Bloby jsou velmi primitivní a díky tomu levnější. Files vyjdou asi na 50 EUR měsíčně za uložeý TB, ale Hot blob jen asi 16 EUR a pokud soubory budou mít spíše archivační povahu tak v případě Cool vás vyjdou na 9 EUR měsíčně a Archiv tier (kde ale data nemáte online) ještě výrazně méně. Díky možnostem Blobů můžete na úrovni objektu plynule přecházet mezi Hot, Cool a Archive - tedy jak vám objekty zastarávají (a snižuje se potřeba je číst) je můžete přesouvat na levnější médium.</p>
+<p>Azure Blob je velmi jednoduchý a pokud máte možnost zasáhnout do kódu aplikace, můžete si tuto funkci přidat. Nicméně co když máte Linux aplikaci, kterou upravovat nemůžete. Například je to nějaký nahrávač kamerových záznamů, který ukládá MP4 soubory, které chcete dostat do Blobů tak, aby bylo možné s nimi dál pracovat (například je nabídnout na vaší stránce). Nebo jde o nějaké zálohy či archivy. Pak by se hodilo, aby aplikace ukládala jen do místního adresáře a někdo jiný zajistil replikaci do cloudu</p>
+<h1>Azure Storage Fuse</h1>
+<p>Linux nabízí možnost souborových systémů v user space (FUSE) a je tak možné poměrně jednoduše přidat virtuální souborový systém do vašeho systému bez jakýchkoli hlubokých zásahů. Díky tomu je možné napsat FUSE, které na backend bude mít blob storage. Tento projekt je aktuálně v Preview ke stažení zde: <a href="https://github.com/Azure/azure-storage-fuse">https://github.com/Azure/azure-storage-fuse</a></p>
+<p>Je to napsané tak, že vznikne souborový systém, ale současně cache. Tedy soubory, které zapíšete do systému nebo následně čtete jsou řešeny v této cache a na pozadí se replikují s Azure Blob Storage.</p>
+<p>Nejprve si vytvořte Azure Blob Storage a poznamenejte si jméno a přístupový klíč.</p>
+<p id="QRQeAxS"><img class="img-fluid wp-image-1579 " src="/images/2017/img_59fc16faadbb6.png" alt="" /></p>
+<p>Vytvořme si kontejner.</p>
+<p id="bCHQaia"><img class="img-fluid wp-image-1580 " src="/images/2017/img_59fc173d36133.png" alt="" /></p>
+<p>V Linux VM si nainstaluji azure-storage-fuse:</p>
+<p><a href="https://github.com/Azure/azure-storage-fuse/wiki/Installation">https://github.com/Azure/azure-storage-fuse/wiki/Installation</a></p>
+<p>V adresáři najdeme soubor connection.cfg a do něj zapíšeme přístupové údaje k Azure Blob Storage.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">accountName myfuse
+accountKey smcNE+msAllCVYhRnwkQ3EQDQ9WaHyHvbHqQZlpWB7uNN6FSZjdEGsWf8Wt0p+tRmqEmvPYti18QgAp1vDKJEw==
+containerName tomblob</pre>
+<p>Vytvořím si temp adresář a také adresář, kam si namapujeme storage (ten udělám třeba ve svém home prostoru). Spustíme jednoduchý skript, který FUSE rozjede a nastaví.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@fuse:~/azure-storage-fuse$ sudo mkdir -p /mnt/blobfusetmp
+tomas@fuse:~/azure-storage-fuse$ sudo chown tomas /mnt/blobfusetmp/
+tomas@fuse:~/azure-storage-fuse$ chmod +x mount.sh
+tomas@fuse:~/azure-storage-fuse$ mkdir ~/blobs
+tomas@fuse:~/azure-storage-fuse$ ./mount.sh ./mount.sh ~/blobs/</pre>
+<p>Následně do tohoto adresáře nakopírujeme nějaké soubory a po chvilce se nám objeví v Blob storage.</p>
+<p id="jkjUQdn"><img class="img-fluid wp-image-1581 " src="/images/2017/img_59fc18b1ce757.png" alt="" /></p>
+<p>Pokud nějaký objekt vytvoříte lokálně a následně ho změníte jinde (například přes portál) tak pozor na to, že lokální systém ho bude pravděpodobně stále ještě načítat z místní cache (tedy nebude mít nejnovější verzi). FUSE na pozadí automaticky cache aktualizuje na principu best effort, takže se to eventuálně aktualizuje, ale není zde přísná konzistence. To vám samozřejmě může vadit, ale dost možná nemusí - například pokud aplikace spíše generuje data, která chcete odlévat do cloudu, je to celkem jedno. Nebo pokud aplikace bude takto číst objekty, které jsou ale povětšinou statické (například fotky), tak to také není žádný problém.</p>
+<p>Jednoduché, že?</p>
+<p>&nbsp;</p>
+<p><em>Potřebujete plně podporované řešení pro synchronizaci souborů lokálně a v cloudu s pokročilými možnostmi, cloud tieringem a tak podobně? Vyzkoušejte Azure Files a Azure Files Sync. Máte možnost upravit kód aplikace tak, aby používala přímo Azure Blob Storage? Použijte SDK do vašeho jazyka a uděláte to jednoduše. Pokud ale hledáte něco velmi jednoduchého pro vaší Linux aplikaci, kterou nechcete nijak měnit, vyzkoušejte si azure-storage-fuse.</em></p>
+<p>&nbsp;</p>

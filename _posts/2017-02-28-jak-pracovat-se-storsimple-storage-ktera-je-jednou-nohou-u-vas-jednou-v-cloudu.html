@@ -1,0 +1,107 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak pracovat se StorSimple, storage, která je jednou nohou u vás, jednou v
+  cloudu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 400
+wordpress_url: http://tomaskubica.cz/?p=400
+date: '2017-02-28 12:25:20 +0000'
+date_gmt: '2017-02-28 11:25:20 +0000'
+categories:
+tags:
+- Storage
+---
+<p>O StorSimple už jsem na tomto blogu psal. Jde o fyzickou nebo virtuální appliance, která nabízí funkce a rychlost lokální storage, ale přitom využívá cloud a je tak skutečně hybridní. Dnes si ukážeme jeho blokovou tvář, vyzkoušíme backup a disaster recovery.<!--more--></p>
+<h1>Připomeňme si co je StorSimple</h1>
+<p>Jednak cloud funguje jako vzdálený tier, takže nejčastěji používaná data jsou dostupná lokálně, ale třeba 10x víc dat může být bezpečně uloženo v cloudu a vaše aplikace nebo uživatelé o tom ani nemusí vědět. Současně jsou všechna data v cloudu zálohována a můžete dělat snapshoty volumů či sharů stejně jako kompletní disaster recovery celého StorSimple. Při komunikaci s cloudem se vše deduplikuje, komprimuje a šifruje.</p>
+<h1>Ukažme si blokové nasazení</h1>
+<p>Při úvodním provisioningu StorSimple stačí zvolit režim iSCSI.</p>
+<p id="fdhQYOP"><img class="img-fluid wp-image-402 " src="/images/2017/img_58ac4322a856f.png" alt="" /></p>
+<p>To je pak reflektováno v Azure portálu, kde centrálně svoje appliance spravujeme.</p>
+<p id="knlrDOF"><img class="img-fluid wp-image-404 " src="/images/2017/img_58ac43531db11.png" alt="" /></p>
+<p>Pojďme si náš StorSimple nakonfigurovat.</p>
+<p id="OiYnZDq"><img class="img-fluid wp-image-406 " src="/images/2017/img_58ac43baddff1.png" alt="" /></p>
+<p>Vybereme si storage account (místo, kde chceme mít cloud vrstvu a backup) a případně zapneme šifrování.</p>
+<p id="THFAoaA"><img class="img-fluid wp-image-407 " src="/images/2017/img_58ac43cda7686.png" alt="" /></p>
+<p>Připojím se na můj server, abych zjistil jeho jméno iSCSI iniciátora.</p>
+<p id="YGOvaQE"><img class="img-fluid wp-image-408 " src="/images/2017/img_58ac43e38871b.png" alt="" /></p>
+<p>Vytvoříme si nový Volume z Azure portálu.</p>
+<p id="IkCAVZw"><img class="img-fluid wp-image-409 " src="/images/2017/img_58ac43fab8496.png" alt="" /></p>
+<p>Vyplníme základní parametry a zadáme servery, které ho mohou využívat.</p>
+<p id="gRuRPWe"><img class="img-fluid wp-image-411 " src="/images/2017/img_58ac4414c50f3.png" alt="" /></p>
+<p id="QeuNRQB"><img class="img-fluid wp-image-412 " src="/images/2017/img_58ac441e8c542.png" alt="" /></p>
+<p>Na serveru si disk najdeme. Nejprve přidáme IP adresu StorSimple jako discovery portál.</p>
+<p id="LKrPsSq"><img class="img-fluid wp-image-413 " src="/images/2017/img_58ac4434169b3.png" alt="" /></p>
+<p id="yTnviVi"><img class="img-fluid wp-image-414 " src="/images/2017/img_58ac443c36923.png" alt="" /></p>
+<p>Připojíme si disk.</p>
+<p id="pkjjVka"><img class="img-fluid wp-image-415 " src="/images/2017/img_58ac44514e316.png" alt="" /></p>
+<p>Nastartujte správce disků - uvidíme tam nový disk. Pak stačí jen inicializovat a zprovoznit souborový systém.</p>
+<p id="pxhjQeY"><img class="img-fluid wp-image-416 " src="/images/2017/img_58ac4466e6e87.png" alt="" /></p>
+<p>V Linux můžete samozřejmě iSCSI disky použít taky. Nejdříve si zjistíme iSCSI jméno, abychom ho mohli v Azure portálu povolit pro přístup.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo cat /etc/iscsi/initiatorname.iscsi
+## DO NOT EDIT OR REMOVE THIS FILE!
+…
+InitiatorName=iqn.1993-08.org.debian:01:e73a831b868</pre>
+<p>Pak stačí disk objevit, zalogovat se a najít v systému.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo iscsiadm -m discovery -t st -p 10.0.0.7
+10.0.0.7:3260,1 iqn.1991-05.com.microsoft:win-ov8hneqgh58-mujdisk-target
+
+sudo iscsiadm -m node --login
+Logging in to [iface: default, target: iqn.1991-05.com.microsoft:win-ov8hneqgh58-mujdisk-target, portal: 10.0.0.7,3260] (multiple)
+Login to [iface: default, target: iqn.1991-05.com.microsoft:win-ov8hneqgh58-mujdisk-target, portal: 10.0.0.7,3260] successful.
+
+dmesg | grep sd
+[  464.695559] sd 6:0:0:0: Attached scsi generic sg3 type 0
+[  464.707937] sd 6:0:0:0: [sdc] 1048576000 512-byte logical blocks: (537 GB/500 GiB)
+…
+[  464.797207] sd 6:0:0:0: [sdc] Attached SCSI disk</pre>
+<p>V tento okamžik už použijete obvyklé postupy, tedy fdisk pro vytvoření partition, mkfs pro založení souborového systému a mount pro připojení.</p>
+<h1>Backup v cloudu</h1>
+<p>O výhodách zálohování v cloudu už jsem psal několikrát - máte data geograficky dostatečně daleko (tedy záplavy ve vaší lokalitě nezničí současně i zálohy), jsou uložena velmi spolehlivě a bezpečně v moderním datovém centru (případně i ve dvou regionech současně) s tím, že máte kontrolu v kde se budou vyskytovat, máte libovolnou kapacitu a platíte jen za to, co opravdu využíváte. Podívejme se, jak zálohuje StorSimple. Vyzkoušíme si to v nastavení pro share, ale podobně to jde se snapshoty volumů v blokovém případě.</p>
+<p>Můžeme si nastavit pro nás ideální čas pro denní zálohy a prohlédnout si retention politiku.</p>
+<p id="SmfksvI"><img class="img-fluid wp-image-422 " src="/images/2017/img_58ae621d8fbff.png" alt="" /></p>
+<p>Zálohu také můžeme samozřejmě vynutit manuálně v okamžiku aktuální potřeby.</p>
+<p id="TejrxDS"><img class="img-fluid wp-image-423 " src="/images/2017/img_58ae62371e961.png" alt="" /></p>
+<p>Podívejme se na naše dosavadní zálohy.</p>
+<p id="rBJPTtL"><img class="img-fluid wp-image-424 " src="/images/2017/img_58ae624cc5470.png" alt="" /></p>
+<p>Teď budu uživatel, který si smaže své soubory a pak prosí o pomoc. Smažu si všechny (možná už teď narazíte na záhadný adresář ".backup", který smazat nepůjde…vydržte, hned se k tomu dostaneme).</p>
+<p id="qEOwjqf"><img class="img-fluid wp-image-425 " src="/images/2017/img_58ae6263a5766.png" alt="" /></p>
+<p>Vyzkoušejme první možnost - naklonujeme tento share z nějaké z našich záloh, tedy vrátíme se v čase do dne, kdy to bylo ještě v pořádku. To uděláme z pozice administrátora. Najděte si zálohu, která vám vyhovuje a vytvoříme její klon.</p>
+<p id="sJGnqlM"><img class="img-fluid wp-image-426 " src="/images/2017/img_58ae627b3306f.png" alt="" /></p>
+<p>Vybereme název pro obnovený share.</p>
+<p id="mcTtWxL"><img class="img-fluid wp-image-427 " src="/images/2017/img_58ae6290848f9.png" alt="" /></p>
+<p>Uživatel najde nový share a my jsme za hrdiny.</p>
+<p id="FAOCkfu"><img class="img-fluid wp-image-428 " src="/images/2017/img_58ae62a54dcee.png" alt="" /></p>
+<p id="PeGywnJ"><img class="img-fluid wp-image-429 " src="/images/2017/img_58ae62ac4db83.png" alt="" /></p>
+<p>Uživatel má ale také možnost obnovit si přímo sám třeba jen jeden specifický soubor. Tím se dostáváme k záhadnému adresáři .backup. Uvnitř jsou adresáře začínající buď nějakým UUID (pro scheduled zálohy) nebo slovem Ad-Hoc (pro manuálně vyvolané) následované časovým razítkem. Uvnitř uživatel může najít co potřebuje a jednoduše si to přesune kam chce - zpátky do sharu nebo třeba jen na plochu.</p>
+<p id="YTUlKDq"><img class="img-fluid wp-image-430 " src="/images/2017/img_58ae62bfbd49f.png" alt="" /></p>
+<h1>Disaster recovery</h1>
+<p>Backup umožňuje vracet se v čase, obnovit data, ale co když přijdeme o celý StorSimple? V takovém případě můžete jeho kompletní nastavení obnovit z cloudu na jiný StorSimple, který lze umístit kamkoli na světě. Představme si tedy, že můj StorSimple skončil pod vodou.</p>
+<p id="xddQvVS"><img class="img-fluid wp-image-431 " src="/images/2017/img_58ae634a27b84.png" alt="" /></p>
+<p>Naštěstí jsem byl schopen rychle zprovoznit jiný v naší kancelářské budově a rád bych teď na něj překlopil obsah z toho havarovaného.</p>
+<p id="iwGZEjw"><img class="img-fluid wp-image-432 " src="/images/2017/img_58ae63672223c.png" alt="" /></p>
+<p>Nejprve musím storage, která plave ve vodě, deaktivovat.</p>
+<p id="dfEhvYS"><img class="img-fluid wp-image-433 " src="/images/2017/img_58ae638ed7226.png" alt="" /></p>
+<p>Teď mohu provést Fail over.</p>
+<p id="bhXhhIl"><img class="img-fluid wp-image-434 " src="/images/2017/img_58ae63a5bb862.png" alt="" /></p>
+<p>Vyberu cílový StorSimple a celý proces může začít.</p>
+<p id="SpMwvZP"><img class="img-fluid wp-image-435 " src="/images/2017/img_58ae63bc5eda5.png" alt="" /></p>
+<p>Průběh operace můžeme sledovat v záložce Jobs.</p>
+<p id="HFuIEGV"><img class="img-fluid wp-image-436 " src="/images/2017/img_58ae63d114295.png" alt="" /></p>
+<p>Po nějaké době bude disaster recovery dokončeno.</p>
+<p id="ELdHWNl"><img class="img-fluid wp-image-437 " src="/images/2017/img_58ae63e5b3b76.png" alt="" /></p>
+<p>Uživatelé se teď k tomuto StorSimple znovu dostanou. Pokud jste museli appliance dát jinou IP adresu, bude pravděpodobně nutné ještě změnit DNS záznam (což je pro uživatele a servery transparentní).</p>
+<h1>Pinning</h1>
+<p>StorSimple si bude sám vyhodnocovat, jaká data jsou často používána a ty držet v lokálním tieru vs. přesouvat do cloudu. Máte ale také možnost některé shary nebo disky zakotvit a učinit je pouze lokální.</p>
+<p id="wMJVMeH"><img class="img-fluid wp-image-438 " src="/images/2017/img_58ae6433b32fd.png" alt="" /></p>
+<p>Tím máte jistotu lokálního výkonu a stále využíváte další hodnoty StorSimple, tedy backup do cloudu, centrální správu a disaster recovery možnosti.</p>
+<p>&nbsp;</p>
+<p><em>Na co je StorSimple ideální volba a na co se nehodí? Pod Oracle nebo SAP ne, ale pro méně náročné aplikace nebo jako storage pro hypervisor v nastavení lokálního pinningu ano. Je perfektní pro sdílení souborů aplikacemi i uživateli, ideální pro distribuované nasazení (pobočky) nebo jako elegantní target pro zálohovací software. Příště si tyto scénáře rozpracujeme podrobněji.</em></p>

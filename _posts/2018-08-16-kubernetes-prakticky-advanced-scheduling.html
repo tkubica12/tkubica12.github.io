@@ -1,0 +1,321 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: advanced scheduling'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2344
+wordpress_url: http://tomaskubica.cz/?p=2344
+date: '2018-08-16 05:54:52 +0000'
+date_gmt: '2018-08-16 04:54:52 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Azure Kubernetes Service automaticky dává vaše Pody na vhodné Nody včetně zajištění vysoké dostupnosti rozhazováním Deploymentů na Nody z různých fault domén. Přesto někdy můžete potřebovat scheduler ovlivnit a implementovat svoje specifické potřeby kde se mají vaše Pody objevit. Pojďme se podívat na Node affinitu, Pod affinitu a anti-affinitu, Taint a Pod prioritu.<!--more--></p>
+<h1>Node affinity</h1>
+<p>Máte potřebu učinit nějaký Node atraktivnější pro váš Pod? AKS v tuto chvíli nepodporuje víc jak jeden typ VM v clusteru, ale velmi brzy bude. Pak vám může dávat smysl namířit svoje Pody na nějaký typ VM. Představme si například, že pro účely testování nebo pro nenáročné Pody chceme použít levnou B-series, ale produkční náročné Pody chceme na plné D-series. Jak to zařídit?</p>
+<p>Starší koncept je NodeSelector, ale Node Affinity umí totéž a spoustu věcí navíc. Budeme se tedy soustředit na druhou možnost, která je novější a v tuto chvíli lepší cesta.</p>
+<p>U Nodů můžeme využívat automaticky generované Labely, ale také si můžeme přidat vlastní. Pojďme mému 3-nodovému clusteru přiřadit příznak barva a dva udělat modré a jeden červený.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl label nodes aks-nodepool1-38238592-0 color=blue
+kubectl label nodes aks-nodepool1-38238592-1 color=blue
+kubectl label nodes aks-nodepool1-38238592-2 color=red
+kubectl get nodes --show-labels
+NAME                       STATUS    ROLES     AGE       VERSION   LABELS
+aks-nodepool1-38238592-0   Ready     agent     2d        v1.11.1   agentpool=nodepool1,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=Standard_B2s,beta.kubernetes.io/os=linux,color=blue,failure-domain.beta.kubernetes.io/region=westeurope,failure-domain.beta.kubernetes.io/zone=0,kubernetes.azure.com/cluster=MC_aksgroup_akscluster_westeurope,kubernetes.io/hostname=aks-nodepool1-38238592-0,kubernetes.io/role=agent,storageprofile=managed,storagetier=Premium_LRS
+aks-nodepool1-38238592-1   Ready     agent     10h       v1.11.1   agentpool=nodepool1,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=Standard_B2s,beta.kubernetes.io/os=linux,color=blue,failure-domain.beta.kubernetes.io/region=westeurope,failure-domain.beta.kubernetes.io/zone=0,kubernetes.azure.com/cluster=MC_aksgroup_akscluster_westeurope,kubernetes.io/hostname=aks-nodepool1-38238592-1,kubernetes.io/role=agent,storageprofile=managed,storagetier=Premium_LRS
+aks-nodepool1-38238592-2   Ready     agent     10h       v1.11.1   agentpool=nodepool1,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=Standard_B2s,beta.kubernetes.io/os=linux,color=red,failure-domain.beta.kubernetes.io/region=westeurope,failure-domain.beta.kubernetes.io/zone=1,kubernetes.azure.com/cluster=MC_aksgroup_akscluster_westeurope,kubernetes.io/hostname=aks-nodepool1-38238592-2,kubernetes.io/role=agent,storageprofile=managed,storagetier=Premium_LRS</pre>
+<p>V definici Podu můžeme určit jeho Node affinity tak, že vyžadujeme, aby scheduler vybral jen Nody vyhovující našemu filtračnímu kritériu. Například pokud bych použil label kubernetes.io/hostname můžu určit konkrétní node. V následujícím příkladu budu požadovat umístění na červený node.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod
+spec:
+  containers:
+    - name: mypod
+      image: nginx:alpine
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: color
+            operator: In
+            values:
+            - red</pre>
+<p>Pustíme to a uvidíme, že Pod běží na Nodu s číslem dva, protože to je jediný červený, co máme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f podNodeAffinityRequired.yaml
+kubectl get pods -o wide
+NAME      READY     STATUS              RESTARTS   AGE       IP        NODE
+mypod     0/1       ContainerCreating   0          0s        &lt;none&gt;    aks-nodepool1-38238592-2</pre>
+<p>Co se stane pokud červený Node mít vůbec nebudeme nebo bude plně obsazený? Nasazení podu selže. Někdy nechceme mít pravidlo takhle silné, ale spíš definovat naší preferenci. V následujícím příkladě je mojí největší prioritou dostat Pod na oranžový Node. Takový já aktuálně nemám, takže scheduler zkusí dle mého pořadí preferencí další možnost a to je červený Node. Pokud by ani to nebylo možné, dá to na jakýkoli jiný.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: mypod2
+spec:
+  containers:
+    - name: mypod
+      image: nginx:alpine
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 10
+        preference:
+          matchExpressions:
+          - key: color
+            operator: In
+            values:
+            - orange
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: color
+            operator: In
+            values:
+            - red</pre>
+<p>Pustíme a zjistíme, že Pod je znovu na červeném Nodu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f podNodeAffinityPreferred.yaml
+kubectl get pods -o wide
+NAME      READY     STATUS              RESTARTS   AGE       IP              NODE
+mypod     1/1       Running             0          3m        192.168.0.224   aks-nodepool1-38238592-2
+mypod2    0/1       ContainerCreating   0          2s        &lt;none&gt;          aks-nodepool1-38238592-2</pre>
+<h1>Taint a tolerace</h1>
+<p>V předchozím případě jsme lákali Pody na určité Nody. Taints umožňují opačný postup, tedy dávání Nodům "věcné břemeno". Je to trochu podobné jako whitelist vs. blacklist. Pokud máte 100 nodů a jeden z nich nechcete běžně používat je jednoduší dát "blacklist" na jeden, než 99 whitelistů. Navíc je tu druhá zásadní věc. Jakmile přidáte Nodu věcné břemeno Pody v defaultní konfiguraci si na něj nesednou. Nemusím tedy nic v Podu specifikovat a on se Nodu vyhne. Je to opačně - Podu můžu explicitně definovat toleranci na určitý Taint. Existují tři režimy Taintů. PreferNoSchedule je soft pravidlo, které říká pokud to bude možné, vyhni se mu. NoSchedule je tvrdé pravidlo, tedy pokud nemáš explicitní toleranci, nikdy tam nechoď. A je tu ještě NoExec, které dokonce funguje i zpětně, tedy pokud aktuálně na Nodu existují nějaké Pody bez tolerance (vzniklé před nastavením Taintu) budou evakuovány jinam.</p>
+<p>Kdy něco takového použít? Tak například potřebujete vyřadit nějaký Node z provozu, protože ho jdete updatovat nebo odebírat. Dáte-li mu Taint NoExec, na který není nikdo tolerantní, všechny Pody Nodu se přesunou jinam. Toho používá AKS například při rolling upgrade clusteru nebo škálování dolu. Další příklad je označení Nodů, které nejsou vhodné pro produkci. Například vezměme předchozí myšlenku s B-series a D-series VM. Nechceme riskovat, že u produkčního Podu zapomeneme na Node affinitu, tak raději na B-series Nody dáme Taint a necháme naše testovací Pody tuto skutečnost explicitně tolerovat. Další situace je virtuální Node s Virtual Kubelet (o tom jindy). Jde o to, že virtuální Node reprezentuje například Azure Container Instances ("serverless" kontejnery) nebo vaše IoT zařízení přes IoT Hub. Asi nechceme, aby se produkční Pody nasadily omylem na vašem Raspberry v továrně. Dáme tedy Taint a kontejnery skutečně určené do IoT zařízení budou mít toleranci. Poslední příklad co mě napadá je situace, kdy máme v clusteru nějaké velmi drahé Nody, například stroje s GPU, na kterých provádíme náročné výpočty třeba s využitím Azure Machine Learning. Nechceme, aby běžné Pody zabíraly zbytečně místo na tomto drahém Nodu, což by stalo, pokud by měli defaultní konfiguraci, která jim to nezakazuje. Dáme na něj tedy Taint a naše machine learning Pody na něj budou mít toleranci a navíc Node affinitu.</p>
+<p>Dejme Taint na Node číslo 2.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl taint nodes aks-nodepool1-38238592-2 devonly=goaway:NoSchedule
+</pre>
+<p>Udělejme Deployment bez tolerance.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: notoleration
+spec:
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: notoleration
+    spec:
+      containers:
+      - name: myweb
+        image: nginx:alpine</pre>
+<p>A také Deployment s tolerancí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: toleration
+spec:
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: toleration
+    spec:
+      containers:
+      - name: myweb
+        image: nginx:alpine
+      tolerations:
+      - key: "devonly"
+        operator: "Exists"
+        effect: "NoSchedule"</pre>
+<p>Pošleme to tam a uvidíme, že Pody bez tolerance se nedostanou na Node 2, ale ty s tolerancí klidně ano.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f deploymentNoToleration.yaml
+kubectl apply -f deploymentToleration.yaml
+kubectl get pods -o wide
+NAME                            READY     STATUS              RESTARTS   AGE       IP              NODE
+notoleration-7d99cc44b5-5gdsh   0/1       ContainerCreating   0          19s       &lt;none&gt;          aks-nodepool1-38238592-1
+notoleration-7d99cc44b5-c5rb2   0/1       ContainerCreating   0          19s       &lt;none&gt;          aks-nodepool1-38238592-1
+notoleration-7d99cc44b5-drgfh   0/1       ContainerCreating   0          19s       &lt;none&gt;          aks-nodepool1-38238592-1
+notoleration-7d99cc44b5-nm7g2   1/1       Running             0          19s       192.168.0.114   aks-nodepool1-38238592-1
+notoleration-7d99cc44b5-p8fgn   1/1       Running             0          19s       192.168.0.173   aks-nodepool1-38238592-1
+toleration-65697bd4d8-djw9c     0/1       ContainerCreating   0          1s        &lt;none&gt;          aks-nodepool1-38238592-2
+toleration-65697bd4d8-gk4sr     0/1       ContainerCreating   0          1s        &lt;none&gt;          aks-nodepool1-38238592-1
+toleration-65697bd4d8-k5tcc     0/1       ContainerCreating   0          1s        &lt;none&gt;          aks-nodepool1-38238592-1
+toleration-65697bd4d8-l66vq     0/1       ContainerCreating   0          1s        &lt;none&gt;          aks-nodepool1-38238592-2
+toleration-65697bd4d8-nfhsm     0/1       ContainerCreating   0          1s        &lt;none&gt;          aks-nodepool1-38238592-2</pre>
+<p>Funguje. Pojďme Taint i Deploymenty zase zrušit.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl taint nodes aks-nodepool1-38238592-2 devonly:NoSchedule-
+kubectl delete -f deploymentNoToleration.yaml
+kubectl delete -f deploymentToleration.yaml</pre>
+<h1>Pod affinity a anti-affinity</h1>
+<p>Někdy mě konkrétní Node vůbec nezajímá, ale jde mi o to, aby Pody byly buď u sebe nebo naopak daleko od sebe.</p>
+<p>Představme si například, že mám Pod s cache a Pod s aplikací. Pro zvýšení výkonu bych rád, aby se objevily na stejném Nodu, aby tam byla nižší latence a nemuselo se přes síť.</p>
+<p>Nejprve nasadíme jeden Pod běžným způsobem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: first
+  labels:
+    app: first
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine</pre>
+<p>Teď přidáme druhý s tím, že bychom chtěli, aby byl na stejném Nodu, jako tenhle první.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: second-affinity
+  labels:
+    app: second-affinity
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - first
+        topologyKey: kubernetes.io/hostname
+  containers:
+    - name: nginx
+      image: nginx:alpine</pre>
+<p>Pustíme a přesvědčme se, že to tak je.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f podAffinity1.yaml
+kubectl apply -f podAffinity2.yaml
+kubectl get pods -o wide
+NAME              READY     STATUS              RESTARTS   AGE       IP        NODE
+first             0/1       ContainerCreating   0          1s        &lt;none&gt;    aks-nodepool1-38238592-2
+second-affinity   0/1       ContainerCreating   0          1s        &lt;none&gt;    aks-nodepool1-38238592-2</pre>
+<p>Podobně jako u Nodů máme k dispozici i volnější pravidlo - preferred. Scheduler se pokusí dát je na stejný node, ale pokud to nepůjde (došla mu kapacita), dá to alespoň jinam. Ještě si všimněme jednoho atributu a tím je topologyKey. Tím definujeme "stejnost". Pokud je to kubernetes.io/hostname říkáme, že to chceme na stejném Nodu. Klíč ale může být jiný, třeba barva. V AKS něco takového asi nepotřebuji, ale představme si, že bychom měli dvě skupiny nodů po pěti kusech s tím, že uvnitř skupiny je 10G síť, ale mezi nimi jen 1G propojení. Dávalo by pak smysl chtít Pody do stejné skupiny Nodů, ale nepotřebuji nutně stejný Node.</p>
+<p>Existuje ještě opačná možnost - anit-affinity. Cílem je rozhodit Pody od sebe zejména z důvodu zajištění vysoké dostupnosti. To se v AKS stane samo, protože AKS vyplní standardní labely failure-domain.kubernetes.io a scheduler podle nich postupuje by default. Aby se váš Deployment automaticky rozprostřel mezi failure domény v Azure nemusíte tedy nic dělat. Pokud si to chcete vyzkoušet a například dát dva Pody tak, že ten druhý nesmí být na stejně barevném Nodu, vypadalo by to takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: anti1
+  labels:
+    app: anti1
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: anti2
+  labels:
+    app: anti2
+spec:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - anti1
+        topologyKey: color
+  containers:
+    - name: nginx
+      image: nginx:alpine</pre>
+<h1>Pod priorita</h1>
+<p>U Podů vždy používejte  resources omezení. Request říká scheduleru kolik má z Nodu "odečíst", když na něj Pod umístí. Druhé nastavení je limit, kterým omezíte maximální spotřebu CPU nebo paměti (to sice neovlivňuje scheduler, ale limituje váš kontejner, aby se nezbláznil a nevyžral třeba celou paměť Nodu). Proveďme teď Deployment 10 replik, která každá chce 1 celý core, což se do mého clusteru nevejde.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: standardpriority
+spec:
+  replicas: 10
+  template:
+    metadata:
+      labels:
+        app: standardpriority
+    spec:
+      containers:
+      - name: myweb
+        image: nginx:alpine
+        resources:
+          requests:
+            cpu: "1000m"</pre>
+<p>Pošleme to tam a uvidíme, že se mi to nevejde, takže některé Pody budou ve stavu Pending.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f deploymentStandardPriority.yaml
+kubectl get pods
+NAME                               READY     STATUS    RESTARTS   AGE
+standardpriority-f86f4fdfb-256rb   1/1       Running   0          15s
+standardpriority-f86f4fdfb-2gxmq   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-b29bb   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-bj9p4   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-fvvpj   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-j8g4w   1/1       Running   0          15s
+standardpriority-f86f4fdfb-mm8sb   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-np6sd   0/1       Pending   0          15s
+standardpriority-f86f4fdfb-qkwq6   1/1       Running   0          15s
+standardpriority-f86f4fdfb-tx9wh   0/1       Pending   0          15s</pre>
+<p>Cluster máme tedy kompletně zaplněný (důležitá informace pro cluster autoscaler, aby ho zvětšil - ale o tom jindy). Co když ale tyto Pody nejsou zas tak důležité a jde třeba o nějaké výpočetní batch joby, které mohou počkat? Když budu chtít pustit (nebo přiškálovat) Pod, který je business critical, co se stane?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: critical-standard
+spec:
+  containers:
+  - name: nginx
+    image: nginx:alpine
+    resources:
+      requests:
+        cpu: "1000m"</pre>
+<p>Pošleme ho tam a on zůstane ve stavu Pending.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get pods
+NAME                               READY     STATUS    RESTARTS   AGE 
+critical-standard                  0/1       Pending   0          3s  
+standardpriority-f86f4fdfb-256rb   1/1       Running   0          2m  
+standardpriority-f86f4fdfb-2gxmq   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-b29bb   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-bj9p4   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-fvvpj   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-j8g4w   1/1       Running   0          2m  
+standardpriority-f86f4fdfb-mm8sb   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-np6sd   0/1       Pending   0          2m  
+standardpriority-f86f4fdfb-qkwq6   1/1       Running   0          2m  
+standardpriority-f86f4fdfb-tx9wh   0/1       Pending   0          2m</pre>
+<p>Hmm, to je problém. Pokud máte AKS s Kubernetes verzí 1.11.1 nebo vyšší je v něm k dispozici Pod prioritizace. To nám umožní definovat prioritní třídu:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: scheduling.k8s.io/v1beta1
+kind: PriorityClass
+metadata:
+  name: critical
+value: 1000000
+globalDefault: false
+description: "Priority class for my business critical Pods."</pre>
+<p>Takhle by vypadal Pod, který patří do této vyšší priority.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: critical-priority
+spec:
+  containers:
+  - name: nginx
+    image: nginx:alpine
+    resources:
+      requests:
+        cpu: "1000m"
+  priorityClassName: critical</pre>
+<p>Vytvořme prioritní třídu a pošleme tam tento kritický Pod. Co uvidíme je, že vytlačí nějaký s nižší prioritou.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f podPriorityClass.yaml
+kubectl apply -f podPriority.yaml
+kubectl get pods
+NAME                               READY     STATUS    RESTARTS   AGE
+critical-priority                  1/1       Running   0          25s
+critical-standard                  0/1       Pending   0          2m
+standardpriority-f86f4fdfb-256rb   1/1       Running   0          5m
+standardpriority-f86f4fdfb-2gxmq   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-b29bb   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-bj9p4   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-fvvpj   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-j8g4w   1/1       Running   0          5m
+standardpriority-f86f4fdfb-mm8sb   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-np6sd   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-tx9wh   0/1       Pending   0          5m
+standardpriority-f86f4fdfb-zfkfk   0/1       Pending   0          25s</pre>
+<p>&nbsp;</p>
+<p><em>Kubernetes scheduler je opravdu velmi chytrý a komplikovaný, nicméně díky konstruktům jako je Node a Pod affinita, Taints nebo Pod priority jsme schopni jeho chování efektivně ovlivnit aniž bychom se pouštěli do nějaké složité matematiky nebo psaní vlastního scheduleru.</em></p>

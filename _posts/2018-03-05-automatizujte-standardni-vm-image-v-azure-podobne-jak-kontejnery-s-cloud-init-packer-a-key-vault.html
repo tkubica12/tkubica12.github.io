@@ -1,0 +1,40 @@
+---
+layout: post
+status: publish
+published: true
+title: Automatizujte standardní VM image v Azure podobně jak kontejnery s cloud-init,
+  Packer a Key Vault
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1936
+wordpress_url: http://tomaskubica.cz/?p=1936
+date: '2018-03-05 06:31:08 +0000'
+date_gmt: '2018-03-05 05:31:08 +0000'
+categories:
+tags:
+- Automatizace
+- Compute
+---
+<p>Pokud si vyzkoušíte kontejnery a Kubernetes a pak potřebujete jít zpět do světa VM (třeba protože vaše aplikace nejsou ještě připravené), bude vám řada věcí chybět. Některé koncepty ale fungují s využitím správných nástrojů i pro VM! Podívejme se jak do VM v Azure předávat informace (podobně jako lze poslat kontejneru proměnné prostředí nebo Config Map v Kubernetes), jak automatizovaně vytvářet image s kompletně rozchozenou aplikací (něco jako Dockerfile) nebo jak bezpečným způsobem vyzvedávat tajnosti jako jsou hesla či certifikáty (podobně jako Kubernetes Secret).<!--more--></p>
+<h1>Cloud-init: automatizace VM a předávání informací</h1>
+<p>Pokud pracujete v Linux prostředí existuje standardní mechanismus fungující hned v několika cloudových prostředích včetně Azure - cloud-init. Tomu při vytváření VM poskytnete deklarativní konfigurační soubor a první start VM zajistí vytvoření všeho potřebného. Existují různé moduly, například můžete jednoduše vytvářet uživatelské účty a skupiny, spouštět skripty, předávat konfigurační údaje, instalovat balíčky. Výhodou tohoto přístupu je, že funguje napříč různými IaaS.</p>
+<p>Podívejte se jak na to zde: <a href="https://github.com/tkubica12/azureimage-automation#standardized-cloud-init-for-linux-in-any-cloud">https://github.com/tkubica12/azureimage-automation#standardized-cloud-init-for-linux-in-any-cloud</a></p>
+<h1>Nativní automatizace a předávání informací s Azure agentem</h1>
+<p>Cloud-init je sice univerzálnější, ale Azure agent má také své zásadní výhody. Jedná se o agenta, který je součástí základních image v Azure a to jak Linux tak Windows. Je dobře integrovaný s portálem a obsahuje VM Extension, tedy automatizační rozšíření, které umí dokonfigurovat VM. Já budu používat CustomScript, který funguje jak v Linux tak Windows. Můžete jej přidat kdykoli v průběhu života VM (tedy nejen při vytváření).</p>
+<p>Funguje to tak, že mašině předáte URL souborů ke stažení (skripty, konfigurační soubory, binárky) a agent zajistí jejich transfer do adresáře uvnitř VM. Velmi dobré je, že to lze integrovat s Azure Blob Storage včetně přihlášení, ale dá se samozřejmě namířit na libovolné URL. Jakmile jsou soubory nakopírovány spustí agent příkaz, který mu řeknete (commandToExecute). Nejčastěji tak součástí kopírovaných souborů bude nějaký skript, kterému následně předáte řízení.</p>
+<p>Vyzkoušejte si podle mého návodu zde: <a href="https://github.com/tkubica12/azureimage-automation#azure-native-solution-with-proprietary-agent">https://github.com/tkubica12/azureimage-automation#azure-native-solution-with-proprietary-agent</a></p>
+<h1>Automatická tvorba předinstalovaných image s Packer</h1>
+<p>Open source projekt Packer z dílny firmy Hashicorp, tvůrců infrastrukturního automatizačního nástroje Terraform, vám umožňuje získat chování podobné Dockerfile z kontejnerů. V zásadě nejde o nic složitého, jen automatizaci jednoduchého workflow s cílem se snadno dostat ze základního image do stavu, kdy je ve vašem image kompletně předinstalováno co potřebujete. Můžete se tak k VM chovat stejně jako ke kontejnerům a považovat je za immutable, dalo by se také říct virtuální appliance - virtuální "bedýdnka", kterou stačí už jen zapnout.</p>
+<p>Co Packer automatizuje? V zásadě potřebujete vzít startovní image v cloudu, vytvořit z něj dočasnou VM a připojit se do ní. Následně nainstalovat co potřebujte (skriptem, Ansiblem, Chefem), pak VM sanitizovat a vypnout a vytvořit z ní nový image. Na závěr zlikvidovat všechny dočasně vytvořené zdroje. Packer odděluje IaaS práci (builder- například pro Azure) od práce uvnitř VM (provisioner - například skript). To umožňuje vytvářet konzistentní immutable image znova a znova nebo nad různými prostředími. Tak například spousta lidí přemýšlí, jak nejlépe vyřešit konverzi jejich VM pro VMware, Hyper-V, KVM a Azure a často naráží na potíže (drivery, nenaběhlé instance apod.). Jasně, lze to řešit třeba s Azure Site Recovery. Ale jde to i jinak - použijte Packer. Vezmete startovací image specifický pro každé prostředí (například prázdný RHEL image) a v každém prostředí automatizovaně vybudujete hotový nainstalovaný image použitím stejného provisioneru, tedy s konzistentním výsledkem. Místo přenášení image mezi platformami tak můžete image jednoduše automatizovaně vytvářet ve všech platformách najednou.</p>
+<p>Vrhněte se na to, tady mám návod: <a href="https://github.com/tkubica12/azureimage-automation#automated-image-creation-with-packer">https://github.com/tkubica12/azureimage-automation#automated-image-creation-with-packer</a></p>
+<h1>Bezpečná distribuce tajností s Managed Service Identity a Azure Key Vault</h1>
+<p>Automatizace je skvělá, ale nemyslím, že je dobrý nápad ve stejných předpisech předávat citlivé informace jako jsou hesla či certifikáty. Automatizační skripty patří do version control, ale hesla ne! Navíc některé mechanismy předávání informací do VM nejsou zrovna bezpečné - objevují se v nějakém logu a tak podobně. Pojďme najít bezpečnější způsob.</p>
+<p>Tím je určitě oddělit automatizaci od správy tajností s využitím Azure Key Vault. Tento trezor pro vaše hesla či certifikáty může plnit pověřená osoba a přesně určovat kdo nebo co smí ke kterým tajnostem přistupovat. Do trezoru tedy věc uložíte a právoplatný účet v Azure Active Directory si ji může vyzvednout použitím jednoduchého REST API. Jak ale vyřešit ty účty v AAD, říkali jsme přece, že nechceme automatizovaně do VM předávat nějaké přihlašovací údaje. Skvělým řešením je Managed Service Identity. Azure při vytváření VM pro ni automaticky založí servisní účet v AAD (to se používá třeba pro automatizaci sebe sama, kdy několik serverů ve scale setové farmě může samo volat svůj Azure a žádat a o přiklonování kolegů) a toho využijeme pro Key Vault. Stačí tomuto servisnímu účtu umožnit vyzvedávání příslušných tajností. Potom zevnitř VM přes servisní účet získáme autentizační token a můžeme si tajnost velmi bezpečným způsobem vyzvednout.</p>
+<p>Myslím, že rozhodně stojí za to Key Vault využívat. Koukněte jak začít zde: <a href="https://github.com/tkubica12/azureimage-automation#passing-secrets-with-azure-key-vault">https://github.com/tkubica12/azureimage-automation#passing-secrets-with-azure-key-vault</a></p>
+<p>&nbsp;</p>
+<p><em>Možná vás krátký výlet do světa kontejnerů může inspirovat k optimalizaci vaší práce i ve světě VM. Některé koncepty totiž fungují i tam. Nemáte možnost dát vaše aplikace hned do kontejnerů? Přesuňte svoje existující VM do Azure IaaS a začněte využívat moderních nástrojů automatizace i bez přepisování kódu.</em></p>

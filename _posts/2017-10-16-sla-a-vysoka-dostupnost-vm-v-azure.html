@@ -1,0 +1,67 @@
+---
+layout: post
+status: publish
+published: true
+title: SLA a vysoká dostupnost VM v Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1464
+wordpress_url: http://tomaskubica.cz/?p=1464
+date: '2017-10-16 05:36:03 +0000'
+date_gmt: '2017-10-16 04:36:03 +0000'
+categories:
+tags:
+- Compute
+---
+<p>Jak fungují plánované a neplánované odstávky v cloudu? Jak dostat SLA na jednu konkrétní VM? A jak se díky zónám dostupnosti dostat na SLA 99,99%? Rozklíčujme to v dnešním článku.<!--more--></p>
+<p>V tomto textu se budeme zaměřovat pouze na provoz VM, tedy základní IaaS vrstvy. Rozhodně vám doporučuji využít platformní služby (PaaS), kdykoli můžete - databáze jako služba, weby a aplikační prostředí jako služba, práce s videem jako služba, datová analytika či machine learning jako služba apod. Tyto PaaS produkty efektivně pracují s podkladovou IaaS, která je pro vás skryta, a řeší všechny potřebné náležitosti pro práci clusteru, vysokou dostupnost na platformní úrovni apod. Můžete tak například získat 99,99% na databázi aniž byste museli přemýšlet jak konfigurovat a monitorovat cluster, využít různých prostředků VM redundance, nemusíte znát availability sety ani availability zóny, nemusí vás trápit jak řešit odstávky, jak za provozu patchovat OS a tak podobně.</p>
+<p>Nicméně - jsou situace, kdy potřebujete mít své specialitky i maximální flexibilitu a IaaS služby jsou pro vás správná volba. Jak tedy dělat vysoce dostupné aplikace v IaaS?</p>
+<h1>Jak fungují výpadky</h1>
+<p>Nejprve si popišme jak se řeší výpadky. Některé samozřejmě předvídat nelze (selhání hardware). Jiné lze na chviličku odložit a naplánovat, ale musí to být velmi rychle (security patch, selhávající hardware). Je ale i kategorie dlouhodbě plánovaných výpadků (odpis hardware, generační upgrade hypervisoru).</p>
+<h2>Nepředvídatelné neplánované výpadky</h2>
+<p>Co se bude dít, když fyzický server, na kterém je vaše VM, náhle selže? Samozřejmě tím se vypne vaše VM a přijdete o obsah temporary disku, který je hardwarově lokální ("Déčko" - D:\ resp. sdd). Nicméně disk s operačním systémem ("Céčko") a případně další datové disky jsou v distribuované storage ve třech kopiích a mimo váš server s VM. Azure tedy při selhání hardware automaticky zahájí spuštění VM na jiném fyzickém serveru. Protože kapacita cloudu je obrovská, vždy je po ruce dostatek "spare" kapacity.</p>
+<h2>Kritické krátkodobě naplánované výpadky</h2>
+<p>Jsou situace, kdy je potřeba provést operaci, která má vliv na dostupnost VM. V krajním případě přesunout VM na jiný fyzický stroj, což v cloudu znamená restart (provede se redeploy na jiném hardware). Nejčastější příčinou je selhávající hardware. Azure má obrovské množství serverů a ze všech se sbírá co nejvíc telemetrických údajů to jde. Následně to vše jde do masivního machine learning robota, který díky tomu dokáže s překvapivě vysokou přesností předvídat selhání hardware. Dříve byl tento scénář k vidění i při nutnosti aplikovat security patch do podloží, tedy hypervisoru - nicméně dnes už se většina situací řeší s daleko menším výpadkem. Buď jak buď - obě situace neznamenají okamžité selhání bez varování, nějaký čas tu k dispozici je, jenže ne nějak dlouhý - bezpečnostní rizika i selhávající hardware jsou vážné a nelze čekat týdny.</p>
+<p>Ve většině případů softwarových updatů v hypervisoru se dnes už nemusí vaše VM restartovat (jak tomu bylo před dvěma lety). Majorita patchů je prováděna se zachováním state vaší VM - dojde tedy jen k zapauzování na 0-30 vteřin (průměr je kolem 4s). Microsoft navíc nově implementuje ještě sofistikovanější metody jako je hot patch, které mají dopad na VM jen ve stovkách milisekund.</p>
+<p>Pokud chcete, může se aplikace ve vaší VM připravit. Azure vám dá obvykle alespoň 15 minut času reagovat (pro situace zapauzování a restartu, u redeploy, tedy stěhování na jiný stroj, je minimum 10 minut) - korektně uložit rozdělanou práci, signalizovat ostatním členům clusteru, že mají převzít řízení a tak podobně. Vaše VM se o plánované události dozví tak, že bude pravidelně provádět polling této adresy:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">curl -H Metadata:true http://169.254.169.254/metadata/scheduledevents?api-version=2017-03-01</pre>
+<p>Vracet se vám bude buď prázdná množina (když se na vás nic nechystá) nebo JSON v této struktuře:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+    "DocumentIncarnation": {IncarnationID},
+    "Events": [
+        {
+            "EventId": {eventID},
+            "EventType": "Reboot" | "Redeploy" | "Freeze",
+            "ResourceType": "VirtualMachine",
+            "Resources": [{resourceName}],
+            "EventStatus": "Scheduled" | "Started",
+            "NotBefore": {timeInUTC},              
+        }
+    ]
+}</pre>
+<p>Vidíte kdy k události dojde (NotBefore) a také jaký bude dopad - pouhé zapauzování (tedy do 30 vteřin bez ztráty paměti), reboot (relativně rychlý restart se zachováním obsahu temp disku) nebo redeploy (stěhování na jiný stroj). Mimochodem pokud začnete polling tohoto API dělat, Azure si uvědomí, že to děláte a změní chování administrátorem iniciovaného restartu. Pokud v GUI kliknete na restart u mašiny, která si provádí polling, dojde k vygenerování události s 15 minutovým NotBefore. Tedy restart se neprovede hned a aplikace je informována. Pokud už má uklizeno, může použitím POST metody signalizovat, že je připravena i dříve, než vyprší NotBefore.</p>
+<h2>Dlouhodobě naplánované výpadky</h2>
+<p>Jsou situace, kdy Azure potřebuje restartovat vaše VM, ale nejde o nic, co by nemohlo chvilku počkat. Možná je kousek hardware už na konci své životnosti, má na dnešní měřítka nadměrnou spotřebu a nízkou hustotu výpočetního výkonu, a je tedy nutné ho vyměnit. Nebo se jedná o náročný generační upgrade na úrovni hypervisoru, třeba přechod z 2012 R2 na 2016 (ten vyžaduje přesunout vaše VM - naposledy se něco takového v Azure dělo před rokem a půl a do budoucna se bude tato frekvence ještě víc snižovat, protože 2016 už má v sobě mnoho prostředků pro upgradování za chodu). Ve všech případech se dá pár dní, týdnů i jednotek měsíců počkat. Jak se to řeší v Azure?</p>
+<p>Jako zákazník dostanete notifikaci přímo v portálu (vyskočí na vás okno), ale můžete přidat i email, SMS, víc členů týmu apod. Dozvíte se, že nějaká VM potřebuje restart v horizontu třeba příštích 60 dní. Nemusíte dělat nic a Azure ji po 60 dnech sám restartuje, ale lepší je se přizpůsobit a naplánovat si odstávku na čas, který vyhovuje vám. Tedy řeknete Azure kdy "se vám to hodí".</p>
+<p>Při plánování výpadků Azure co nejvíce dodržuje update domény, zóny dostupnosti, regiony apod. Jinak řečeno pokud máte cluster v různých update doménách, nedostanou všechny avízo ve stejný čas.</p>
+<h1>SLA v Azure</h1>
+<p>Všechny výše uvedené metody přispívají k vysoké dostupnosti vašich VM v Azure. Popsal jsem compute část, ale je důležité vědět, že SLA na VM toho zahrnuje víc - jsou tam jak plánované tak neplánované odstávky, problémy ve storage i problémy se sítí! SLA na VM znamená, že minimálně po tento čas VM poběží a bude dosažitelná na své IP adrese. Vezměte to v úvahu při srovnání s vaší vlastní infrastrukturou - je v tom vše potřebné pro smyslupný běh VM a plánovaná odstávka není omluvou (není vyjmuta z počítaného SLA).</p>
+<p>Níže jsou informace o SLA - přesné právně závazné formulace hledejte prosím na oficiálním webu <a href="https://azure.microsoft.com/en-us/support/legal/sla/">https://azure.microsoft.com/en-us/support/legal/sla/</a></p>
+<h2>SLA na instanci jediného VM</h2>
+<p>Tady je vidět obrovská síla Azure - v okamžiku psaní tohoto článku toto konkurenční cloudy nenabízí. Pokud u své VM použijete Premium Storage dostanete SLA 99,9% na jedinou instanci VM. Pro legacy aplikaci, která nedokáže běžet v clusteru, je to dobrá zpráva - v jiných cloudech nemáte na konkrétní jedno VM garance vůbec žádné.</p>
+<h2>SLA na skupinu VM v Availability Setu</h2>
+<p>Azure umí garantovat SLA 99,95% na to, že dvě (a více) VM v Availability Setu budou s SLA 99,95% času fungovat tak, že alespoň jedna z nich běží. Máte-li na úrovni aplikace cluster, pak může mít vaše služba krásné 99,95% SLA. Availability Setem říkáte Azure, že tyto VM "patří k sobě" ve smyslu clusteru a Azure zajistí, že nepoběží na jedné fault doméně (tedy na jednom serveru nebo jen v jednom racku). Microsoft si další podmínky na SLA neklade, tedy uplatní se i pokud pouze jeden Availability Set má fatální potíže (konkurenční cloudy vyžadují, aby byl problém u všech vašich aplikací a jsou tam i další restrikce, kdy SLA neplatí).</p>
+<h2>Budoucnost - SLA na skupinu VM napříč Availability Zone</h2>
+<p>Microsoft se soustředí hodně na regionální expanzi, tedy přítomnost na co nejvíce míst na planetě a to zejména s ohledem na zákony a lokální uložení dat. Tak například v Evropě má Azure hlavní dva regiony v Dublinu a Amsterodamu (tzn. oboje na území EU). Kromě toho jsou dostupné dva regiony na území Velké Británie - v Londýně a Cardiffu, na území Německa jsou dva speciální "government" regiony ve Frankfurtu a Magdeburgu a velmi brzy budou spuštěny ještě dva regiony ve Francii a to v Paříži a Marseille. Tato strategie nabízí velmi zajímavé varianty disaster recovery a je odlišná od AWS či Google, kteří mají regionů o polovinu méně.</p>
+<p>Kromě regionální expanze se ale nově Azure soustředí i na zajištění ještě vyšší dostupnosti uvnitř regionů samotných. Jak Azure tak AWS nabízí SLA 99,95% na skupinu VM - jenže v Azure je to zajištěno Availability Setem, zatímco v AWS zónou dostupnosti (izolací datových center uvnitř regionu). Nově Microsoft ohlásil podporu pro zóny dostupnosti a jedním z prvních regionů s touto vlastností je West Europe.</p>
+<p>Pokud Azure stačí jen dát VM do jiného racku pro udržení SLA 99,95%, co se stane, když přibudou zóny dostupnosti? Správná otázka. Jakmile bude během několika měsíců Availability Zone v General Availability, bude mít SLA celých 99,99% - to zatím AWS ani Google nenabídl.</p>
+<h1>Chování regionů aneb jak jít ještě dál</h1>
+<p>V jiném článku na tomto blogu jsem popisoval přístupy k business continuity v Azure a jedním z nich byla i možnost dostat aplikaci do dvou regionů ať už jen pro DR, tak ve scénáři active/active (pokud jste nečetli a problematiká vás zajímá, mrkněte na to: <a href="https://tomaskubica.cz/jak-navrhnout-business-continuity-v-azure/">https://tomaskubica.cz/jak-navrhnout-business-continuity-v-azure/</a> ).</p>
+<p>Proč to dává smysl? Regiony jsou rozmyšleny tak, že jsou v geo-politických párech. Například West Europe a North Europe tvoří pár. Logicky dvě datová centra ve Francii jsou pár apod. Regiony jsou odděleny co do control plane, takže havárie jednoho nestrhne to druhé s sebou. Naopak. Pokud Microsoft implementuje nějakou změnu (release řídícího software) tak to nikdy nedělá v obou párových regionech současně - prevence, kdyby se něco nepovedlo.</p>
+<p>&nbsp;</p>
+<p><em>Nemůžete svou aplikaci nasadit v pořádném a dobře rozmyšleném clusteru? Nevadí, Azure vám dá SLA i na jedinou instanci VM, pokud použijete Premium Storage. Chcete aplikaci ve svých VM dopřát vysoké SLA? Využijte příslušných konstruktů - balancování, Availability Setů, zón dostupnosti, DR mezi regiony apod. Nebo chcete vysoké SLA pro svou webovou aplikaci, databázi či DNS jednoduše a na kliknutí, aby starost o správné nastavení HA převzal Microsoft? Použijte platformní služby Azure. </em></p>

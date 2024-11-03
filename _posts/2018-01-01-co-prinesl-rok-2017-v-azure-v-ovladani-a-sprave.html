@@ -1,0 +1,58 @@
+---
+layout: post
+status: publish
+published: true
+title: Co přinesl rok 2017 v Azure v ovládání a správě
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1821
+wordpress_url: http://tomaskubica.cz/?p=1821
+date: '2018-01-01 11:27:48 +0000'
+date_gmt: '2018-01-01 10:27:48 +0000'
+categories:
+tags:
+- Monitoring
+---
+<p>Rok je v cloudu dlouhá doba. V této sérii zpětných pohledů se pokouším ohlédnout za největšími novinkami, které rok 2017 přinesl. Ovládání samotného Azure přineslo za jediný rok velmi příjemné změny a co teprve možnosti správy VM nejen v Azure, ale i ve vašem datovém centru.<!--more--></p>
+<h1>Ovládání Azure a správa zdrojů.</h1>
+<p>V roce 2017 byla kompletně dokončena migrace na moderní portál a objevila se celá řada novinek zjednodušujících správu a to zejména v oblasti automatizace a podpoře pro Linuxově zaměřené administrátory. Kromě toho se v portálu objevilo mnoho nových možností pro diagnostiku a monitoring bez nutnosti procházet logy.</p>
+<h3>Azure CLI 2.0</h3>
+<p>Bez nadsázky si dovolím tvrdit, že Azure CLI 2.0 je příkladem naprosto ideální příkazové řádky pro cloud pro ty, kteří mají Linuxovější zaměření. Ostatně říká se, že PowerShell tým je jím rovněž fascinován a některé jeho vlastnosti chce do PowerShell pro Azure okopírovat. Pravda - bylo to až napodruhé. Předchozí CLI bylo napsáno v Node.JS a nebylo ideální. To nové je v Python (defacto standard pro dnešní CLI je obvykle Python nebo Go). První sada funkcionalit šla do obecné dostupnosti (GA) v únoru 2017.</p>
+<p>Proč je tak skvělé? Tak například obsahuje režim az interactive, který vám aktivně napovídá, ukazuje příklady a dokumentaci. Celé CLI je velmi rozsáhlé, přesto krásně konzistentní a logické. Velkou výhodou jsou dobře propracované defaults - základní verze objektů spustíte doslova na pár znaků, ale vždy můžete jít podstatně hluběji. Vrácená data můžete formátovat do tabulky, do jednotlivých hodnot (perfektní po parsování, resp. pak ani parsovat nemusíte) nebo JSON. Filtrovat vrácené údaje můžete standardním JMESPath. Vytváření zdrojů má jiný model, než PowerShell ekvivalent (v něm obvykle vytvoříte objekt v paměti, různými příkazy modifikujete jeho strukturu a následně aplikujeme). Hodně az příkazů má zabudovanou logiku - az aks umí na pozadí vytvořit servisní účet principála, jiný příkaz nainstaluje Kubernetes CLI vhodné verze, jiný stáhne přihlašovací údaje pro kubectl.</p>
+<h3>Azure Cloud Shell</h3>
+<p>Další moje velmi oblíbená novinka je Cloud Shell, tedy vaše pracovní stanice as a service přes webový prohlížeč. Přímo na portálu nebo přes shell.azure.com vám naběhne Bash interface s CLI (preview bylo v květnu a GA v listopadu) nebo PowerShell (preview od října). Na pozadí se pro vás zdarma spustí kontejner a do něj se napojíte přímo z webové konzole. Váš shell je rovnou zalogovaný (k webu už jste přihlášeni), nabízí perzistentní storage a obsahuje řadu důležitých dalších utilit jako je terraform či kubectl.</p>
+<h3>Network Watcher</h3>
+<p>Síťařina v cloudu byla v roce 2016 docela neviditelná. Jak řešit síťové dotazy? Například se podívat na směrovací informace? Skutečně použitá firewallová pravidla z Network Security Group? A co třeba získat packet trace, tedy zachytit pakety vstupující do VM aniž byste museli jít do VM samotné a instalovat tam Wireshark? A jak na monitoring a troubleshooting VPN nebo Express Route? A v neposlední řadě - nebyl by nějaký síťový obrázek zapojení? Přesně na to všechno vznikl Network Watcher, pro síťaře jistě nejdůležitější novinka co do správy Azure.</p>
+<h3>Azure mobilní aplikace</h3>
+<p>Víte, že Azure má i mobilní aplikaci? Ta obsahuje pouze základní věci - seznam zdrojů, možnost je filtrovat a vyhledávat a především vzdáleně zapnout a vypnout VM (ideální, pokud máte testovací prostředí a chcete si ho takhle večer u televize vypnout a ušetřit pár kaček). Dále můžete také spouštět Azure Automation úlohy, tak si připravíte sadu složitějších skriptů, které spustíte kliknutím v mobilní aplikaci. No ale ve skutečnosti můžete z mobilní aplikace dělat vlastně cokoli, protože obsahuje Cloud Shell. Ne, že bych chtěl často vyťukávat příkazy z mobilu (ale i to už se mi párkrát hodilo), ale na tabletu to rozhodně smysl dává.</p>
+<h3>Infrastructure as Code</h3>
+<p>V roce 2017 došlo k velkému rozšiřování podpory Azure v open source nástrojích pro správu a provisioning (nejen) Azure infrastruktury. Největší nárůst byl určitě v Terraform firmy Hashicorp - byla oznámena oficiální spolupráce, během roku došlo k dramatickému rozšíření modulů pro Azure a Terraform je dokonce předinstalovaný v Azure Cloud Shell. U ostatních Infrastructure as Code nástrojů byl rovněž vývoj hodně znát, zejména v Ansible od Red Hat. Azure tak navazuje na již existující podporu nástrojů jako je Puppet nebo Chef.</p>
+<h3>Azure Advisor</h3>
+<p>Jak používáte Azure? Technologie díky telemetrii dokáže sbírat údaje a na základě nich dávat doporučení z pohledu bezpečnosti, vysoké dostupnosti, nákladů apod. Služba Azure Advisor byla v preview už v listopadu 2016 a v průběhu roku 2017 se dostala do plné dostupnosti.</p>
+<h3>Cloudyn</h3>
+<p>Jak spravovat vaše náklady v Azure efektivně? Chcete mít schopnost predikce budoucnosti, měření různými řezy (po odděleních, po typech prostředích apod.), dostávat doporučení na optimalizaci nákladů, přeúčtovávat nebo srovnávat náklady v různých cloudech? Microsoft v červnu 2017 oznámil akvizici specialisty na tuto oblast - firmy Cloudyn. Ke konci roku už byla služba dostupná pro EA zákazníky a postupně i pro další modely nákupu Azure.</p>
+<h3>Azure Health, maintenance apod.</h3>
+<p>V červnu 2017 oznámil Azure velmi zajímavou službu - Azure Health. Jde o ucelený systém jak sledovat dostupnost vašeho prostředí v Azure a také jak komunikovat plánované odstávky, informovat o neplánovaných apod. V této části portálu se podíváte co se aktuálně děje, zda se případné problémy dotýkají vašich zdrojů (a jakých), pokud je plánovaná odstávka (například nutnost provést reboot nějaké z vašich VM) dostanete tady příslušné informace a možnost si v nějaké periodě naplánovat kdy je pro vás odstávka nejpřijatelnější. Tyto všechny informace jsou dostupné i přes API, takže je můžete integrovat do svých systémů či ITSM nástrojů.</p>
+<h3>Instance Metadata Service</h3>
+<p>Správa není jen o přístupu zvenku, ale od roku 2017 také ve značné míře o tom, co o sobě může zjistit samotná VM. Jinak řečeno uvnitř VM se váš software může dozvědět spoustu důležitých věcí tím, že bude pollovat speciální neroutovatelnou adresu 169.254.169.254. Díky tomu se váš software může dozvědět o svém jménu a dalších metadatech nebo také o svém umístění (region, zóna dostupnosti, fault a update doména). To umožňuje software se správně nastavit například s ohledem na region ve kterém je aplikace spuštěna nebo nastavení správného režimu redundance (dobrý příkladem může být Cassandra, která využije těchto informací ke správnému namapování na svoje replikační a HA vlastnosti). Kromě toho se VM může dozvědět o chystaných výpadcích jako je krátkodobé zapauzování či reboot (například včetně toho vynuceného vámi).</p>
+<h3>Azure Managed Applications</h3>
+<p>V září 2017 vstoupil do plné dostupnosti tento koncept umožňující vytvořit kompletní šablonu s vaším software (tak jak to mohou nabídnout ISV prodejci v Azure marketplace), ale tentokrát pro vaše interní potřeby nebo pro potřeby firmy, pro kterou Azure spravujete. IT oddělení nebo aplikační partner může vytvořit komplexní šablonu a někdo jiný ve firmě si software na kliknutí nainstaluje ve své subscription - tedy v jeho vlastním prostředí a na jeho náklady co do použitých zdrojů. Pokud ale chcete, můžete automaticky namapovat přístup k administraci aplikace pro poskytovatele ať už je to váš aplikační partner či IT oddělení. Jinak řečeno můžete vytvářet svůj vlastní katalog služeb.</p>
+<h1>Hybridní správa VM</h1>
+<p>Azure se dokáže nejen starat o zdroje, objekty vytvářené v Azure, ale i o vnitřek vašich VM díky agentům. Tato funkce už ale není závislá na Azure. Dokážete cloud využít k monitoringu, analýze a zajištění bezpečnosti pro vaše VM běžící kdekoli - v Azure, ve vašem datovém centru, hostingu či konkurenčním cloudu.</p>
+<h3>Azure Security Center</h3>
+<p>Bezpečnostní centrum Azure se narodilo už v polovině roku 2016, tak proč ho mám mezi novinkami? Jeho zaměření a vlastnosti se totiž během roku 2017 změnily naprosto zásadně.</p>
+<p>Pro zdroje v Azure pracoval Microsoft na Azure Security Center. To dává smysl díky některým unikátním možnostem v Azure, například zajištění Just-in-time access (v zásadě auditovatelná automatizace přístupů do VM na úrovni firewallu). Současně pro hybridní svět pracoval na OMS, kde rovněž dávají smysl věci, které v Azure ne (monitoring Hyper-V, VMware, napojení na System Center). V průběhu roku 2017 ale došlo (a to je myslím velmi dobře) ke sjednocení obou přístupů a ASC i OMS postupně konverguje do jediného univerzálního řešení bezpečnosti,</p>
+<p>Hlavní novinky roku 2017? Především v září došlo k rozšíření ASC pro hybridní svět, tedy podpora pro VM jinde než v Azure. Moc se mi líbí WAF as a Service a to nejen pro Azure Application Gateway, ale i automatický provisioning a sběr údajů z Imperva, F5, Barracuda a Fortinet. Kromě WAF existují další integrace například do Microsoft ATA, Check Point, Cisco, Trend Micro, Qualys nebo Symantec.</p>
+<h3>OMS: Service Map</h3>
+<p>V produktu pro hybridní správu OMS se toho v roce 2017 stalo tolik, že vyjmenování by bylo na samostatný článek. Přesto zmíním jednu novinku, která se mi nesmírně líbí, a která přišla v dubnu 2017. Jde o schopnost na základě sledování síťových komunikací agenetem ve VM vykreslit vztahy této VM s okolím po stránce komunikační až na úroveň jednotlivých procesů. Tedy kudy komunikace vstupují do VM a jaká spojení vytváří VM se svým okolím. To vše zanáší do grafu v reálném čase a umožňuje tak krásnou vizualizaci těchto dependencies a do obrázku promítá a další posbírané údaje z OMS jako jsou výkonnostní charakteristiky, bezpečnostní incidenty, nainstalované aplikace apod.</p>
+<h3>Log Analytics nové generace</h3>
+<p>Základní stavební blok pro OMS i ASC je engine pro sběr a analýzu logů včetně machine learning vlastností. Ten v roce 2017 prošel obrovskou změnou a to migraci na zcela jiný jazyk a engine pod kapotou. Jde nyní o řešení, které interně Azure vyvíjel mnoho let primárně pro své potřeby (support apod.), později se stal enginem pro Azure Application Insights a v roce 2017 i pro Log Analytics včetně OMS a ASC.</p>
+<h3>Azure Migrate</h3>
+<p>Nástroj OMS dokáže posbírat informace o vašich VM, jejich vytíženosti, provázanosti, nainstalovaných aplikacích, operačním systému apod. Azure Advisor zase dokáže poradit jak se sizingem VM, například pokud je nějaká málo využívána co do zatížení CPU a obsazenosti RAM, doporučí jiný (levnější) model. Azure Site Recovery je zase komplexní řešení pro DR, které se ale často používá i pro migraci VM z on-premises do Azure - funguje přes agenta, který VM zaživa replikuje do cloudu za plného provozu. Co takhle dát tohle všechno dohromady, ještě něco přidat, zjednodušit to do jednoho řešení, které se zaměří na všechno pro migraci do Azure od assesmentu přes doporučení až po samotnou migraci? Přesně tohle je cílem Azure Migrate - od 2017 v preview.</p>
+<p>&nbsp;</p>
+<p><em>Ovládání Azure i hybridní správa učinily v roce 2017 fantastický pokrok. A jak je to se síťařinou, infrastrukturou, kontejnery,  správou, datovými službami nebo aplikačními platformami? Čtěte další články na tomto blogu a vyzkoušejte Azure ještě dnes.</em></p>

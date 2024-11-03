@@ -1,0 +1,560 @@
+---
+layout: post
+status: publish
+published: true
+title: Úvod do Azure CLI 2.0
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 91
+wordpress_url: http://tomaskubica.cz/?p=91
+date: '2017-07-31 06:14:32 +0000'
+date_gmt: '2017-07-31 05:14:32 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Jak už na tomto blogu psal v úvodu do ovládání Azure přes PowerShell - GUI portálu se mi líbí a rád ho používám, ale jsou situace kdy je textový režim rychlejší a hlavně automatizovatelný skripty. PowerShell je dobře čitelný a mám moc rád jeho schopnosti parsování výstupu (například dáte celý příkaz do závorky, za ni dáte tečku a PowerShell bere výstup příkazu jako objekt, z kterého chcete vypsat atribut za tečkou). Tradiční Linux CLI je zase velmi úsporné a rychle se v něm dělá. Parsování je sice  textové, ale zažité. V dnešním článku si zkusíme CLI pro Azure.</p>
+<h1>Azure CLI 2.0</h1>
+<p>Většina moderních CLI je napsána v Python (o je třeba případ DC/OS CLI) nebo Go (například Docker CLI nebo kubectl v Kubernetes). Azure CLI 2.0 je v Pythonu, který je dobře dostupný všude (předchozí generace Azure CLI označovaná jako xplat-cli byla v Javascriptu, takže pro běh jste museli nainstalovat Node.JS a npm balíčky ... to mě zas tolik neoslovilo).</p>
+<p>Na MacOS, v Linuxu i Windows (nebo Ubuntu user space ve Windows 10) můžete po instalaci Python instalovat CLI přes pip:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">pip install azure-cli</pre>
+<p>Ve Windows CMD vám ale nebude fungovat automatické doplňování. Já osobně dávám jednoznačně přednost Docker kontejneru, který má v sobě všechno potřebné a nemusím se s ničím trápit ani hledat kde co stáhnout nebo nainstalovat:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">docker run -it azuresdk/azure-cli-python:latest bash</pre>
+<p>Co CLI nabízí?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az
+
+     /\
+    /  \    _____   _ _ __ ___
+   / /\ \  |_  / | | | 
+<p>Nejlprve se nalogujeme. Pokud používáte Microsoft account nebo dvou faktorovou autentizaci nestačí zadat jméno a heslo přímo z CLI, bezpečnostní nároky jsou větší. Dostanete tedy odkaz a vygenerovaný kód. Musíte na web, zadat tento kód a přihlásit se v prohlížeči. CLI samo pozná, až to bude hotové a pak už budete zůstávat jen v řádce.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az login
+To sign in, use a web browser to open the page https://aka.ms/devicelogin and enter the code CRCTHQJEQ to authenticate.</pre>
+<p>Vyzkoušejme si help a nakonec vypíšeme resource groupy. Výstup lze různě formátovat. Výchozí je JSON, my teď použijeme table a užitečné je také tsv (tabulátorem oddělené hodnoty - ideální pro parsování typu xargs).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group --help
+
+Group
+    az group: Commands to manage resource groups.
+
+Subgroups:
+    deployment: Commands to execute or manage ARM deployments.
+
+Commands:
+    create    : Create a new resource group.
+    delete    : Delete resource group.
+    exists    : Checks whether resource group exists.
+    export    : Captures a resource group as a template.
+    list      : List resource groups, optionally filtered by a tag.
+    show      : Get a resource group.
+    update
+    wait
+
+$ az group list --help
+
+Command
+    az group list: List resource groups, optionally filtered by a tag.
+
+Arguments
+    --tag      : A single tag in 'key[=value]' format. Use '' to clear existing tags.
+
+Global Arguments
+    --debug    : Increase logging verbosity to show all debug logs.
+    --help -h  : Show this help message and exit.
+    --output -o: Output format.  Allowed values: json, jsonc, list, table, tsv.  Default: json.
+    --query    : JMESPath query string. See http://jmespath.org/ for more information and examples.
+    --verbose  : Increase logging verbosity. Use --debug for full debug logs.
+$ az group list -o table
+Name     Location        Status
+-------  --------------  ---------
+auto     westeurope      Succeeded
+ftp      westeurope      Succeeded
+funkce   southcentralus  Succeeded
+mujnh    westeurope      Succeeded
+mujteam  westeurope      Succeeded
+search   westeurope      Succeeded
+sql      westeurope      Succeeded
+storage  westeurope      Succeeded
+wp       westeurope      Succeeded</pre>
+<h2>Tradiční parsovací hrátky</h2>
+<p>Snažil jsem se přijít na něco, kde bych mohl nasadit tradiční parsovací záležitosti v Linuxu a tohle je výsledek. Řekněme, že jsme zapomněli u zdrojů v Azure používat tagy a teď potřebujeme informace o každé resource group, která končí na písmeno "e" :)</p>
+<p>Pojďme na to. Prvním příkazem vypíšeme všechny skupiny a atributy oddělíme tabulátorem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/auto westeurope      None    auto            None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/ftp  westeurope      None    ftp             None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/funkce       southcentralus  None    funkce         None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/mujnh        westeurope      None    mujnh          None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/mujteam      westeurope      None    mujteam        None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/search       westeurope      None    search         None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/sql  westeurope      None    sql             None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/storage      westeurope      None    storage        None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/wp   westeurope      None    wp              None</pre>
+<p>Čisté názvy vyparsujeme použitím awk.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}'
+auto
+ftp
+funkce
+mujnh
+mujteam
+search
+sql
+storage
+wp</pre>
+<p>Použijeme grep s RegEx, kterým nejdeme jen ty, co končí na "e".</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}' | grep e$
+funkce
+storage</pre>
+<p>Krása. Teď jen nasadíme xargs a řádek po řádku budeme volat ad group show příkaz pro jednotlivé skupiny končící na "e" a získáme tak o nich detaily.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}' | grep e$ | xargs -n 1 bash -c 'az group show --name $0'
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/funkce",
+  "location": "southcentralus",
+  "managedBy": null,
+  "name": "funkce",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/storage",
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "storage",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}</pre>
+<p>V mém případě jsou to resource group, ale podobným postupem byste třeba zastavili VM, jejichž název obsahuje nějaký výraz. Můžete filtrovat, řadit, vyhledávat a nad výsledky provádět nějaké operace. Stačí využít tradiční filozofii  Linuxu - jednoúčelové nástroje předávající si výstupy.</p>
+<h2>JMESPATH a pokročilé JSON dotazy</h2>
+<p>Azure CLI 2.0 podporuje velmi mocný query jazyk JMESPATH. Je pro mě úplně nový a určitě se k němu na tomto blogu vrátím podrobněji, protože vypadá velmi dobře. Takhle například můžeme vypsat názvy těch resource group, které jsou v regionu westeurope:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list --query "[?location == 'westeurope'].name"
+[
+  "auto",
+  "ftp",
+  "mujnh",
+  "mujteam",
+  "search",
+  "sql",
+  "storage",
+  "wp"
+]</pre>
+<p>Pokud se vám na mě nechce čekat, online zkoušečka je tady: <a href="http://jmespath.org/">http://jmespath.org/</a></p>
+<h2>Spustíme si VM a upravíme firewall</h2>
+<p>Vyzkoušejme si jednoduché vytvoření VM. Nejdřív si založíme resource group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group create --name azurecli --location westeurope
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli",
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "azurecli",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}</pre>
+<p>Vytvořme si Debian VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az vm create --name mojevm --resource-group azurecli --image Debian --admin-username tomas  --public-ip-address-dns-name mojevmdnsjmeno --authentication-type password --admin-password Azure12345678 --size Standard_DS1
+{
+  "fqdn": "mojevmdnsjmeno.westeurope.cloudapp.azure.com",
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Compute/virtualMachines/mojevm",
+  "macAddress": "00-0D-3A-24-6B-6E",
+  "privateIpAddress": "10.0.0.4",
+  "publicIpAddress": "52.166.9.117",
+  "resourceGroup": "azurecli"
+}</pre>
+<p>Podívejme se, jaké všechny zdroje v naší resource group máme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az resource list --resource-group azurecli -o table
+Name               ResourceGroup    Location    Type                                     Status
+-----------------  ---------------  ----------  ---------------------------------------  --------
+mojevm             azurecli         westeurope  Microsoft.Compute/virtualMachines
+mojevmVMNic        azurecli         westeurope  Microsoft.Network/networkInterfaces
+mojevmNSG          azurecli         westeurope  Microsoft.Network/networkSecurityGroups
+mojevmPublicIP     azurecli         westeurope  Microsoft.Network/publicIPAddresses
+mojevmVNET         azurecli         westeurope  Microsoft.Network/virtualNetworks
+vhd14848333064786  azurecli         westeurope  Microsoft.Storage/storageAccounts
+</pre>
+<p>Můžeme si třeba vypsat informace o Network Security Group, ale protože ve výpisu je toho hodně, použiji JMESPath query, abych si našel jen připojené interface.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg show  --name mojevmNSG --resource-group azurecli --query "networkInterfaces[]"
+[
+  {
+    "dnsSettings": null,
+    "enableAcceleratedNetworking": null,
+    "enableIpForwarding": null,
+    "etag": null,
+    "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkInterfaces/mojevmVMNic",
+    "ipConfigurations": null,
+    "location": null,
+    "macAddress": null,
+    "name": null,
+    "networkSecurityGroup": null,
+    "primary": null,
+    "provisioningState": null,
+    "resourceGroup": "azurecli",
+    "resourceGuid": null,
+    "tags": null,
+    "type": null,
+    "virtualMachine": null
+  }
+]</pre>
+<p>Vypišme si pravidla této NSG.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg rule list --nsg-name mojevmNSG --resource-group azurecli
+[
+  {
+    "access": "Allow",
+    "description": null,
+    "destinationAddressPrefix": "*",
+    "destinationPortRange": "22",
+    "direction": "Inbound",
+    "etag": "W/\"1dd03b2d-0910-488f-882c-c55c69661526\"",
+    "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkSecurityGroups/mojevmNSG/securityRules/default-allow-ssh",
+    "name": "default-allow-ssh",
+    "priority": 1000,
+    "protocol": "Tcp",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "azurecli",
+    "sourceAddressPrefix": "*",
+    "sourcePortRange": "*"
+  }
+]</pre>
+<p>Přidejme pravidlo pro webový provoz.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg rule create --access Allow --destination-address-prefix "*" --destination-port-range 80 --direction InBound --source-address-prefix "*" --source-port-range "*" --protocol Tcp --priority 201 --name web --nsg-name mojevmNSG -
+-resource-group azurecli
+{
+  "access": "Allow",
+  "description": null,
+  "destinationAddressPrefix": "*",
+  "destinationPortRange": "80",
+  "direction": "Inbound",
+  "etag": "W/\"e0239a44-2d18-4cd0-a316-222b79c0467e\"",
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkSecurityGroups/mojevmNSG/securityRules/web",
+  "name": "web",
+  "priority": 201,
+  "protocol": "Tcp",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "azurecli",
+  "sourceAddressPrefix": "*",
+  "sourcePortRange": "*"
+}</pre>
+<p>Jakmile nás to už nebude bavit, můžeme zase všechno smazat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group delete --name azurecli --no-wait</pre>
+<h1>Interaktivní režim</h1>
+<p>Azure CLI 2.0 nabízí (myslím že aktuálně v Preview) interaktivní režim. Místo spouštění CLI z vašeho prostředí (bash, cmd apod.) můžete skočit do interaktivního režimu. Výhodou je jednak to, že můžete být rychlejší (nemusíte psát pořád "az") ale hlavně tento režim vám napovídá jak příkazy pokračují, navrhuje na co a jak se zeptat. Skočíme do interaktivního režimu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az interactive</pre>
+<p>Jakmile napíšete nějaké slovo, Azure radí jak dál.</p>
+<p id="imCFXno"><img class="img-fluid wp-image-1114 " src="/images/2017/img_596e1305060e8.png" alt="" /></p>
+<p>Když slovo dokončíte, Azure CLI vám dole poradí co to vlastně dělá a navrhne další klíčová slova.</p>
+<p id="WXMhXRA"><img class="img-fluid wp-image-1115 " src="/images/2017/img_596e1337b7301.png" alt="" /></p>
+<p>Někdy vám CLI napoví jaké typické příkazy se používají. Například tady v dolní části navrhuje jak omezit jaké VM se vypisují.</p>
+<p id="vaQrwji"><img class="img-fluid wp-image-1116 " src="/images/2017/img_596e13754fc2c.png" alt="" /></p>
+<p>Výsledky jsou velmi přehledné můžete scrollovat.</p>
+<p id="PGbsDql"><img class="img-fluid wp-image-1117 " src="/images/2017/img_596e13fdbc174.png" alt="" /></p>
+<p>Stisknutím F3 se můžete podívat na některé klávesové zkratky.</p>
+<p id="ejsZZuH"><img class="img-fluid wp-image-1118 " src="/images/2017/img_596e14334a36e.png" alt="" /></p>
+<h1>Cloud Shell</h1>
+<p>Klasický počítač s Windows, Linux nebo Mac vám snadno umožní nainstalovat a používat Azure CLI 2.0. Ale co když jste na cestách a používáte počítač, který není váš nebo nechcete či nemůžete CLI nainstalovat? Co když potřebujete příkazovou řádku i z mobilního zařízení? Právě pro tyto situace je k dispozici Cloud Shell. Přímo v Azure portálu kliknete na jeho ikonku a z HTML5 budete připojeni do systému s Azure CLI a dokonce už budete rovnou zalogovaní.</p>
+<p>Pokud to děláte poprvé, musíte nejprve namapovat storage. Proč? Ať se připojíte odkudkoli zůstané vám přístup do vašeho domovského adresáře (proto ona perzistentní storage). Můžete tak mít k dispozici například vaše bash sktipty apod.</p>
+<p id="IjZtIoH"><img class="img-fluid wp-image-1121 " src="/images/2017/img_5978892da0d96.png" alt="" /></p>
+<p>Pak už běžně CLI používáte.</p>
+<p id="PXGyoxL"><img class="img-fluid wp-image-1122 " src="/images/2017/img_59788a3696950.png" alt="" /></p>
+<p>Stejně tak můžete využít CLI z Azure aplikace ve vašem mobilu.</p>
+<p>&nbsp;</p>
+<p><em>Takhle se tedy pracuje s Azure CLI 2.0. Vyzkoušejte si.</em></p>
+__/ _ \
+  / ____ \  / /| |_| | | |  __/
+ /_/    \_\/___|\__,_|_|  \___|
+
+
+Welcome to the cool new Azure CLI!
+
+Here are the base commands:
+
+    account          : Manage subscriptions.
+    acr              : Manage Azure Container Registries.
+    acs              : Manage Azure Container Services.
+    ad               : Synchronize on-premises directories and manage Azure Active Directory
+                       resources.
+    appservice       : Manage your App Service plans.
+    batch            : Manage Azure Batch.
+    billing          : Manage Azure Billing.
+    cdn              : Manage Azure Content Delivery Networks (CDN).
+    cloud            : Manage the registered Azure clouds.
+    cognitiveservices: Manage Cognitive Services accounts in Azure Resource Manager.
+    component        : Manage and update Azure CLI 2.0 components.
+    configure        : Configure Azure CLI 2.0 or view your configuration. The command is
+                       interactive, so just type `az configure` and respond to the prompts.
+    consumption      : Manage Azure Consumption.
+    cosmosdb         : Manage Azure Cosmos DB database accounts.
+    disk             : Manage Azure Managed Disks.
+    dla              : Commands to manage Data Lake Analytics accounts, jobs, and catalogs.
+    dls              : Commands to manage Data Lake Store accounts, and filesystems.
+    feature          : Manage resource provider features, such as previews.
+    feedback         : Loving or hating the CLI?  Let us know!
+    find             : Find Azure CLI commands based on a given query.
+    functionapp      : Manage your function app.
+    group            : Manage resource groups and template deployments.
+    image            : Manage custom Virtual Machine Images.
+    interactive      : Start the interactive experience.
+    iot              : Connect, monitor, and control millions of IoT assets.
+    keyvault         : Safeguard and maintain control of keys, secrets, and certificates.
+    lab              : Commands to manage DevTest Labs.
+    lock             : Manage Azure locks.
+    login            : Log in to access Azure subscriptions.
+    logout           : Log out to remove access to Azure subscriptions.
+    managedapp       : Manage template solutions provided and maintained by the ISV using managedapp
+                       and managedapp definitions.
+    monitor          : Commands to manage Azure Monitor service.
+    mysql            : Commands to manage Azure Database for MySQL servers.
+    network          : Manages Azure Network resources.
+    policy           : Manage resource policies.
+    postgres         : Commands to manage Azure Database for PostgreSQL servers.
+    provider         : Manage resource providers.
+    redis            : Access to a secure, dedicated cache for your Azure applications.
+    resource         : Manage Azure resources.
+    role             : Use role assignments to manage access to your Azure resources.
+    sf               : Manage and administer a Service Fabric cluster.
+    snapshot         : Manage point-in-time copies of managed disks, native blobs, or other
+                       snapshots.
+    sql              : Manage Azure SQL Databases and Data Warehouses.
+    storage          : Durable, highly available, and massively scalable cloud storage.
+    tag              : Manage resource tags.
+    vm               : Provision Linux or Windows virtual machines in seconds.
+    vmss             : Create highly available, auto-scalable Linux or Windows virtual machines.
+    webapp           : Manage web apps.</pre>
+<p>Nejlprve se nalogujeme. Pokud používáte Microsoft account nebo dvou faktorovou autentizaci nestačí zadat jméno a heslo přímo z CLI, bezpečnostní nároky jsou větší. Dostanete tedy odkaz a vygenerovaný kód. Musíte na web, zadat tento kód a přihlásit se v prohlížeči. CLI samo pozná, až to bude hotové a pak už budete zůstávat jen v řádce.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az login
+To sign in, use a web browser to open the page https://aka.ms/devicelogin and enter the code CRCTHQJEQ to authenticate.</pre>
+<p>Vyzkoušejme si help a nakonec vypíšeme resource groupy. Výstup lze různě formátovat. Výchozí je JSON, my teď použijeme table a užitečné je také tsv (tabulátorem oddělené hodnoty - ideální pro parsování typu xargs).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group --help
+
+Group
+    az group: Commands to manage resource groups.
+
+Subgroups:
+    deployment: Commands to execute or manage ARM deployments.
+
+Commands:
+    create    : Create a new resource group.
+    delete    : Delete resource group.
+    exists    : Checks whether resource group exists.
+    export    : Captures a resource group as a template.
+    list      : List resource groups, optionally filtered by a tag.
+    show      : Get a resource group.
+    update
+    wait
+
+$ az group list --help
+
+Command
+    az group list: List resource groups, optionally filtered by a tag.
+
+Arguments
+    --tag      : A single tag in 'key[=value]' format. Use '' to clear existing tags.
+
+Global Arguments
+    --debug    : Increase logging verbosity to show all debug logs.
+    --help -h  : Show this help message and exit.
+    --output -o: Output format.  Allowed values: json, jsonc, list, table, tsv.  Default: json.
+    --query    : JMESPath query string. See http://jmespath.org/ for more information and examples.
+    --verbose  : Increase logging verbosity. Use --debug for full debug logs.
+$ az group list -o table
+Name     Location        Status
+-------  --------------  ---------
+auto     westeurope      Succeeded
+ftp      westeurope      Succeeded
+funkce   southcentralus  Succeeded
+mujnh    westeurope      Succeeded
+mujteam  westeurope      Succeeded
+search   westeurope      Succeeded
+sql      westeurope      Succeeded
+storage  westeurope      Succeeded
+wp       westeurope      Succeeded</pre>
+<h2>Tradiční parsovací hrátky</h2>
+<p>Snažil jsem se přijít na něco, kde bych mohl nasadit tradiční parsovací záležitosti v Linuxu a tohle je výsledek. Řekněme, že jsme zapomněli u zdrojů v Azure používat tagy a teď potřebujeme informace o každé resource group, která končí na písmeno "e" :)</p>
+<p>Pojďme na to. Prvním příkazem vypíšeme všechny skupiny a atributy oddělíme tabulátorem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/auto westeurope      None    auto            None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/ftp  westeurope      None    ftp             None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/funkce       southcentralus  None    funkce         None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/mujnh        westeurope      None    mujnh          None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/mujteam      westeurope      None    mujteam        None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/search       westeurope      None    search         None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/sql  westeurope      None    sql             None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/storage      westeurope      None    storage        None
+/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/wp   westeurope      None    wp              None</pre>
+<p>Čisté názvy vyparsujeme použitím awk.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}'
+auto
+ftp
+funkce
+mujnh
+mujteam
+search
+sql
+storage
+wp</pre>
+<p>Použijeme grep s RegEx, kterým nejdeme jen ty, co končí na "e".</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}' | grep e$
+funkce
+storage</pre>
+<p>Krása. Teď jen nasadíme xargs a řádek po řádku budeme volat ad group show příkaz pro jednotlivé skupiny končící na "e" a získáme tak o nich detaily.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list -o tsv | awk '{print $4}' | grep e$ | xargs -n 1 bash -c 'az group show --name $0'
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/funkce",
+  "location": "southcentralus",
+  "managedBy": null,
+  "name": "funkce",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/storage",
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "storage",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}</pre>
+<p>V mém případě jsou to resource group, ale podobným postupem byste třeba zastavili VM, jejichž název obsahuje nějaký výraz. Můžete filtrovat, řadit, vyhledávat a nad výsledky provádět nějaké operace. Stačí využít tradiční filozofii  Linuxu - jednoúčelové nástroje předávající si výstupy.</p>
+<h2>JMESPATH a pokročilé JSON dotazy</h2>
+<p>Azure CLI 2.0 podporuje velmi mocný query jazyk JMESPATH. Je pro mě úplně nový a určitě se k němu na tomto blogu vrátím podrobněji, protože vypadá velmi dobře. Takhle například můžeme vypsat názvy těch resource group, které jsou v regionu westeurope:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group list --query "[?location == 'westeurope'].name"
+[
+  "auto",
+  "ftp",
+  "mujnh",
+  "mujteam",
+  "search",
+  "sql",
+  "storage",
+  "wp"
+]</pre>
+<p>Pokud se vám na mě nechce čekat, online zkoušečka je tady: <a href="http://jmespath.org/">http://jmespath.org/</a></p>
+<h2>Spustíme si VM a upravíme firewall</h2>
+<p>Vyzkoušejme si jednoduché vytvoření VM. Nejdřív si založíme resource group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group create --name azurecli --location westeurope
+{
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli",
+  "location": "westeurope",
+  "managedBy": null,
+  "name": "azurecli",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null
+}</pre>
+<p>Vytvořme si Debian VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az vm create --name mojevm --resource-group azurecli --image Debian --admin-username tomas  --public-ip-address-dns-name mojevmdnsjmeno --authentication-type password --admin-password Azure12345678 --size Standard_DS1
+{
+  "fqdn": "mojevmdnsjmeno.westeurope.cloudapp.azure.com",
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Compute/virtualMachines/mojevm",
+  "macAddress": "00-0D-3A-24-6B-6E",
+  "privateIpAddress": "10.0.0.4",
+  "publicIpAddress": "52.166.9.117",
+  "resourceGroup": "azurecli"
+}</pre>
+<p>Podívejme se, jaké všechny zdroje v naší resource group máme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az resource list --resource-group azurecli -o table
+Name               ResourceGroup    Location    Type                                     Status
+-----------------  ---------------  ----------  ---------------------------------------  --------
+mojevm             azurecli         westeurope  Microsoft.Compute/virtualMachines
+mojevmVMNic        azurecli         westeurope  Microsoft.Network/networkInterfaces
+mojevmNSG          azurecli         westeurope  Microsoft.Network/networkSecurityGroups
+mojevmPublicIP     azurecli         westeurope  Microsoft.Network/publicIPAddresses
+mojevmVNET         azurecli         westeurope  Microsoft.Network/virtualNetworks
+vhd14848333064786  azurecli         westeurope  Microsoft.Storage/storageAccounts
+</pre>
+<p>Můžeme si třeba vypsat informace o Network Security Group, ale protože ve výpisu je toho hodně, použiji JMESPath query, abych si našel jen připojené interface.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg show  --name mojevmNSG --resource-group azurecli --query "networkInterfaces[]"
+[
+  {
+    "dnsSettings": null,
+    "enableAcceleratedNetworking": null,
+    "enableIpForwarding": null,
+    "etag": null,
+    "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkInterfaces/mojevmVMNic",
+    "ipConfigurations": null,
+    "location": null,
+    "macAddress": null,
+    "name": null,
+    "networkSecurityGroup": null,
+    "primary": null,
+    "provisioningState": null,
+    "resourceGroup": "azurecli",
+    "resourceGuid": null,
+    "tags": null,
+    "type": null,
+    "virtualMachine": null
+  }
+]</pre>
+<p>Vypišme si pravidla této NSG.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg rule list --nsg-name mojevmNSG --resource-group azurecli
+[
+  {
+    "access": "Allow",
+    "description": null,
+    "destinationAddressPrefix": "*",
+    "destinationPortRange": "22",
+    "direction": "Inbound",
+    "etag": "W/\"1dd03b2d-0910-488f-882c-c55c69661526\"",
+    "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkSecurityGroups/mojevmNSG/securityRules/default-allow-ssh",
+    "name": "default-allow-ssh",
+    "priority": 1000,
+    "protocol": "Tcp",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "azurecli",
+    "sourceAddressPrefix": "*",
+    "sourcePortRange": "*"
+  }
+]</pre>
+<p>Přidejme pravidlo pro webový provoz.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az network nsg rule create --access Allow --destination-address-prefix "*" --destination-port-range 80 --direction InBound --source-address-prefix "*" --source-port-range "*" --protocol Tcp --priority 201 --name web --nsg-name mojevmNSG -
+-resource-group azurecli
+{
+  "access": "Allow",
+  "description": null,
+  "destinationAddressPrefix": "*",
+  "destinationPortRange": "80",
+  "direction": "Inbound",
+  "etag": "W/\"e0239a44-2d18-4cd0-a316-222b79c0467e\"",
+  "id": "/subscriptions/4fd63c38-a6be-4fb1-ac9e-ab1781af69ad/resourceGroups/azurecli/providers/Microsoft.Network/networkSecurityGroups/mojevmNSG/securityRules/web",
+  "name": "web",
+  "priority": 201,
+  "protocol": "Tcp",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "azurecli",
+  "sourceAddressPrefix": "*",
+  "sourcePortRange": "*"
+}</pre>
+<p>Jakmile nás to už nebude bavit, můžeme zase všechno smazat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az group delete --name azurecli --no-wait</pre>
+<h1>Interaktivní režim</h1>
+<p>Azure CLI 2.0 nabízí (myslím že aktuálně v Preview) interaktivní režim. Místo spouštění CLI z vašeho prostředí (bash, cmd apod.) můžete skočit do interaktivního režimu. Výhodou je jednak to, že můžete být rychlejší (nemusíte psát pořád "az") ale hlavně tento režim vám napovídá jak příkazy pokračují, navrhuje na co a jak se zeptat. Skočíme do interaktivního režimu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ az interactive</pre>
+<p>Jakmile napíšete nějaké slovo, Azure radí jak dál.</p>
+<p id="imCFXno"><img class="img-fluid wp-image-1114 " src="/images/2017/img_596e1305060e8.png" alt="" /></p>
+<p>Když slovo dokončíte, Azure CLI vám dole poradí co to vlastně dělá a navrhne další klíčová slova.</p>
+<p id="WXMhXRA"><img class="img-fluid wp-image-1115 " src="/images/2017/img_596e1337b7301.png" alt="" /></p>
+<p>Někdy vám CLI napoví jaké typické příkazy se používají. Například tady v dolní části navrhuje jak omezit jaké VM se vypisují.</p>
+<p id="vaQrwji"><img class="img-fluid wp-image-1116 " src="/images/2017/img_596e13754fc2c.png" alt="" /></p>
+<p>Výsledky jsou velmi přehledné můžete scrollovat.</p>
+<p id="PGbsDql"><img class="img-fluid wp-image-1117 " src="/images/2017/img_596e13fdbc174.png" alt="" /></p>
+<p>Stisknutím F3 se můžete podívat na některé klávesové zkratky.</p>
+<p id="ejsZZuH"><img class="img-fluid wp-image-1118 " src="/images/2017/img_596e14334a36e.png" alt="" /></p>
+<h1>Cloud Shell</h1>
+<p>Klasický počítač s Windows, Linux nebo Mac vám snadno umožní nainstalovat a používat Azure CLI 2.0. Ale co když jste na cestách a používáte počítač, který není váš nebo nechcete či nemůžete CLI nainstalovat? Co když potřebujete příkazovou řádku i z mobilního zařízení? Právě pro tyto situace je k dispozici Cloud Shell. Přímo v Azure portálu kliknete na jeho ikonku a z HTML5 budete připojeni do systému s Azure CLI a dokonce už budete rovnou zalogovaní.</p>
+<p>Pokud to děláte poprvé, musíte nejprve namapovat storage. Proč? Ať se připojíte odkudkoli zůstané vám přístup do vašeho domovského adresáře (proto ona perzistentní storage). Můžete tak mít k dispozici například vaše bash sktipty apod.</p>
+<p id="IjZtIoH"><img class="img-fluid wp-image-1121 " src="/images/2017/img_5978892da0d96.png" alt="" /></p>
+<p>Pak už běžně CLI používáte.</p>
+<p id="PXGyoxL"><img class="img-fluid wp-image-1122 " src="/images/2017/img_59788a3696950.png" alt="" /></p>
+<p>Stejně tak můžete využít CLI z Azure aplikace ve vašem mobilu.</p>
+<p>&nbsp;</p>
+<p><em>Takhle se tedy pracuje s Azure CLI 2.0. Vyzkoušejte si.</em></p>

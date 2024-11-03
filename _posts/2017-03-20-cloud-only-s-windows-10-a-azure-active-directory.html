@@ -1,0 +1,56 @@
+---
+layout: post
+status: publish
+published: true
+title: Cloud-only s Windows 10 a Azure Active Directory
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 287
+wordpress_url: http://tomaskubica.cz/?p=287
+date: '2017-03-20 06:19:39 +0000'
+date_gmt: '2017-03-20 05:19:39 +0000'
+categories:
+tags:
+- AAD
+---
+<p>Naprostá většina firem má za sebou dlouhou historii různých operačních systémů, aplikací a IT. V souvislosti s řízením identit tak často nasazují hybridní přístupy, například integraci Active Directory v on-premise prostředí s Azure Active Directory, Azure AD Domain Services nebo federované služby. Co když ale jste malá firma, která chce být komplet v cloudu a nepotřebujete klasické (někdo by řekl legacy) protokoly jako je NTLM nebo Kerberos? Jak vypadají identity v cloud-only scénáři?</p>
+<p><!--more--></p>
+<h1>Založíme si vlastní doménu v Azure Active Directory</h1>
+<p>Pokud používáte některou ze služeb Office365 (což je nepochybně obrovské téma pro cloud-only firmy), už asi doménové jméno v cloudu máte. V mé Azure subscription jsem začleněn v doméně Microsoft, tak jsem si vytvořil ještě jinou. Stačí přidat doménu. V tomto dialogu se vyplní jen jméno a musíte vytvořit doménové jméno ve formátu něco.onmicrosoft.com (jak později uvidíte, to nahradíme vlastní doménou později).</p>
+<p id="KAmRrpV"><img class="img-fluid wp-image-288 " src="/images/2017/img_589d729a5868b.png" alt="" /></p>
+<p>Až bude doména připravena, přidáme si svou vlastní.</p>
+<p id="nnhObbW"><img class="img-fluid wp-image-290 " src="/images/2017/img_589d72e16f9b8.png" alt="" /></p>
+<p>Budeme muset dokázat, že ji skutečně vlastníme. To se řeší zápisem do DNS záznamů (to najdete obvykle u toho, kdo vám doménu zaregistroval) - zapíšete vygenerovaný kód do záznamů a Azure si je přečte, čímž potvrdíte vládu nad doménou (DNS je eventuálně konzistentní distribuovaný systém, takže bude desítky minut trvat, než se informace zreplikuje po světě a vám se ověření podaří).</p>
+<p id="mZCjMKR"><img class="img-fluid wp-image-292 " src="/images/2017/img_589d737033adb.png" alt="" /></p>
+<p>Až se všechno ověří, uděláme z této domény primární.</p>
+<p id="OGtmZBw"><img class="img-fluid wp-image-293 " src="/images/2017/img_589d73847d7d9.png" alt="" /></p>
+<p>Přidejme si do domény nového uživatele.</p>
+<p id="SiORllD"><img class="img-fluid wp-image-294 " src="/images/2017/img_589d743976af6.png" alt="" /></p>
+<p>Zadejte jeho údaje. Můžeme vytvářet skupiny apod., ale prozatím nic takového nepotřebujeme.</p>
+<p id="fTmUeHZ"><img class="img-fluid wp-image-295 " src="/images/2017/img_589d7513bb1c1.png" alt="" /></p>
+<h1>Přidejte Windows 10 do domény</h1>
+<p>Otevřeme si nastavení Windows 10.</p>
+<p id="rtAHYXW"><img class="img-fluid wp-image-299 " src="/images/2017/img_589d7e71ec8b0.png" alt="" /></p>
+<p>Vytvoříme "přístup do práce"</p>
+<p id="NSzOBGI"><img class="img-fluid wp-image-300 " src="/images/2017/img_589d7e9288d9a.png" alt="" /></p>
+<p>Zvolíme Azure Active Directory</p>
+<p id="zzRjycQ"><img class="img-fluid wp-image-301 " src="/images/2017/img_589d7eade2ac3.png" alt="" /></p>
+<p>Zadejte jméno a heslo (to jsme se dozvěděli při založení účtu v portálu). Uživatel bude následně donucen ke změně hesla.</p>
+<p id="KzTRasE"><img class="img-fluid wp-image-302 " src="/images/2017/img_589d7eca907e3.png" alt="" /></p>
+<p>Jsme tam.</p>
+<p id="vpAIdin"><img class="img-fluid wp-image-303 " src="/images/2017/img_589d7eea2fef9.png" alt="" /></p>
+<p id="jnLeabo"><img class="img-fluid wp-image-304 " src="/images/2017/img_589d7ef12d269.png" alt="" /></p>
+<p>Podívejme se teď do portálu a uživatele uvidíme jeho zařízení.</p>
+<p id="wNoPTvz"><img class="img-fluid wp-image-305 " src="/images/2017/img_589d7f0dc1902.png" alt="" /></p>
+<p id="aPfPoyS"><img class="img-fluid wp-image-306 " src="/images/2017/img_589d7f16bfa2c.png" alt="" /></p>
+<p><em>Dnes jsme si ukázali jednoduché přidání Windows 10 přímo do Azure Active Directory, tedy bez použití klasických protokolů doménového přihlášení. Chcete vaší firmu mít jen v cloudu? Tohle je důležitý střípek řešení.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

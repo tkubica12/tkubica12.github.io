@@ -1,0 +1,120 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak aktivovat bezpečnou vzdálenou správu Windows s WinRM a Azure Key Vault
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2107
+wordpress_url: http://tomaskubica.cz/?p=2107
+date: '2018-05-15 05:07:36 +0000'
+date_gmt: '2018-05-15 04:07:36 +0000'
+categories:
+tags:
+- Security
+- Compute
+---
+<p>Klasické nasazení Windows VM v Azure funguje tak, že aktivujete RDP, připojíte se do VM a uděláte co potřebujete (třeba zapnete WinRM, začleníte server do domény apod.). Půlroční releasy Windows 2016 už ale nepřichází s kompletním GUI, takže se přes RDP stejně napojíte rovnou na PowerShell a odtamtud pokračujete dál. Jak tenhle krok přeskočit a rovnou zprovoznit správu přes WinRM a Admin Center hned v rámci deploymentu?<!--more--></p>
+<h1>Vytvoříme trezor (Key Vault) a vygenerujeme certifikát</h1>
+<p>Vzdálený přístup přes WinRM potřebuje certifikát a Key Vault je způsob jak certifikát bezpečně uložit a dostat do VM. Máme v zásadě tři možnosti. Ideální enterprise přístup bude mít Microsoft Certification Authority a v té vygenerovat certifikát a uložit do trezoru v Azure. Druhá možnost je nechat Key Vault automaticky koupit certifikát u veřejné autority (ale to má finanční dopady). Já pro zkoušku zvolím třetí (méně bezpečnou metodu) a to bude self-signed certifikát.</p>
+<p>Nejprve tedy založím Resource Group a Key Vault. Protože později budeme importovat kořenový certifikát, můžeme to rovnou udělat v elevovaném PowerShell (Run As Administrator).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$trezor = "muj-winrm-trezor"
+$rg = "winrm-rg"
+
+New-AzureRmResourceGroup -Name $rg -Location westeurope
+
+New-AzureRmKeyVault -VaultName $trezor `
+    -ResourceGroupName $rg `
+    -Location westeurope `
+    -EnabledForDeployment `
+    -EnabledForTemplateDeployment</pre>
+<p>Self-signed certifikát mohu vygenerovat na stanici a naimportovat do trezoru, ale já půjdu ještě jednodušší cestou - nechám Key Vault self-signed certifikát vygenerovat. Common name nastavím na můj budoucí DNS záznam, aby fungovalo i ověření CN.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$policy = New-AzureKeyVaultCertificatePolicy -SubjectName "CN=moje-hezka-vm.westeurope.cloudapp.azure.com" `
+    -IssuerName Self `
+    -ValidityInMonths 12
+Add-AzureKeyVaultCertificate -VaultName $trezor `
+    -Name certifikat `
+    -CertificatePolicy $policy</pre>
+<p>Certifikát máme hotový.</p>
+<p id="UEXISLZ"><img class="img-fluid wp-image-2108 " src="/images/2018/img_5ae6a10856dbb.png" alt="" /></p>
+<h1>Certifikát si uložíme jako trusted root</h1>
+<p>Abychom při připojování mohli důvěřovat self-signed certifikátu, naimportujeme si ho jako trusted root na mé pracovní stanici.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$AzureKeyVaultSecret=Get-AzureKeyVaultSecret -VaultName $trezor -Name certifikat 
+$PrivateCertKVBytes = [System.Convert]::FromBase64String($AzureKeyVaultSecret.SecretValueText)
+$certObject = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 `
+    -argumentlist $PrivateCertKVBytes,$null, "Exportable, PersistKeySet"
+</pre>
+<p>S $certObject můžeme dál pracovat - třeba  z něj vytvořit PFX soubor (pro rozkopírování jinam), ale my ho rovnou naimportujeme do místní stanice.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$Certificatestore = New-Object System.Security.Cryptography.X509Certificates.X509Store -argumentlist "Root","LocalMachine"
+$Certificatestore.open("readWrite")
+$Certificatestore.Add($certObject)
+$Certificatestore.Close()</pre>
+<h1>Nastartujeme VM s certifikátem a WinRM</h1>
+<p>Při vytváření VM se na certifikát odkážeme a také zapneme WinRM. Pro jednoduchost si připravím prostředí (síť apod.) bez NSG (samozřejmě NSG bude lepší použít a nezapomeňte otevřít WinRM port 5986).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vmName = "mojeVM"
+$cred = Get-Credential -Message "Enter a username and password for the virtual machine."
+$subnetConfig = New-AzureRmVirtualNetworkSubnetConfig -Name mySubnet `
+    -AddressPrefix 192.168.1.0/24
+
+$vnet = New-AzureRmVirtualNetwork -ResourceGroupName $rg `
+    -Name vnet `
+    -AddressPrefix 192.168.0.0/16 `
+    -Location westeurope `
+    -Subnet $subnetConfig
+
+$pip = New-AzureRmPublicIpAddress -ResourceGroupName $rg `
+    -Name "publicip" `
+    -DomainNameLabel $vmName `
+    -AllocationMethod Dynamic `
+    -Location westeurope `
+    -IdleTimeoutInMinutes 4
+
+$nic = New-AzureRmNetworkInterface -Name myNic `
+    -ResourceGroupName $rg `
+    -SubnetId $vnet.Subnets[0].Id `
+    -Location westeurope `
+    -PublicIpAddressId $pip.Id</pre>
+<p>Načteme si URL secret objektu certifikátu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$secretURL = (Get-AzureKeyVaultCertificate -VaultName $trezor -Name certifikat).SecretId
+</pre>
+<p>Připravme si konfigurační objekt VM. V něm zapneme WinRM a odkážeme se na URL certifikátu. Použiji image 1709, který už neobsahuje GUI. Také jsem zvolil speciální variantu s menším diskem, protože pro moje účely to stačí (Linux mašiny mají standardně 32GB disk, zatímco Windows 128GB - nicméně pro některé varianty, kam patří i 1709, existuje image jen s 32GB diskem).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vmConfig = New-AzureRmVMConfig -VMName $vmName `
+    -VMSize Standard_B2ms | `
+    Set-AzureRmVMOperatingSystem -Windows `
+                                -ComputerName $vmName `
+                                -Credential $cred `
+                                -WinRMHttps `
+                                -WinRMCertificateUrl $secretURL | `
+    Set-AzureRmVMSourceImage -PublisherName MicrosoftWindowsServer `
+        -Offer WindowsServerSemiAnnual `
+        -Skus Datacenter-Core-1709-smalldisk `
+        -Version latest | `
+    Add-AzureRmVMNetworkInterface -Id $nic.Id</pre>
+<p>Do konfiguračního objektu musíme ještě přidat secrets, tedy znovu URL certifikátu a také URL trezoru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$sourceVaultId = (Get-AzureRmKeyVault -ResourceGroupName $rg -VaultName $trezor).ResourceId
+$CertificateStore = "My"
+$vmConfig = Add-AzureRmVMSecret -VM $vmConfig -SourceVaultId $sourceVaultId -CertificateStore $CertificateStore -CertificateUrl $secretURL
+</pre>
+<p>Máme hotovo - vytvořme VM.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">New-AzureRmVM -ResourceGroupName $rg -VM $vmConfig -Location westeurope
+</pre>
+<h1>Připojíme se na vzdálený PowerShell</h1>
+<p>Jakmile VM naběhne uložíme si URL pro WinRM a skočíme dovnitř.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$url = "https://moje-hezka-vm.westeurope.cloudapp.azure.com:5986"
+Enter-PSSession -ConnectionUri $url -Credential $cred -Authentication Negotiate
+</pre>
+<p>Úspěch! A nemuseli jsme vůbec použít RDP :)</p>
+<p>Pokud z nějakého důvodu nemůžete naimportovat certifikát nebo nechcete řešit Common Name, můžete tyto kontroly vypnout (ale je to pochopitelně méně bezpečné, protože nevíte jistě k čemu se připojujete).</p>
+<p>&nbsp;</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">Enter-PSSession -ConnectionUri $url -Credential $cred `
+    -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck) `
+    -Authentication Negotiate</pre>
+<p>Co jsme právě udělali je myslím výborné řešení pro některé vývojové scénáře a svým ražením se dost podobá Linuxovému přístupu, takže pokud máte hybridní prostředí, můžete používat podobné techniky. Pro produkční nasazení bych doporučoval používat platnou CA a následně začlenit stroj do domény tak, jak jste zvyklí. Nicméně je fajn mít možnost tohle udělat vzdáleně bez vzdálené plochy, kterou můžeme poslat do důchodu.</p>
+<p>Mimochodem možná vás napadlo, že teď můžete na server rovnou napojit nový Admin Center. V době psaní článku (začátek května 2018) ale to ještě nepodporuje WinRM over HTTPS, pouze nešifrovanou variantu, což považuji za zásadní omezení. Projekt je ale na začátku, tak předpokládám, že se podpora zabezpečeného přístupu brzy objeví.</p>
+<p><em>Dnes jsme si ukázali jak rozjet vzdálenou správu Windows serverů bez použití RDP a to velmi bezpečně. </em></p>
+<p>&nbsp;</p>

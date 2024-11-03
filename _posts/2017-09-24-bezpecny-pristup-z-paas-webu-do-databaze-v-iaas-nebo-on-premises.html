@@ -1,0 +1,99 @@
+---
+layout: post
+status: publish
+published: true
+title: Bezpečný přístup z PaaS webu do databáze v IaaS nebo on-premises
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1356
+wordpress_url: http://tomaskubica.cz/?p=1356
+date: '2017-09-24 18:12:31 +0000'
+date_gmt: '2017-09-24 17:12:31 +0000'
+categories:
+tags:
+- Networking
+- AppService
+- ServiceBus
+---
+<p>Platformní služba, například aplikace běžící v Azure App Service, je v principu veřejná služba. Pokud přistupojete k platformní databázi (Azure SQL, MySQL, Postgresql, Cosmos DB) tak se tak děje na úrovni public endpointů, ale zůstává uvnitř Microsoft sítě (nejde přes Internet). Totéž platí pro DB v IaaS VM s veřejnou IP adresou. Co když ale potřebujete přistupovat k databázi, která z nějakých důvodů musí zůstat s privátní adresou? Podívejme se na možnosti.<!--more--></p>
+<p>První řešení by bylo místo multi-tenantní platformy zvolit vytvoření vašeho vlastního PaaS ve vašem VNETu. Něco takového je možné a jmenu je so App Service Isolated (dříve App Service Environment) - všechny potřebné komponenty včetně balancingu, SSL akcelerace, deployment a monitoring prostředků budou pro vás plně dedikované a poběží ve vašem VNETu. To je fajn, ale připravte se na vyšší cenu. Obrovským přínosem cloudu jsou výnosy z rozsahu a rozpuštění některých nákladů - toho v tomto režimu nedosáhnete. Pro  tajné interní aplikace nevhodné pro cestovatele i doma pracující zaměstnance dobrá volba. Ale pro v principu veřejné aplikace případně moderní řešení například mobilní služby dostupné pro zaměstance odkudkoli to je možná zbytečné. Front-end dobře, ale co když stále trvám na tom, že data v platformní službě nechci - musí zůstat ve VM ať už v cloudu nebo u mě?</p>
+<p>První možností je protunelování PaaS služby do VNETu. V čem je rozdíl oproti Isolated režimu? PaaS služba zůstává multi-tenantní, tedy finančně výhodná a velmi flexibilní a její endpoint (přístup uživatelů) je stále veřejný. Služba není nasazena ve VNETu. Jenže dokáže vytvořit point-to-site VPN spojení do vašeho VNETu a přes takový NAT a VPN se doubouchat na VM ve VNETu nebo samozřejmě VM ve vašem datovém centru, pokud ho propojíte s Azure přes site-to-site VPN či ExpressRoute. To je první varianta - neplatíte za izolovaný PaaS, ale musíte si připočítat náklad na VPNku a tuto hlavně musí pro lidi od aplikací obvykle sestavit síťaři. Jak ji jednou máte je to levné a výkonné řešení.</p>
+<p>Druhá varianta nevyužívá klasického VPN tunelu, ale šifrovaného portového překladu. V zásadě u vás nainstalujete službu, která se připojí do cloudu (tedy ta služba může zůstat za NATem) a totéž udělá PaaS služba. Toto místo v cloudu bude pakety přehazovat zleva doprava a zpět, přebalovat z jednoho šifrovaného tunelu do druhého. Nepotřebujete VPN, nepotřebujete síťaře a protunelujete se snadno - stačí povolený přístup do internetu (outbound na 80,443, což nebývá u síťařů problém zařídit). Pro malé aplikace je to levné a snadné. Druhý scénář kdy bych byl rozhodně pro tuto variantu je situace, kdy aplikace běží například na vašich prodejnách. Hrabat se ve stovce IPSec tunelů je náročné na správu a takhle to bude jednodušší.</p>
+<p>Podívejme se na zmíněné dvě varianty podrobněji.</p>
+<h1>VPN tunel z PaaS do IaaS VNETu</h1>
+<p>První řešení jak se dostat do privátního IP prostoru je protunelování do VNETu. K tomu potřebujeme mít ve VNETu nasazenu Azure VPN s povoleným P2S přístupem. Nejprve tedy založíme spojovačku, čili gateway subnet.</p>
+<p id="omrdvVP"><img class="img-fluid wp-image-1357 " src="/images/2017/img_598c2fb62b631.png" alt="" /></p>
+<p id="aRojESf"><img class="img-fluid wp-image-1358 " src="/images/2017/img_598c2fd6aa880.png" alt="" /></p>
+<p>Vytvoříme Virtual Network Gateway.</p>
+<p>&nbsp;</p>
+<p id="JAwrpFw"><img class="img-fluid wp-image-1359 " src="/images/2017/img_598c3029dcd12.png" alt="" /></p>
+<p>Až bude VPN připravena, přidejme jeden další rozsah pro point-to-site přístupy (aka klienstkou VPN). App Service, veřejná PaaS služba, bude vytáčet klienstkou VPN do našeho VNETu a pod tímto adresním prostorem tam bude vystupovat.</p>
+<p id="gaBPAXd"><img class="img-fluid wp-image-1361 " src="/images/2017/img_598c4d5ad4ba6.png" alt="" /></p>
+<p>Podívejme se teď na kód primitivní Node.js aplikace, která bude chtít přistupovat na MySQL server, který běží v mém privátním prostoru. Connection údaje jsou zapsané rovnou v kódu (fuj!) - omluvte zjednodušení a skutečně tam nepatří, mají být součástí až deploymentu jako je ConnectionString v App Service nebo jako environmentální proměnné po startu Docker kontejneru apod.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="js">var express = require('express');
+var app = express();
+var mysql      = require('mysql');
+
+var connection = mysql.createConnection({
+  host     : '10.2.0.4',
+  user     : 'tomas',
+  password : 'Azure12345678',
+  database : 'mojedb'
+});
+
+app.get('/', function (req, res) {
+    connection.connect();
+    connection.query('SELECT * from mojetabulka', function(err, rows, fields) {
+      if (!err)
+        res.send('Precetli jsme si: ' + rows[0].jmeno);
+      else
+        res.send('Spojeni se nazdarilo.');
+    });
+});
+
+app.set('port', process.env.PORT || 3000);
+
+var server = app.listen(app.get('port'), function () {
+    console.log('Express server posloucha na portu ' + server.address().port);
+});</pre>
+<p>Jakmile aplikaci nasadíme dle očekávání selže. PaaS služba netuší nic o vašich VNETech a privátních adresách.</p>
+<p id="KpabRDf"><img class="img-fluid wp-image-1362 " src="/images/2017/img_598c4e88314af.png" alt="" /></p>
+<p>Vytvoříme si teď tunel do VNETu. Půjdeme do Web App a na záložce Networking se pustíme do nastavení integrace s VNETem.</p>
+<p id="sSWebyW"><img class="img-fluid wp-image-1363 " src="/images/2017/img_598c4eeab694c.png" alt="" /></p>
+<p>V seznamu vhodných VNETu si vybereme ten správný a potvrdíme. Azure za nás automaticky nastaví point-to-site tunelování včetně potřebných certifikátů.</p>
+<p>Heuréka - spojení funguje. Můžeme z PaaS přistupovat do databáze běžící v IaaS VM ve VNETu a pokud VNET propojíte s on-premises (S2S VPN nebo ExpressRoute) tak se může PaaS dostat až k databázi běžící u vás.</p>
+<p id="JJzcIBB"><img class="img-fluid wp-image-1364 " src="/images/2017/img_598c4fc9a81b9.png" alt="" /></p>
+<p>Kolik vás to bude stát? Nad rámec klasické App Service si připatíte za VPN gateway v Azure a to od asi 26 EUR měsíčně a za 100GB přenesených dat zplatíte asi 8 EUR. S jednou bránou můžete napojit hned několik Web App.</p>
+<h1>Hybrid Connection v2</h1>
+<p>Druhá varianta je velmi jednoduchá, nevyžaduje zásah síťaře a vychází levněji. Na druhou stranu nastavujete ji pro každou službu - pokud plánujete tisíce různých spojení služeb zpět do on-premises bude tunel do VNETu a odtamtud přes VPN asi rozumnější volba.</p>
+<p>Nejprve ve své App Service řekneme jak vypadá destination spojení (musí jít o doménové jméno, IP adresa nebuda fungovat).</p>
+<p id="JNeHYeP"><img class="img-fluid wp-image-1366 " src="/images/2017/img_598c5c7d78f0b.png" alt="" /></p>
+<p>Vytvoříme nové.</p>
+<p id="Evyqiyv"><img class="img-fluid wp-image-1367 " src="/images/2017/img_598c5caaeb7b0.png" alt="" /></p>
+<p id="yuMicGF"><img class="img-fluid wp-image-1368 " src="/images/2017/img_598c5cdf7d1d1.png" alt="" /></p>
+<p>Pro spojení se technogicky využívá technologie Service Bus Relay a průvodce pro nás jeden založí. Pojmenujeme si aplikaci a jako destination zadám tedy doménové jméno, port bude 3306 - na něm běží MySQL.</p>
+<p id="oUnoyfu"><img class="img-fluid wp-image-1376 " src="/images/2017/img_598c660af0103.png" alt="" /></p>
+<p>Spojení vytvořeno, ale nenavázáno. Stáhneme si klienskou aplikaci, kterou nainstalujeme v privátní síti na nějaký Windows stroj. Tato aplikace potřebuje jen běžný outbound na portech 80,443 - žádné speciální porty, žádné inbound spojení = obvykle žádné nastavování firewallu! To je hlavní výhodu použití této relay služby.</p>
+<p id="gQSLQdw"><img class="img-fluid wp-image-1371 " src="/images/2017/img_598c6034b7207.png" alt="" /></p>
+<p id="RrSyTwI"><img class="img-fluid wp-image-1377 " src="/images/2017/img_598c666496dfb.png" alt="" /></p>
+<p>Ve Windows stroji v privátní síti software nainstalujeme.</p>
+<p id="CeFToSk"><img class="img-fluid wp-image-1372 " src="/images/2017/img_598c610824f82.png" alt="" /></p>
+<p>Spustíme aplikaci a přidáme spojení.</p>
+<p id="sdTmjqQ"><img class="img-fluid wp-image-1373 " src="/images/2017/img_598c61416371b.png" alt="" /></p>
+<p>Po přihlášení do vaší subscription se vám načte seznam spojení.</p>
+<p id="SIqwqmq"><img class="img-fluid wp-image-1374 " src="/images/2017/img_598c64cd39324.png" alt="" /></p>
+<p id="bDxzTmH"><img class="img-fluid wp-image-1378 " src="/images/2017/img_598c66a0caeb9.png" alt="" /></p>
+<p>Vybereme, uložíme. Spojení je nahoře.</p>
+<p id="ZIPwRSw"><img class="img-fluid wp-image-1379 " src="/images/2017/img_598c66e9ae69e.png" alt="" /></p>
+<p>&nbsp;</p>
+<p id="dwtwqih">Připojení do databáze funguje!</p>
+<p id="TBfvIIz"><img class="img-fluid wp-image-1380 " src="/images/2017/img_598c6744d3a79.png" alt="" /></p>
+<p>Technologie na pozadí toho všeho je Azure Service Bus Relay a můžete ji samozřejmě použít i mimo App Service. Jde o službu, která vytváří jakési cloudové místo pro setkávání, které zafunguje jako prostředník spojení.</p>
+<p>Kolik vás tato služba bude stát? Jeden listener (aplikace) stojí asi 8 EUR měsíčně a prvních 5GB je zdarma, pak za asi 0,86 EUR za GB a měsíc. Pro jednotlivou jednoduchou aplikaci je to levnější, než VPN. Pro desítky aplikací s potřebou přistupovat do DB v on-premises a bude potřeba přenést hodně dat vyjde lépe VPNka.</p>
+<p>&nbsp;</p>
+<p><em>Preferuji moderně psané aplikace a přesun či synchronizaci dat do Azure platformní databáze. Pokud ale potřebujete nechat DB u sebe, je to řešitelné. Propojíte se do Azure VPNkou a nasadíte App Service do VNETu v Isolated režimu (o tom jindy - ideální pokud máte hodně intranetových aplikací). Dnes jsme si ukázali možnost provozovat multi-tenantní PaaS prostředí pro web a přitom se dostat k databázovému stroji u vás. Buď se PaaS protuneluje do VNETu přes VPNku (a odtamtud třeba až do on-premises) nebo využijete Azure Hybrid Connection (Service Bus Relay), kde se obejdete bez tunelů a otevřených portů. </em></p>

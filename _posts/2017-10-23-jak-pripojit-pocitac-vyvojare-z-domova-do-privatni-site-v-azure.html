@@ -1,0 +1,139 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak připojit počítač vývojáře z domova do privátní sítě v Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1520
+wordpress_url: http://tomaskubica.cz/?p=1520
+date: '2017-10-23 04:40:37 +0000'
+date_gmt: '2017-10-23 03:40:37 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Pokud potřebujete mít v Azure privátní prostředí bez veřejných IP adres, můžete se k němu připojit přes site-to-site VPN ve firmě, ExpressRoute ve spolupráci s operátorem a nebo vytočit VPN přímo ze svého počítače (point-to-site). Dnes se chci věnovat té poslední možnosti - jak si mohou například vývojáři vytočit VPNku do Azure.  Podíváme se na dvě varianty. Tou první bude nativní Azure VPN, což má řadu výhod, zejména perfektní integraci do Windows, ale i své limity. Proto se podíváme také na možnost použít VPN třetí strany. Může to být Fortinet, Checkpoint, Cisco, Palo Alto a tak podobně, ale my si ukážeme open source variantu SoftEther.</span></p>
+<p><!--more--></p>
+<h1>Azure VPN vs. SoftEhter pro point-to-site připojení</h1>
+<p>Nejprve si připomeňme scénář. Privátní síť v Azure (VNET) můžete připojit do své sítě site-to-site VPN tunelem nebo přes ExpressRoute. Občas ale můžete potřebovat, aby přímo klientská stanice, například notebook vývojáře, byla schopna do Azure VNET přistupovat. To samozřejmě můžete udělat vytočením VPN do své sítě a odtamtud do Azure, ale co když se vám hodí spíš přímé připojení? To řeší point-to-site tunely.  Ideální jsou takové, které běží na technologiích připomínajících přístupuna HTTPS stránku v Internetu. Tedy na portu 443 s využitím SSL/TLS - ty totiž bez problémů projdou různými domácími routery s NAT a filtrací portů s větší pravděpodobností, než klasický IPSec tunel.</p>
+<p>Proč Azure VPN pro P2S tunely? Je to služba, která je přímo integrovaná v Azure a nemusíte se tedy starat o nějakou VM, řešit jestli má všechny patche a instalovat VPN software apod. Pro Windows stanice je velmi jednoduchá a používá SSL/TLS spojení s Microsoft SSTP protokolem. Další výhodou je, že pokud stejně potřebujete Azure VPN pro site-to-site tunel, stačí P2S pouze nakonfigurovat na této gateway - neplatíte nic dalšího navíc.  Uživatele ověřujete klienstkým certifikátem a můžete přihlášení integrovat s AD domain services nebo RADIUS.</p>
+<p>Jaké jsou limity Azure VPN? Nepodporuje Linux a kromě Windows umí už jen Mac, ale tam se musí využít IPSec protokolu (který špatně prochází některými firewally). Počet současně připojených uživatelů je omezen na maximálně 128.</p>
+<p>Kdy použít SoftEther? Tato open source platforma nabízí (mimo jiné) otevřený OpenVPN protokol, který je postaven na SSL/TLS a je k dispozici pro Windows, Mac, Linux a dokonce existují i klienti pro mobilní operační systémy. Stejně jako Azure VPN můžete ověřovat klienty certifikátem, napojit se na AD či RADIUS. Limity na počet připojených uživatelů jsou podstatně vyšší. A nevýhody? Řešení si spravujete sami - poběží ve VM, o kterou se musíte starat a všechno je na vás.</p>
+<p>Kdy použít komerční virtuální appliance? Pokud ve vašem prostředí máte strategii nasazovat konkrétního výrobce, například Fortinet, můžete v tom pokračovat i v cloudu. Appliance najdete hotové v portálu, v Azure zaplatíte za použité zdroje (VM) a výrobci appliance za licenci a podporu (ať už přímo metodou bring-your-own license neno u některých výrobců s využitím pay-as-you-go minutové sazby přes Azure).</p>
+<h1>Azure VPN</h1>
+<p>Pokud ještě nemáme, vytvoříme si pro svůj VNET Azure VPN. Ujistěme se, že VNET má dostatek adresního prostoru.</p>
+<p id="CNIamZF"><img class="img-fluid wp-image-1555 " src="/images/2017/img_59e9bc6aa2bd9.png" alt="" /></p>
+<p>Vytvoříme VPN.</p>
+<p id="fonHVuG"><img class="img-fluid wp-image-1553 " src="/images/2017/img_59e9bba814b6c.png" alt="" /></p>
+<p>Zvolíme si svojí VNET, průvodce pro nás automaticky vytvoří "spojovačku" a přiřadíme/vytvoříme veřejnou IP, na které bude naše VPN poslouchat.</p>
+<p id="EvbCFId"><img class="img-fluid wp-image-1556 " src="/images/2017/img_59e9bd3f98af1.png" alt="" /></p>
+<p>V mezičase si připravíme certifikáty. Funguje to tak, že musíme mít certifikační autoritu, jejíž public klíč naimportujeme do Azure VPN (serverové strany). Následně touto autoritou budeme generovat certifikáty pro klienty (uživatele), kterými se budou do VPN připojovat. Já použiji openssl, ale můžete to udělat i v PowerShell nebo přes utilitku makecrt.exe</p>
+<p>Založíme si klíč pro certifikační autoritu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">openssl genrsa -out rootCA.key 2048</pre>
+<p>S tímto klíčem vytvoříme kořenový public certifikát. Současně ho rovnou ještě uložíme v DER souboru, který pak budeme importovat na klientech.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 1024 -out rootCA.pem
+openssl x509 -outform der -in rootCA.pem -out rootCA.der</pre>
+<div>
+<div><span style="font-size: 1rem;">Vytvoříme si certifikát pro konkrétního klienta. Nejprve uděláme privátní klíč, následně vygeneruje request pro podepsání a ten autoritou podepíšeme. V posledním kroku zkombinujeme certikát a klíč do PFX souboru (zabezpečeného heslem), který následně budeme importovat do klienta.</span></div>
+</div>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">openssl genrsa -out tomaspc.key 2048
+openssl req -new -key tomaspc.key -out tomaspc.csr
+openssl x509 -req -in tomaspc.csr -CA rootCA.pem -CAkey rootCA.key -CAcreateserial -out tomaspc.crt -days 500 -sha256
+openssl pkcs12 -export -inkey tomaspc.key -in tomaspc.crt -out tomaspc.pfx</pre>
+<p>Tím máme certifikáty připraveny.</p>
+<p>Až bude VPN nahoře, pustíme se do konfigurace point-to-site funkce.</p>
+<p id="nqWMuqH"><img class="img-fluid wp-image-1561 " src="/images/2017/img_59e9c5cd04cd6.png" alt="" /></p>
+<p>Pro připojené klienty potřebujeme přidělovat nějaké IP adresy - jiné, než ve VNETu. IPSec VPN používat nebudu, nechám zaškrtnutý jen SSTP.</p>
+<p id="yyaoCXM"><img class="img-fluid wp-image-1562 " src="/images/2017/img_59e9c920a0fa4.png" alt="" /></p>
+<p>Sjedeme níž a vložíme do konfigurace obsah souboru rootCA.pem mezi BEGIN a END certificate, tedy veřejný klíč naší certifikační autority.</p>
+<p id="GngqvyX"><img class="img-fluid wp-image-1564 " src="/images/2017/img_59e9c9a8184cd.png" alt="" /></p>
+<p>Uložíme a můžeme stahovat VPN klienta.</p>
+<p id="jaxBgps"><img class="img-fluid wp-image-1566 " src="/images/2017/img_59e9ca6e35f21.png" alt="" /></p>
+<p>Nejprve do klienta nakopírujeme PFX soubor s certifikátem a naimportujeme dvojím poklikem.</p>
+<p id="eUmGGjQ"><img class="img-fluid wp-image-1569 " src="/images/2017/img_59e9cd4f118b1.png" alt="" /></p>
+<p>Totéž musíme provést pro kořenový certifikát naší autority, tedy nakopírovat a poklepat na rootCA.der.</p>
+<p>Instalačku si nakopírujeme do klienta a nainstalujeme.</p>
+<p id="iiYXpDn"><img class="img-fluid wp-image-1567 " src="/images/2017/img_59e9cb87565d4.png" alt="" /></p>
+<p>VPN je přímo integrovaná do Windows. Klikněte na ikonku sítě a najdeme ji tam.</p>
+<p id="dxdatyT"><img class="img-fluid wp-image-1568 " src="/images/2017/img_59e9cc2f78a11.png" alt="" /></p>
+<p>To je všechno - teď už se stačí jen připojit!</p>
+<p id="pcqSLEq"><img class="img-fluid wp-image-1570 " src="/images/2017/img_59e9cf807936f.png" alt="" /></p>
+<p>Hotovo, jsme připojeni.</p>
+<p id="DgaEHPx"><img class="img-fluid wp-image-1571 " src="/images/2017/img_59e9cfd414c22.png" alt="" /></p>
+<h1>SoftEther a OpenVPN</h1>
+<p>Z pohledu protokolu se podíváme na OpenVPN. Na rozdíl od klasických IPSec tunelů, které mohou mít problémy dostat se přes různé NAT a potřebují specifické otevřené porty, funguje OpenVPN na TLS na běžném HTTPS portu 443. Ano - OpenVPN je z pohledu vašeho domácí firewallu stejná, jako přistupovat na HTTPS stránky. Čili něco, co je bezproblémově povoleno prakticky všude včetně kavárny či nákupního centra.</p>
+<p>Jako server a klienta můžeme použít přímo software projektu OpenVPN, ale ten není (alespoň ve své open source formě) jednoduchý na nastavení. Existuje ale krásný open source projekt, který je klikací, a který nejen podporuje OpenVPN, ale i přináší velmi pokročilé možnosti autentizace, integrace apod. jde o <a href="https://www.softether.org">https://www.softether.org</a></p>
+<h2>Instalace a nastavení VPN serveru</h2>
+<p>V Azure jsem si vytvořil VNET (privátní síť), v ní jednu testovací VM bez public IP adresy (do té se budu chtít dostat) a jednu Windows VM s public adresou - ta bude dělat VPN server. Stáhnu si instalačku z webu a nainstaluji SoftEther.</p>
+<p id="hWcAfXo"><img class="img-fluid wp-image-1521 " src="/images/2017/img_59e8dc353988f.png" alt="" /></p>
+<p id="rqgzSzP"><img class="img-fluid wp-image-1522 " src="/images/2017/img_59e8dc4e31313.png" alt="" /></p>
+<p>Po instalaci otevřeme konfigurační nástroj a připojíme se do lokální instance serveru (poprvé vás poprosí a založení hesla).</p>
+<p id="JkgShWf"><img class="img-fluid wp-image-1523 " src="/images/2017/img_59e8f16b4d943.png" alt="" /></p>
+<p>Vytvoříme se virtuální hub.</p>
+<p id="CHwAigz"><img class="img-fluid wp-image-1524 " src="/images/2017/img_59e8f18f86a06.png" alt="" /></p>
+<p id="KVXiRvh"><img class="img-fluid wp-image-1525 " src="/images/2017/img_59e8f1c11d514.png" alt="" /></p>
+<p>Výborně - pojďme si ho nastavit.</p>
+<p id="JpIsnOh"><img class="img-fluid wp-image-1526 " src="/images/2017/img_59e8f1ef6cb4d.png" alt="" /></p>
+<p>Přidáme si uživatele (jméno toho nebo těch, co se budou přihlašovat).</p>
+<p id="EiuJEaZ"><img class="img-fluid wp-image-1527 " src="/images/2017/img_59e8f21f9117c.png" alt="" /></p>
+<p id="UCdWUbI"><img class="img-fluid wp-image-1528 " src="/images/2017/img_59e8f244c560f.png" alt="" /></p>
+<p>Pro začátek můžeme (nedoporučuji pro praxi) použít jen jméno a heslo. Další možnost je klienstký certifikát, který můžeme přímo v software vygenerovat a uživatel se jím bude prokazovat. Můžete se ale dokonce napojit i na centrální identity řízení - buď RADIUS protoklem (například proti Microsoft NPS serveru) nebo NT login (pak ale musí být VPN server v doméně). Bohužel modernější metody jako je Open Connect ID, které by se napojilo přímo na Azure Active Directory podporované není, ale to je u VPN koncentrátorů zatím běžné.</p>
+<p id="tIiabZE"><img class="img-fluid wp-image-1529 " src="/images/2017/img_59e8f2f4742a7.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Dále musíme zapnout virtuální překlad adres a DHCP server pro připojené klienty. Tím zajistíme, že připojení klienti budou ve VNETu vystupovat pod IP adresou VPN serveru. To je samozřejmě krajně jednoduché řešení, ale v tomto příkladu mi jde právě o něco jednoduchého.</p>
+<p id="zrCPkxW"><img class="img-fluid wp-image-1530 " src="/images/2017/img_59e8f38b0766e.png" alt="" /></p>
+<p id="fJyGKTN"><img class="img-fluid wp-image-1531 " src="/images/2017/img_59e8f3ac364c1.png" alt="" /></p>
+<p>SoftEther pro vás vytvořil DDNS, tedy dynamické DNS jméno. To ale Azure umí také - na public IP si můžete nastavit záznam na něco.westeurope.cloudapp.azure.com. Co použijete je na vás, asi bych použil Azure a DDNS vypnul, ale je to celkem jedno.</p>
+<p>Svoje DDNS jméno najdete zde:</p>
+<p id="ROStYwS"><img class="img-fluid wp-image-1534 " src="/images/2017/img_59e8f5b54290d.png" alt="" /></p>
+<p>A DNS v Azure si můžete nastavit na public IP adrese.</p>
+<h2><img class="img-fluid wp-image-1535 " style="font-size: 1rem;" src="/images/2017/img_59e8f5d019633.png" alt="" />Připojíme klienta</h2>
+<p>Stáhneme si a nainstalujeme klienta - je k dispozici pro Windows, Linux a Mac. Pokud potřebujete ještě třeba Android, SoftEther server je kompatibilní s OpenVPN klienty, takže můžete použít na mobilech ty.</p>
+<p><span style="font-size: 1rem;">Přidáme si nové spojení.</span></p>
+<p id="scFfWct"><img class="img-fluid wp-image-1532 " src="/images/2017/img_59e8f486563ff.png" alt="" /></p>
+<p><span style="font-size: 1rem;">Protože nemáme zatím žádný virtuální adaptér, bude pro nás vytvořen.</span></p>
+<p id="MjQBmxz"><img class="img-fluid wp-image-1533 " src="/images/2017/img_59e8f4b0da9d6.png" alt="" /></p>
+<p>Nastavme si jednoduché připojení - nebudeme ověřovat certifikát (jen na chvilku, v praxi takhle nedělat!).</p>
+<p id="gwVoXdE"><img class="img-fluid wp-image-1536 " src="/images/2017/img_59e8f66b45e8d.png" alt="" /></p>
+<p>Připojte se.</p>
+<p id="BeQOsKx"><img class="img-fluid wp-image-1537 " src="/images/2017/img_59e8f69da34df.png" alt="" /></p>
+<p>Jsme tam! Klidně teď vyzkoušejte vzdálenou plochu na server ve VNETu, který nemá veřejnou IP.</p>
+<h2>Zabezpečíme si lépe</h2>
+<h3>Ověřování serverového certifikátu</h3>
+<p>V první řadě serverový certifikát chceme rozhodně ověřovat. Buď mu dejte platný certifikát třeba z vaší CA, nebo alespoň udělejme self-signed, který ale naimportujeme klientům.</p>
+<p>Na klientovi zapnu nutnost ověřování serverového certifikátu.</p>
+<p id="vGZSfLT"><img class="img-fluid wp-image-1538 " src="/images/2017/img_59e8f71446d76.png" alt="" /></p>
+<p>Když se teď pokusím spojit, neprojde to.</p>
+<p id="TOIPAhm"><img class="img-fluid wp-image-1539 " src="/images/2017/img_59e8f734f4191.png" alt="" /></p>
+<p>Na serveru se podíváme na certifikát.</p>
+<p id="GuZoODO"><img class="img-fluid wp-image-1540 " src="/images/2017/img_59e8f76624400.png" alt="" /></p>
+<p>Vytvoříme si nový self-signed certifikát na mojí Azure doménu.</p>
+<p id="fCVLIIc"><img class="img-fluid wp-image-1542 " src="/images/2017/img_59e8f7a5b5acc.png" alt="" /></p>
+<p id="rriOSkU"><img class="img-fluid wp-image-1543 " src="/images/2017/img_59e8f7d09d7f5.png" alt="" /></p>
+<p>Uložte a vyexportujte certifikát do souboru.</p>
+<p id="lYBBtIL"><img class="img-fluid wp-image-1544 " src="/images/2017/img_59e8f7f560817.png" alt="" /></p>
+<p>Provedeme export do CER souboru bez klíče (k tomu se nám udělá i soubor s klíčem, ten hned smažte, klient ho nepotřebuje).</p>
+<p id="BQrthnC"><img class="img-fluid wp-image-1545 " src="/images/2017/img_59e8f8468da0b.png" alt="" /></p>
+<p>Nakopírujte si do klienta a importujte.</p>
+<p id="LYCCmJn"><img class="img-fluid wp-image-1546 " src="/images/2017/img_59e8f8a7d2ec7.png" alt="" /></p>
+<p id="dSyAQuS"><img class="img-fluid wp-image-1547 " src="/images/2017/img_59e8f8ba5c263.png" alt="" /></p>
+<p>Připojte se - bude fungovat.</p>
+<p>Díky tomuto opatření máme jistotu, že klient mluví opravdu pouze s naším serverem a ne útočníkem.</p>
+<h3>Ověřování klienstkým certifikátem</h3>
+<p>Co kdybychom místo hesla uživatele použili bezpečnější certifikát? Vyzkoušejme si jednoduchou variantu - certifikát bez ověření důvěryhodnou autoritou.</p>
+<p>Pojďme do nastavení serveru a budeme modifikovat můj účet tomas. Použijeme teď certifikátové ověření (bez podepsání autoritou) a vygenerujeme certifikát.</p>
+<p id="ktaWQNm"><img class="img-fluid wp-image-1548 " src="/images/2017/img_59e8f9f774f78.png" alt="" /></p>
+<p id="wXDRVXJ"><img class="img-fluid wp-image-1549 " src="/images/2017/img_59e8fa0f48298.png" alt="" /></p>
+<p>Hotovo. Certifikát si musíme vyexportovat a doručit na klienta. Tentokrát do souboru ale samozřejmě musí dostat i privátní klíč - provedem export jako PKCS (PFX soubor) a uzamkneme soubor heslem (bez jeho znalosti nelze klíče naimportovat).</p>
+<p id="lkwIYEM"><img class="img-fluid wp-image-1550 " src="/images/2017/img_59e8fa7a7ddfd.png" alt="" /></p>
+<p>Soubor nakopírujeme na klienta, změníme způsob přihlášení na klientský certifikát a naimportujeme ho.</p>
+<p id="SMcmSsN"><img class="img-fluid wp-image-1551 " src="/images/2017/img_59e8fae7d5ca8.png" alt="" /></p>
+<p>Přihlašte se. Funguje! Teď už máme řešení velmi dobře zabezpečené a přitom je to stále dost jednoduché. Samozřejmě mohli bychom jít i dál a používat firemní certifikační autoritu, napojit se na RADIUS a tak podobně, ale pro náš příklad už tak daleko nepůjdu.</p>
+<p>&nbsp;</p>
+<p><em>Potřebujete připojení z notebooku rovnou do VNET v Azure? Používáte primárně Windows na klientech a nepotřebujete víc jak 128 současně připojených uživatelů? Rozhodně použijte Azure VPN. Pokud potřebujete mix Windows, Linux a Mac klientů či máte větší nároky na počet uživatelů, zkuste třeba SoftEther.</em></p>

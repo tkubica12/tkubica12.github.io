@@ -1,0 +1,134 @@
+---
+layout: post
+status: publish
+published: true
+title: Disky a snapshoty v Azure IaaS
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 311
+wordpress_url: http://tomaskubica.cz/?p=311
+date: '2017-03-30 18:39:10 +0000'
+date_gmt: '2017-03-30 17:39:10 +0000'
+categories:
+tags:
+- Storage
+- Compute
+---
+<p>Disky v Azure jsou ve skutečnosti objekty (konkrétně VHD soubor) v Page Blob storage v nějakém vašem Storage Accountu. Od února už ale tento detail neumusíte řešit, Azure to bude spravovat za vás. Jednoduše disky vytvoříte, připojíte, odpojíte, nabootujete nebo uděláte snapshot a jak si to Azure ukládá necháte na něm. Podívejme se jak na to.<!--more--></p>
+<h1>Nastartujeme si VM z Managed Disk</h1>
+<p>Pro naše zkoušení budeme potřebovat dvě VM, použiji jednu s Windows a jednu s Linux. Můžete klidně naklikat vše potřebné v portálu, jen si všimněte zaškrtávátka pro Managed Disks.</p>
+<p id="xrGZjpG"><img class="img-fluid wp-image-312 " src="/images/2017/img_58a3e14eec37f.png" alt="" /></p>
+<p>Tímto se zajistí, že pro disk s OS se nemusíte trápit se správou storage accountů (nicméně pokud chcete sbírat diagnostiku apod. tak jeden budete stále potřebovat, ale disky jako takové bude pro vás spravovat Azure).</p>
+<p>V resource group se vám objeví objekt disků.</p>
+<p id="ZJeOJIq"><img class="img-fluid wp-image-313 " src="/images/2017/img_58a3e267960bb.png" alt="" /></p>
+<h1>Vytvoříme si a přidáme datové disky</h1>
+<p>Pojďme si vytvořit nějaký datový disk, začneme v portálu. Klikněte na přidat a vyhledejte Managed Disk.</p>
+<p id="KxbwnYu"><img class="img-fluid wp-image-314 " src="/images/2017/img_58a3e2c000bb7.png" alt="" /></p>
+<p>Zadáme jméno a další atributy. Disk může vzniknout z VHD souboru v Blob storage, ze snapshotu (o tom později) neo být prázdný (to bude náš případ).</p>
+<p id="rjKCixW"><img class="img-fluid wp-image-315 " src="/images/2017/img_58a3e353a58d2.png" alt="" /></p>
+<p>Výborně. Není to ale moc klikání? Pokud máte rádi CLI, udělejme to takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az disk create -g mojerg --name dataDisk2 --size-gb 32</pre>
+<p>Kouzlíte raději v powerShellu? Pak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$disk = New-AzureRmDiskConfig -CreateOption Empty -AccountType StandardLRS -Location westeurope -DiskSizeGB 32
+New-AzureRmDisk -ResourceGroupName mojerg -DiskName dataDisk3 -Disk $disk</pre>
+<p>Podívejme se na výsledek.</p>
+<p id="MiSBfkd"><img class="img-fluid wp-image-316 " src="/images/2017/img_58a3e588536cd.png" alt="" /></p>
+<p>Prázdné disky si nemusíme připravovat dopředu, dá se to udělat jednoduše přímo v okamžiku přidávání datového disku. Nicméně ze cvičných důvodů jsme to provedli takhle, protože tímto postupem budete třeba vytvářet disky ze snapshotů či existujících VHD souborů.</p>
+<p>Připojme si jeden z disků do jedné z VM nejprve v GUI. Klikněte na VM a najděte záložku disků.</p>
+<p id="QxyUtPs"><img class="img-fluid wp-image-317 " src="/images/2017/img_58a3e60e4eae9.png" alt="" /></p>
+<p>Vyberte si a připojte disk.</p>
+<p id="gilSLAq"><img class="img-fluid wp-image-318 " src="/images/2017/img_58a3e6316b406.png" alt="" /></p>
+<p>Pokud chcete rovnou vytvořit disk a nepřipravovat si ho dopředu, použijte příslušnou volbu.</p>
+<p id="tNvRdTL"><img class="img-fluid wp-image-320 " src="/images/2017/img_58a3ec9e30bf8.png" alt="" /></p>
+<p>Vyzkoušejme si přidat disk ze CLI. Nejprve musíme získat ID disku a pak ho připojit.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">diskId=$(az disk show -g mojerg -n dataDisk2 --query 'id' -o tsv)
+az vm disk attach -g mojerg --vm-name mujLinux --disk $diskId</pre>
+<p>Vlastně v CLI jde ještě jedna příjemná věc - pokud potřebujete nový disk, nemusíte ho vytvářet dopředu. Stačí rovnou v příkazu attach definovat jeho vlastnosti a říct, že má být nový.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az vm disk attach -g mojerg --vm-name mujLinux --disk dataDisk4 --size-gb 32 --new</pre>
+<p>Výsledek předchozích dvou příkazů vypadá takhle:</p>
+<p id="bxyuhjY"><img class="img-fluid wp-image-319 " src="/images/2017/img_58a3e8d206c8f.png" alt="" /></p>
+<p>Raději PowerShell?</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vm = Get-AzureRmVM -ResourceGroupName mojerg -Name mojeWindows
+Add-AzureRmVMDataDisk -VM $vm -ManagedDiskId (Get-AzureRmDisk -DiskName dataDisk3 -ResourceGroupName mojerg).Id -CreateOption Attach -Lun 1
+Update-AzureRmVM -ResourceGroupName mojerg -VM $vm</pre>
+<p>Stejně jako u CLI může kromě existujícího disku při kroku připojování rovnou vytvořit nějaký prádný, pokud chceme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$vm = Get-AzureRmVM -ResourceGroupName mojerg -Name mojeWindows
+Add-AzureRmVMDataDisk -VM $vm -Lun 1 -CreateOption Empty -StorageAccountType StandardLRS -DiskSizeinGB 32 -Name dataDisk5
+Update-AzureRmVM -ResourceGroupName mojerg -VM $vm</pre>
+<h1>Jak vidíme disky uvnitř VM</h1>
+<p>Podívejme se do naší Windows VM. První dva disky uvidíme v systému jako C: (na něm je operační systém) a disk D: (to je lokální rychlý temporary disk, na který nikdy neukládejte nic důležitého, protože není perzistentní).</p>
+<p id="CbYbFTM"><img class="img-fluid wp-image-323 " src="/images/2017/img_58a3f023059c1.png" alt="" /></p>
+<p>Po inicializaci disků můžeme vytvořit jednotky a začít ukládat data.</p>
+<p id="zZCSSSW"><img class="img-fluid wp-image-324 " src="/images/2017/img_58a3f0b6ef9f0.png" alt="" /></p>
+<p>V Linuxu to je podobné.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo fdisk -l
+
+Disk /dev/sda: 29.3 GiB, 31457280000 bytes, 61440000 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0xffcebafc
+
+Device     Boot Start      End  Sectors  Size Id Type
+/dev/sda1  *     2048 61439966 61437919 29.3G 83 Linux
+
+
+Disk /dev/sdb: 40 GiB, 42949672960 bytes, 83886080 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x8066c020
+
+Device     Boot Start      End  Sectors Size Id Type
+/dev/sdb1        2048 83884031 83881984  40G  7 HPFS/NTFS/exFAT
+
+
+Disk /dev/sdc: 32 GiB, 34359738368 bytes, 67108864 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+
+Disk /dev/sdd: 32 GiB, 34359738368 bytes, 67108864 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes</pre>
+<p>Potřebujeme tedy inicializovat disk tím, že vytvoříme partition, založíme souborový systém a připojíme.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo parted /dev/sdc mklabel gpt
+sudo parted -a opt /dev/sdc mkpart primary ext4 0% 100%
+sudo mkfs.ext4 -L mojedata /dev/sdc1
+sudo mkdir -p /mnt/mojedata
+sudo mount -o defaults /dev/sdc1 /mnt/mojedata</pre>
+<h1>Snapshot</h1>
+<p>Azure vám dovolí nad diskem udělat snapshot, který pak můžeme dál používat například pro naklonování (vytvořit diskové kopie), vytvoření image nebo zálohování (tam doporučuji použít službu Azure Backup - používá stejný postup, ale o vše se vám pravidelně postará, nemusíte nic řešit). Tento snapshot je aplikačně konzistnentní u Windows VM díky použití VSS a u Linux je file-system konzistentní (tzn. nedojde k poškození souborů nebo ztrátě dat na rozdíl od "crash" konzistence, kde se sice většinou nic neztratí, ale systém si po startu bude disk opravovat).</p>
+<p>Vytvoříme snapshot v portálu - vyhledejte službu a udělejte snapshot.</p>
+<p id="tVmvuRr"><img class="img-fluid wp-image-326 " src="/images/2017/img_58a40a8c0b459.png" alt="" /></p>
+<p>Vyplňte požadované parametry a udělejte snapshot.</p>
+<p id="HekNPfL"><img class="img-fluid wp-image-327 " src="/images/2017/img_58a40aeb2a86b.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Totéž snadno uděláte v CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az snapshot create -g mojerg --name az_snap --sku Standard_LRS --source dataDisk2</pre>
+<p>A také v PowerShell.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$snap = New-AzureRmSnapshotConfig -SourceUri (Get-AzureRmDisk -DiskName dataDisk3 -ResourceGroupName mojerg).Id -CreateOption Copy -AccountType StandardLRS -Location westeurope
+New-AzureRmSnapshot -Snapshot $snap -SnapshotName ps_snap -ResourceGroupName mojerg</pre>
+<p>Tohle bude výsledek.</p>
+<p id="iXtDPMl"><img class="img-fluid wp-image-328 " src="/images/2017/img_58a40c3357ea0.png" alt="" /></p>
+<p>Z těchto snapshotů pak můžete vytvářet nové disky - opět v portálu, CLI i PowerShell.</p>
+<p id="AiGtvXj"><img class="img-fluid wp-image-329 " src="/images/2017/img_58a40cb4828f7.png" alt="" /></p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az disk create --name az_disk --source az_snap --resource-group disky</pre>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$disk = New-AzureRmDiskConfig -SourceUri (Get-AzureRmSnapshot -SnapshotName ps_snap -ResourceGroupName mojerg).Id -CreateOption Copy -AccountType StandardLRS -OsType Linux -Location westeurope
+New-AzureRmDisk -ResourceGroupName mojerg -DiskName ps_disk -Disk $disk</pre>
+<p>Pokud tohle provedese s OS diskem, můžete z něj nabootovat další VM. To si ale ukážeme až příště, protože k tomu se možná bude lépe hodit koncept image.</p>
+<h1>Jak se to platí?</h1>
+<p>Předchozí řešení, kdy jste se sami starali o storage account se platilo právě v rámci této entity. Také záleželo na úrovni replikace - typicky se používá buď lokální redundance (3 kopie v rámci Azure regionu) nebo geo-replikace (dva regiony a v každém 3 kopie). Managed Disks mají licencování, které je pro ně přirozenější - tedy podle typu disku a jeho velikosti a v tuto chvíli (únor 2017) nabízí jen replikaci uvnitř regionu.</p>
+<p>Máte na výběr ze dvou tříd disků - Standard nebo Premium. Standardní řešení je postaveno na HDD a u VM standardní vrstvy má výkon někam k 500 IOPS a až 60 MB za vteřinu. Čím větší VM, tím víc disků obvykle můžete připojit, vytvořit na nich softwarový RAID (nebo něco podobného) a výkony posčítat. Velikosti disků jsou označeny jako S4, S6, S10, S20 a S30 a jdou od 32 GB do 1TB. Základní S4 disk vás vyjde na 1,3 EUR za měsíc používání a 0,00608 EUR za každých 100 000 IO transakcí - nicméně na všechny ceny Managed Disks je do konce července zaváděcí promo se slevou 50%.</p>
+<p>Premium, tedy SSD varianty jsou v provedení P10 (128GB, 500 IOPS, 100 MB/s), P20 (512 GB, 2300 IOPS, 150 MB/s) a P30 (1TB, 5000 IOPS, 200 MB/s). Výkony jsou per-disk, takže zátěž můžete opět rozkládat a zvyšovat tak výkon. Nejvíc disků dáte do VM typu GS5 a výsledkem bude 80 000 IOPS a 2000 MB/s, což je poměrně masivní na jedinou virtuální mašinku. Za IOPS se u prémiové storage neplatí a za P10 dáte 36,56 EUR měsíčně, ale do konce července 2017 jen za polovic.</p>
+<p>&nbsp;</p>
+<p><em>Managed Disks je příjemné zjednodušení práce s disky v Azure. Ale co když potřebujete opakovatelně spustit stroj s několika disky, kde se má snapshot provést koordinovaně? A co když chcete svůj vlastní generalizovaný image? Příště se podíváme právě na to.</em></p>

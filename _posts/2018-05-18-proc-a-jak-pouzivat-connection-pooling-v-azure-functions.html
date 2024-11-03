@@ -1,0 +1,107 @@
+---
+layout: post
+status: publish
+published: true
+title: Proč a jak používat connection pooling v Azure Functions
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2129
+wordpress_url: http://tomaskubica.cz/?p=2129
+date: '2018-05-18 05:05:22 +0000'
+date_gmt: '2018-05-18 04:05:22 +0000'
+categories:
+tags:
+- AzureFunctions
+- Serverless
+---
+<p>Serverless. Píšu kód a nic jiného neřeším. Nezajímá mě, jak cloud zajistí infrastrukturu pro běh aplikace ani jak to uvnitř funguje. Nebo ano? Podívejme se proč o tom přecijen trochu přemýšlet.<!--more--></p>
+<h1>Serverless, stateless a moje funkce</h1>
+<h2>Co když neuklízíme</h2>
+<p>Zdá se, že u funkcí se prostě spouští kód a netřeba tedy myslet na to, jak je to pod tím implementované. To je z velké části pravda, ale občas se některé detaily docela hodí. Představa, že pro každé spuštění vznikne separátní infrastruktura a je tím pádem jedno co a kde se definuje, není správná. Pojďme si to demonstrovat pár příklady a najít optimální závěr.</p>
+<p>Mějme následující scénář - jednoduchou funkci na HTTP trigger, která se připojí do Redisu a zapíše do něj. Redis v době psaní článku není připraven jao Output (kde se o správu připojení stará platforma za nás), takže se musíme napojit klasicky z kódu. První (a dost špatný) nápad by mohl vypadat nějak takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">using System.Net;
+using StackExchange.Redis;
+
+public static async Task&lt;HttpResponseMessage&gt; Run(HttpRequestMessage req, TraceWriter log)
+{
+    var redisConnectionString = System.Configuration.ConfigurationManager
+                 .ConnectionStrings["MyRedisConn"].ConnectionString;
+    ConnectionMultiplexer connection =  ConnectionMultiplexer.Connect(redisConnectionString);
+    IDatabase cache = connection.GetDatabase();
+    cache.StringSet("klic", "hodnota");
+    return req.CreateResponse(HttpStatusCode.OK);
+}
+</pre>
+<p>Co se bude dít? Při každém zavolání funkce vznikne nové spojení do Redisu a to se navíc řádně neuklidí. Prvním výsledkem je, že při pár požadavcích už objevíte, že vám Azure Redis v sizingu C0 okamžitě vybouchne. Tak ho naboostujeme na C3 a prozkoumáme kde se to zadrhne dál. Pro simulaci zátěže použiji Load Test ve Visual Studio Team Services a generovat budeme zátěž 10 simultálních uživatelů, co do toho naplno buší.</p>
+<p>Po spuštění vidím, jak Redis ukazuje počet connections někam ke 2k, ale v tomto tieru už to ustojí. Přesto víc jak dvě třetiny requestů padají na podlahu:</p>
+<p id="hvqTnGu"><img class="img-fluid wp-image-2131 " src="/images/2018/img_5afdcb4765476.png" alt="" /></p>
+<p>Co se děje? Odpověď najdeme v GUI Azure Functions:</p>
+<p id="KkmwOyh"><img class="img-fluid wp-image-2132 " src="/images/2018/img_5afdcb5c34ce1.png" alt="" /></p>
+<p>Funkce mají limity na jednoho hostitele (a myslím, že jsou stejné pro App Service node v rámci servisního plánu) a jedním z nich je 300 spojení ven (tzn. ne http odpovědí na request, ale spojení iniciovaných vaším kódem někam do pryč). Toho náš hodně špatný kód hravě dosáhl :)</p>
+<h2>Co když uklízíme</h2>
+<p>Následující kód je samozřejmě podstatně mravnější a protože Redis SDK implementuje IDisposable, uzavřeme všechno do "using" a je to čisté.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">using System.Net;
+using StackExchange.Redis;
+
+public static async Task&lt;HttpResponseMessage&gt; Run(HttpRequestMessage req, TraceWriter log)
+{
+    var redisConnectionString = System.Configuration.ConfigurationManager
+                 .ConnectionStrings["MyRedisConn"].ConnectionString;
+
+    using (ConnectionMultiplexer connection = ConnectionMultiplexer.Connect(redisConnectionString)) {
+        IDatabase cache = connection.GetDatabase();
+        cache.StringSet("klic", "hodnota");
+    }
+    return req.CreateResponse(HttpStatusCode.OK);
+}
+</pre>
+<p>A skutečně. Nepadá nám nic na zem, Redis je o poznání spokojenější a naše funkce funguje.</p>
+<p id="huoIfWM"><img class="img-fluid wp-image-2133 " src="/images/2018/img_5afdcccb0e24b.png" alt="" /></p>
+<p id="ijhsqWh"><img class="img-fluid wp-image-2134 " src="/images/2018/img_5afdccd63261d.png" alt="" /></p>
+<p>Pojďme zkusit zátěž desetinásobně zvednout.</p>
+<p id="STMmRdT"><img class="img-fluid wp-image-2135 " src="/images/2018/img_5afe4c1f5dd7a.png" alt="" /></p>
+<p>Kromě úvodního okamžiku kdy se nám Functions musela trochu nahřát se dostáváme na relativně stabilní odpovědi kolem 190 ms a máme tu i jedno drobné zaváhání. Funguje, ale je cítit propad.</p>
+<h1>Opakovaná volání a paralelní vlákna</h1>
+<p>Vytvářet novou infrastrukturu a runtime pro každé spuštění funkce by bylo velmi neefektivní a znamenalo trvale velkou latenci. Azure Functions tedy na pozadí pracují se zdroji podle nějakých algorytmů tak, aby to bylo co nejefektivnější. Azure tedy vytvoří hostitele (nebo několik) a vaše funkce běží v App Service sandboxu (<a href="https://github.com/projectkudu/kudu/wiki/Azure-Web-App-sandbox">https://github.com/projectkudu/kudu/wiki/Azure-Web-App-sandbox</a>) stejně jako webappky v běžné App Service nebo v kontejneru u Linux verze. Pokud by Azure tohle prostředí hned po provedení funkce zahodil a v dalších pár milisekundách musel vytvářet znova, nebylo by to ideální. Přestože platíte skutečně pouze za spuštění a dobu běhu vaší funkce, Azure se může rozhodnout nechat si prostředí i nadále připravené. Navíc pokud není vaše funkce nějak extrémně náročná třeba na spotřebu CPU, byla by škoda v prostředí běžet jen jedno vlákno. Azure proto bude ochoten spouštět na stejném zdroji i více vláken (například simultálně připojení uživatelé). Teprve když už přiřazené zdroje vůbec nestačí pustí se Azure na pozadí do přiřazení dalších zdrojů (ten mechanismus si ozkoušíme příště).</p>
+<p>Co to tedy znamená? Pokud půjdou dotazy sekvenčně zasebou a stihnou se odbavovat jedním vláknem, zůstává váš program v paměti jednoho nodu. Pokud budou požadavky konkurenční, ale stále v možnostech jednoho zdroje (např. CPU), pojedou jako více vláken v jednom procesu. Ve všech těchto případech bude tedy statická proměnná dostupná pro všechna spuštění. A to umožňuje connection pooling. Ostatně pro ty typy integrací, které jsou v Azure Functions nativně podporované jako Output (o držení spojení se vám stará platforma sama) to řešit nemusíte, týká se to toho, co jako Output není - zatím třeba Redis nebo HttpClient pro komunikaci na nějaké API apod.</p>
+<p>Svou connection tedy posuneme před funkci jako static a pro jistotu můžeme použít thread-safe implementaci:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="csharp">using System.Net;
+using StackExchange.Redis;
+
+private static Lazy&lt;ConnectionMultiplexer&gt; lazyConnection = new Lazy&lt;ConnectionMultiplexer&gt;(() =&gt;
+{
+    var redisConnectionString = System.Configuration.ConfigurationManager
+                 .ConnectionStrings["MyRedisConn"].ConnectionString;
+    return ConnectionMultiplexer.Connect(redisConnectionString);
+});
+
+public static ConnectionMultiplexer Connection
+{
+    get
+    {
+        return lazyConnection.Value;
+    }
+}
+
+public static async Task&lt;HttpResponseMessage&gt; Run(HttpRequestMessage req, TraceWriter log)
+{
+    IDatabase cache = Connection.GetDatabase();
+    cache.StringSet("klic", "hodnota");
+    return req.CreateResponse(HttpStatusCode.OK);
+}
+</pre>
+<p>Jdeme do VSTS a zopakujeme test s deseti současnými přístupy:</p>
+<p id="TwzajGj"><img class="img-fluid wp-image-2136 " src="/images/2018/img_5afe4d75b3d8e.png" alt="" /></p>
+<p id="jUfPowu"><img class="img-fluid wp-image-2137 " src="/images/2018/img_5afe4d8c3f370.png" alt="" /></p>
+<p>Zaznamenáváme o 50% lepší průměrnou latenci a když odečteme zahřívání na začátku drží se latence kolem 13 ms. Rozdíl je rozhodně vidět.</p>
+<p>A co load test se 100 uživateli? Rozdíly budou ještě dramatičtější.</p>
+<p id="mOjwXJY"><img class="img-fluid wp-image-2138 " src="/images/2018/img_5afe4e1d1be7c.png" alt="" /></p>
+<p id="mgPRaPe"><img class="img-fluid wp-image-2139 " src="/images/2018/img_5afe4e3617944.png" alt="" /></p>
+<p>Jinak řečeno navýšení zátěže na 100 nemělo vliv na uživatelskou zkušenost! Tato implementace umožnila efektivně přistupovat do Redis, neztrácet čas neustálým vytvářením spojení a to kromě úspory na straně Redisu vede i k efektivnějšímu škálování v rámci Azure Functions.</p>
+<p>&nbsp;</p>
+<p><em>Přestože může serverless vypadat jako černá skříňka (a lze to tak i brát), není to magie, ale dobře odladěný systém, o který se akorát nemusíte starat. Jenže základní představa o jeho fungování vám umožní psát efektivnější kód. Někdy příště se zaměříme trochu víc na fungování škálování samotných Function.</em></p>

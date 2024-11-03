@@ -1,0 +1,32 @@
+---
+layout: post
+status: publish
+published: true
+title: Commvault backup do Azure i v Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 857
+wordpress_url: http://tomaskubica.cz/?p=857
+date: '2017-06-19 05:07:01 +0000'
+date_gmt: '2017-06-19 04:07:01 +0000'
+categories:
+tags:
+---
+<p>Podívejme se dnes na několik video ukázek nastavení Commvault a Azure pro tři scénáře. Zálohování on-premises do Azure jako sekundární/terciální kopie (offsite backup, náhrada pásek), zálohování Azure zdrojů přímo do Commvault v Azure a také restore zálohy rovnou do Azure.<!--more--></p>
+<h1>Commvault a backup do Azure</h1>
+<p>Nejprve se podívejme na posílání sekundárních záloh do Azure. Primární si ponecháme lokálně, abychom měli možnost rychlého recovery v případě nějakých potíží, nicméně obvykle nám postačí poměrně krátká retence. Dlouhodobá záloha stejně jako offsite (pro situaci ztráty celého datového centra) bude v Azure Blob Storage. Právě tento typ storage dosahuje nejzajímavějších cenových hladin a Commvault podporuje přímé napojení na tuto technologii.</p>
+<p>Podívejte se na následující neokomentované video, které jsem v tomto scénáři natočil. Uvidíte založení storage účtu v Azure, napojení Commvault na Azure a následné provedení zálohy. Ověříme si, že se v Azure Blob Storage skutečně objevují data z Commvaultu.<br />
+<iframe src="https://www.youtube.com/embed/Y37bqm5WgxE" width="560" height="315" frameborder="0" allowfullscreen="allowfullscreen"></iframe></p>
+<h1>Commvault a backup v Azure</h1>
+<p>Máte technologii Commvault, jste s ní spokojeni a chcete si ji dovést i do části vašeho IT, kterou máte v Azure? Žádný problém. Budeme potřebovat Commvault server v Azure, což je velmi jednoduché díky připravené šabloně v Azure marketplace. Jednoduše nainstalujete, zalicencujete (nebo využijete 60 dní trial) a jste připraveni. Zálohy můžete ukládat na lokální disky ve VM, které mohou být klidně SSD, pokud chcete. Můžete ale také rozjet primární zálohu rovnou do cenově výhodnější Azure Blob Storage. Lze to samozřejmě také nakombinovat - krátkou retenci třeba na pár dní dát na SSD a vše starší do blobu. Následně Commvault připojíte na Azure. Tak jak v on-premises nastavujete napojení třeba na Hyper-V či VMware, tak v tomto připadě připojíte Azure. Commvault vám pak umožní vypsat vaše VMka v Azure a jednoduše je zálohovat. Ostatně podívejte se na následující nekomentované video:<br />
+<iframe src="https://www.youtube.com/embed/f0cbMlE57qA" width="560" height="315" frameborder="0" allowfullscreen="allowfullscreen"></iframe></p>
+<h1>Obnova z Commvault přímo do Azure</h1>
+<p>Ať už se jedná o zálohu on-premises mašiny nebo něco z Azure, Commvault dokáže provést recovery přímo do Azure. Můžete to využít pro migraci VM do Azure, naklonování on-premises VM v Azure například pro nějaké testování nových verzí nebo s využitím patřičných nástrojů a promyšlené strategie může jít o komplexní Disaster Recovery plán. Zálohy jsou, jak už jsme si ukázali, uložené v Azure Blob Storage. Pro jejich zprocesování je vhodné mít Media agenta (součást Commvault serveru) přímo v Azure (opět můžete použít připravenou šablonu - pokud jedete scénář se zálohováním Azure VM Commvaultem, tak už media agent v Azure asi máte). Při obnově si zvolíte Azure jako cíl a Commvault si vezme na starost vytvoření disků, VM a jejich spuštění. Takovou jednoduchou ukázku (má daleko ke komplexnímu DR orchestrovanému scénáři, ale ukazuje základní princip) jsem si připravil:<br />
+<iframe src="https://www.youtube.com/embed/I-zGfu_iKeM" width="560" height="315" frameborder="0" allowfullscreen="allowfullscreen"></iframe></p>
+<p>&nbsp;</p>
+<p><em>Commvault a Azure jdou dobře dohromady, zkuste to!</em></p>

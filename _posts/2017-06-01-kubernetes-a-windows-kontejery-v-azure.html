@@ -1,0 +1,64 @@
+---
+layout: post
+status: publish
+published: true
+title: Kubernetes a Windows kontejnery v Azure
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 713
+wordpress_url: http://tomaskubica.cz/?p=713
+date: '2017-06-01 05:25:18 +0000'
+date_gmt: '2017-06-01 04:25:18 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>Víte, že populární orchestrátor kontejnerů může nejen ovládat Linuxový svět, ale také Windows kontejnery ve Windows OS? A že si tohle můžete vyzkoušet (zatím jako neprodukční preview) na kliknutí s Azure Container Service? A že je to všechno krásně napojeno na Azure networking? Dnes si to vyzkoušíme.<!--more--></p>
+<h1>Azure Container Service a Windows hostitel</h1>
+<p>ACS je služba, která pro vás vytvoří a škáluje cluster s vybraným open source orchestrátorem - DC/OS, Swarm nebo Kubernetes. Právě poslední zmíněný už v preview podporuje Windows hostitele.</p>
+<p>Pro dnešní ukázku jsem použil Azure CLI 2.0 běžící v mém Linux subsystému v rámci Windows 10. Vytvořil jsem resource group a sestavil v ní malý Kubernetes cluster s jedním Windows agentem (hostitelem).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n kubewin -l westeurope
+az acs create --orchestrator-type kubernetes -g kubewin -n kubewin --dns-prefix=mojekubewin --agent-count=1 --windows --admin-username tomas --admin-password Azure12345678 -l westeurope 
+</pre>
+<p>Pak jsem si nainstaloval kubectl, tedy ovládací příkaz pro Kubernetes clustery. Můžete to udělat přímo z Azure CLI (ale v případě Linux subsystému ve Windows 10 musíte mít Azure CLI nainstalované i pod root účtem) nebo použít postup na stránkách Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo az acs kubernetes install-cli</pre>
+<p>Stáhněte si parametry pro bezpečené připojení vašeho clusteru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acs kubernetes get-credentials --resource-group kubewin --name kubewin
+</pre>
+<p>A už běžíme, vyzkoušejte načíst nody.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl get nodes
+NAME                    STATUS    AGE       VERSION
+857a6acs9000            Ready     2h        v1.5.3-8+e44bcb2f1f19d3
+k8s-master-857a68f5-0   Ready     2h        v1.5.3
+</pre>
+<h1>Spustíme Windows kontejner s IIS</h1>
+<p>Použijeme příkaz run pro stažení a spuštění IIS kontejneru ve třech kopiích v našem clusteru (tedy deployment v Kubernetes terminologii).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl run mojeiis --image=microsoft/iis
+
+$ kubectl get pods
+NAME                       READY     STATUS    RESTARTS   AGE
+mojeiis-1247386878-dqv7b   1/1       Running   0          15m
+mojeiis-1247386878-g94bj   1/1       Running   0          15m
+mojeiis-1247386878-w6ppk   1/1       Running   0          15m</pre>
+<p>Po nějaké době budou kontejnery (přesněji pody s kontejnerem) nahoře a my si můžeme zjistit IP adresu jednoho z nich.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl describe pod mojeiis-1247386878-dqv7b | grep IP
+IP: 10.244.1.113</pre>
+<p>Jak už jsem na tomto blogu psal, v ACS využíváte Azure networking přímo pro kontejnery. Jinak řečeno kontejnery jsou přímo součástí vašeho VNETu! Pakliže tedy například v kontejnerech poběží front-end, ale transakční databázi chcete z různých důvodů provozovat ve VM, klidně můžete mít přímou kontektivitu mezi VM a kontejnery. Jsou totiž ve stejném VNETu - žádná NAT a podobné nepěknosti. Nastartoval jsem v Kubernetes VNET obyčejnou Windows VM a z ní jsem schopen přistoupit přímo na konkrétní kontejner.</p>
+<p id="RxRSOKc"><img class="img-fluid wp-image-714 " src="/images/2017/img_59135f67339ea.png" alt="" /></p>
+<p>Stejně jako v případě Linux hostitelů podporuje Kubernetes nejen koncept IP pro kontejnery z VNETu, ale také je součástí ACS deploymentu driver pro Azure Load Balancer pro koncept služeb. Vezmeme teď deployment našich IIS kontejnerů (chtěli jsme tři repliky) a vytvoříme službu, tedy chceme na ně balancovat provoz. Kubernetes požádá Azure o součinnost a společně získají veřejnou adresu a nastaví vše potřebné jak v Kubernetes tak v Azure.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl expose deployments mojeiis --port 80 --type=LoadBalancer
+service "mojeiis" exposed
+
+$ kubectl get services
+NAME         CLUSTER-IP    EXTERNAL-IP      PORT(S)        AGE
+kubernetes   10.0.0.1      &lt;none&gt;           443/TCP        3h
+mojeiis      10.0.196.35   52.233.170.243   80:32704/TCP   3m
+</pre>
+<p>Podívám se ze svého notebooku na tuto externí veřejnou adresu.</p>
+<p id="opUwNOM"><img class="img-fluid wp-image-715 " src="/images/2017/img_59135fb372742.png" alt="" /></p>
+<p><em>Právě jsme společně vytvořili Kubernetes cluster s Windows hostiteli, spustili v něm tři kopie kontejneru s IIS web serverem. Ty mají přímou adresovatelnost v rámci VNETu, takže Windows kontejnery mohou mluvit s libovolnou VM ve stejném VNETu. Pak jsme všechny kopie IIS vystrčili ven jako balancovanou službu s veřejně dostupnou adresou. Tohle všechno se dá zvládnout za pár minut - a pak že je to s těma kontejnerama složité :)</em></p>

@@ -1,0 +1,55 @@
+---
+layout: post
+status: publish
+published: true
+title: Geo-replikace Azure SQL databáze
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 112
+wordpress_url: http://tomaskubica.cz/?p=112
+date: '2017-02-15 05:52:50 +0000'
+date_gmt: '2017-02-15 04:52:50 +0000'
+categories:
+tags:
+- SQL
+---
+<p>Azure SQL databáze nabízí SLA 99,99% dostupnosti. Přestože nemusíte vůbec nic nastavovat, tak už od tier Basic pro vás Azure na pozadí spravuje robustní redundantní hostovací prostředí. Přesto můžete mít potřebu replikovat data i do jiného regionu. Proč?<!--more--></p>
+<h1>Proč použít geo-replikaci v Azure SQL?</h1>
+<p>Azure SQL je uvnitř regionu dobře chráněna (to je vidět i z oficiálního SLA), ale co kdyby došlo k nějaké katastrofě, například zemětřesení, a odmlčel se celý region? Jedním z řešení je využít geograficky replikovaný backup a všechno obnovit. To by ale mohlo docela trvat. Geo-replikace znamená, že v regionu je reálně vytvořená databáze a ta je jen o pár vteřin zpožděná za tou hlavní (Microsoft mluví o RPO pod 5 vteřin). Pokud je potřeba přesunout práci do ní, je to extrémně rychlé. Pro fantastickou vysokou dostupnost je použití geo-replikace velmi vhodné.</p>
+<p>Druhý důvod pro geo-replikaci je to, že tyto kopie databází jsou plně dostupné na čtení (tedy jde o reálné databázové běžící systémy, ne jen nějaký backup soubor na disku). Pokud vaše aplikace hodně čte, ale málo zapisuje, tak můžete podle umístění zákazníka použít nejbližší databázi pro situace, kdy aplikace například zobrazuje statistiky vaší spotřeby energie v domácnosti (= čtení). Na zápisy (úprava nastavení účtu apod.) se připojíme do read/write kopie. Stejně je to s reportováním a analytikou. Kreslení grafů, přesouvání do Data Warehouse nebo natahování do Hadoop a podobných chroupačů dat může probíhat z read only kopie, nezatěžovat hlavní DB a neohrozit tak běžný transakční život, na kterém stojí váš byznys.</p>
+<p>Třetí důvod pro mě je, že překlopení si můžete snadno a bezbolestně vyzkoušet. Connection stringy si můžete odladit klidně v read only režimu. Samotný failover má díky nízkému RPO extrémně malé dopady na chod aplikace, takže si můžete dovolit několikrát do roka tohle požární cvičení udělat.</p>
+<p>Obrovskou výhodou Azure SQL je, že tohle všechno je k dispozici na kliknutí. Nemusíte nic složitě řešit a nastavovat. Na druhou stranu všechny kopie jsou živé databáze a za takové musíte platit. Pokud vám vystačí ruční obnova ze zálohy a RPO v hodinách, vyjde vás to určitě levněji.</p>
+<h1>Vyzkoušejme geo-replikaci</h1>
+<p>V Azure jsem si vtvořil virtuální server a databázi.</p>
+<p id="pQZHTWl"><img class="img-fluid wp-image-113 " src="/images/2017/img_588262fb1680f.png" alt="" /></p>
+<p>Pojďme do databáze a podívejme se na záložku Geo-Replication.</p>
+<p id="KrZMFQg"><img class="img-fluid wp-image-114 " src="/images/2017/img_5882633c6def2.png" alt="" /></p>
+<p>Vyberte si region, kam chcete DB replikovat. Pokud to děláte pro narychlení aplikací ve vzdálených místech planety, pravděpodobně zvolíte jiný světadíl. Pokud vám jde především o redundanci, začněte s regionem, který vám portál doporučil (fialová barva). Jedná se totiž o kamarádský region, který má s tím vaším nadstandardní síťové spojení (v zásadě regiony mají páry a mezi nimi je specificky posílená konektivita).</p>
+<p>Zvolíme region a založíme v něm také nový server.</p>
+<p id="IZqLxPm"><img class="img-fluid wp-image-115 " src="/images/2017/img_5882650c2ac03.png" alt="" /></p>
+<p>Pak stačí jen chviličku čekat, než to Azure připraví.</p>
+<p id="ptvExlj"><img class="img-fluid wp-image-116 " src="/images/2017/img_58826544d0d2e.png" alt="" /></p>
+<p>Až to bude hotové, připojíme se přes SQL Server Management Studio do první databáze a dáme editovat jednu z tabulek.</p>
+<p id="klzVsSm"><img class="img-fluid wp-image-117 " src="/images/2017/img_58826601271f8.png" alt="" /></p>
+<p>Modifikujte jméno prvního člověka v seznamu.</p>
+<p id="SwLtgXV"><img class="img-fluid wp-image-118 " src="/images/2017/img_58826667f262d.png" alt="" /></p>
+<p>Připojme se do naší druhé databáze. Pozor - pokud jste v cílovém regionu neměli už nějaký vytvořený server a přes portál jste si nechali založit jiný, bude mít prázdná Firewall pravidla (musíte si tam nastavit IP počítače, z kterého se budete připojovat). Vypišme si záznamy v tabulce zákazníků.</p>
+<p id="oMhwazR"><img class="img-fluid wp-image-119 " src="/images/2017/img_58826769a38c8.png" alt="" /></p>
+<p>Všimněte si, že máme data tak, jak jsme je před chviličkou modifikovali.</p>
+<p id="bayFABk"><img class="img-fluid wp-image-120 " src="/images/2017/img_588267a258cf4.png" alt="" /></p>
+<p>Pokusme se v této druhé databázi něco zapsat. Co se stane?</p>
+<p id="YNwxWNb"><img class="img-fluid wp-image-121 " src="/images/2017/img_5882680ecdf59.png" alt="" /></p>
+<p>Pojďme teď překlopit zapisování z původní na tuto druhou DB. Jděte v portálu na druhou DB a na záložku Geo-Replication. Klikněte na ni a zadejte Failover.</p>
+<p id="FChXWYK"><img class="img-fluid wp-image-122 " src="/images/2017/img_5882686367679.png" alt="" /></p>
+<p>Po nějaké době bude vše připraveno.</p>
+<p id="aMOYzGU"><img class="img-fluid wp-image-124 " src="/images/2017/img_58826ae0ec9be.png" alt="" /></p>
+<p>Teď můžeme na serveru tomuvdruhysql zapisovat.</p>
+<p id="drMBqSP"><img class="img-fluid wp-image-125 " src="/images/2017/img_58826b12b8b31.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Azure SQL vám na kliknutí dává perfektní možnosti z hlediska dostupnosti, aniž byste museli cokoli složitě nastavovat  kontrolovat. Myslím, že budoucnost je právě v těchto službách typu PaaS, kde získáváte deset a více let zkušeností a best practice ve formě tlačítka a můžete se tak soustředit na to důležitější, čili data a aplikace.</em></p>
+<p>&nbsp;</p>

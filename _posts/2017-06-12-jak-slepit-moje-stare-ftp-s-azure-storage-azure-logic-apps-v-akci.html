@@ -1,0 +1,55 @@
+---
+layout: post
+status: publish
+published: true
+title: Jak slepit moje staré FTP s Azure Storage? Azure Logic Apps v akci.
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 52
+wordpress_url: http://beta.tomaskubica.cz/?p=52
+date: '2017-06-12 04:34:59 +0000'
+date_gmt: '2017-06-12 03:34:59 +0000'
+categories:
+tags:
+- LogicApps
+- Serverless
+- Storage
+---
+<p>Dost možná máte ve firmě hned několik FTP serverů. Možná jsou tam logy nějakých aplikací, backup soubory, datové exporty. To všechno vzniklo historicky, například někdo kdysi udělal skript, který přes FTP přetáhl něco někam. Možná to není ideální řešení. Není to konsolidované, soubory mohou kdykoli zmizet, protože není nutně dořešena nějaká záloha nebo geo-replikace, čas od času některá z VM s FTP serverem spadne a poznáme to až na konci měsíce, kdy neproběhne správně účetní závěrka (třeba to byl právě ten skript migrující něco někam). No a jestli máte FTP za firewallem a NATem, tak znáte jak musí bezpečáci neochotně vytvářet zvláštní pravidla pro vás. Co najít způsob, jak data zkopírovat do cloudu na jedno integrované geo-replikované spolehlivé místo? Následně můžeme některé ty procesy místo skriptů řešit přímo orchestrací v cloudu.<!--more--></p>
+<p>Cílem tohoto článku není polemizovat, zda jsou ve firmách FTP servery nebo ne, ale vyzkoušet si jednoduchý (a tím i dobře pochopitelný) příklad Azure Logic Apps. Dnes budeme poslouchat FTP server a když na něm objevíme nějaký nový soubor, nakopírujeme ho do Azure Blob Storage. Nic složitého ... a to je záměr.</p>
+<h1>Logic Apps - z FTP se Blob</h1>
+<p>Nejprve si posbírejme potřebná data. Jednak tedy adresu FTP serveru a login. Dále název Azure Storage, kontejneru a přístupový klíč. Tyto najdete v portálu.</p>
+<p id="HnYxKAN"><img class="img-fluid wp-image-53 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a18859da40.png" alt="" /></p>
+<p>Vytvořte si logickou aplikaci.</p>
+<p id="qgADtKQ"><img class="img-fluid wp-image-54 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a18ab6aff9.png" alt="" /></p>
+<p>Až bude připravena, klikněte na ni a otevře se vám designer. Vybereme si prázdný.</p>
+<p id="FKyAZyH"><img class="img-fluid wp-image-55 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a18c5d0b21.png" alt="" /></p>
+<p>Začneme FTP serverem.</p>
+<p id="dbiHmHU"><img class="img-fluid wp-image-56 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a190280a36.png" alt="" /></p>
+<p>Zadejte údaje o FTP serveru.</p>
+<p id="cxrMfMd"><img class="img-fluid wp-image-57 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a19336f51a.png" alt="" /></p>
+<p>Zadejte interval sledování (v praxi bych tedy minutu nedával, pokud to není nutné, šel bych na 5 minut) a adresář na FTP serveru.</p>
+<p id="sPExuXU"><img class="img-fluid wp-image-58 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a194f36bfa.png" alt="" /></p>
+<p>Máme hotovo, přidejte další krok. Všimněte si možností, ale my zvolíme jednoduše rovnou akci.</p>
+<p id="QIASfUf"><img class="img-fluid wp-image-59 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a198a8e445.png" alt="" /></p>
+<p>Zvolíme vytvoření objektu ve Storage.</p>
+<p id="ilQLeer"><img class="img-fluid wp-image-60 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a19b6abe37.png" alt="" /></p>
+<p>Napojíme se na Storage.</p>
+<p id="QijNiwE"><img class="img-fluid wp-image-61 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a19cbd1870.png" alt="" /></p>
+<p>Vyberte kontejner a v políčku pro název a obsah objektu klikněte. Designer vám nabídne výstupy předchozích kroků, nám se hodí název souboru na FTP a jeho obsah.</p>
+<p id="YWcidFL"><img class="img-fluid wp-image-62 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a19e2bdbd0.png" alt="" /></p>
+<p>Uložte.</p>
+<p id="jfwRrDe"><img class="img-fluid wp-image-63 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a19fb32648.png" alt="" /></p>
+<p>Spusťte.</p>
+<p id="jzXnQgy"><img class="img-fluid wp-image-64 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a1a190c01b.png" alt="" /></p>
+<p>No a přidejte soubor na FTP serveru a budeme chvíli čekat. Pokud všechno dobře dopadlo, objeví se vám tohle:</p>
+<p id="ZGTrdRC"><img class="img-fluid wp-image-65 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a1a339cca0.png" alt="" /></p>
+<p>No a v blob storage ... tadá ... nalezneme příslušný nový soubor z FTP serveru.</p>
+<p id="rMYVybH"><img class="img-fluid wp-image-66 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_587a1a4533a5c.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Takhle tedy fungují Logic Apps. Pokud chcete, klikněte na Code View, kde si můžete prohlédnout zápis flow jako JSON struktury (to můžete dávat do version control, automatizovat tvorbu Logic Apps desired state principy apod.). Jednoduchý příklad jsme si zkusili, přidejte větvení a složitější operace a určitě si dokážete představit dost užitečné integrace aplikací, které ve firmě používáte.</em></p>

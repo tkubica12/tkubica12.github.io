@@ -1,0 +1,77 @@
+---
+layout: post
+status: publish
+published: true
+title: StorSimple - jak zprovoznit storage, která tieruje do cloudu
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 348
+wordpress_url: http://tomaskubica.cz/?p=348
+date: '2017-02-22 08:04:47 +0000'
+date_gmt: '2017-02-22 07:04:47 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Mít data v cloudu je spolehlivé (jsou mnohokrát replikována v nejlepších datových centerch planety), cenově výhodné (klasický koncept výnosů z rozsahu - napájení, chlazení i nejlepší inženýři na světě sdílení přes obrovské množství zákazníků a dat) a platíte jen za to, co opravdu používáte. Na druhou stranu to datové centrum není u vás v budově, takže vám latence a síťové připojení nemusí umožnit výkon, který lokální storage může mít. Co takhle získat oboje? Kapacitu a spolehlivost cloudu a přitom rychlý lokální přístup k často používaným datům. Vyzkoušejme si dnes StorSimple.<!--more--></p>
+<h1>Koncept a modely</h1>
+<p>StorSimple je Microsoft produkt dostupný buď ve fyzické formě (bedna s nějakou kapacitou) nebo jako virtuální appliance (pustíte si na svém Hyper-V či VMware serveru a dáte mu jakoukýkoli diskový prostor je po ruce). Jeho základní myšlenkou je, že tato virtuální či fyzická storage je lokální a vaše servery či uživatelé s ní komunikují lokálně. Na pozadí ale StorSimple bude identifikovat data, která se moc nepoužívají, a ty přesouvá do cloudu (resp. hardwarová verze ještě tieruje mezi SSD a HDD). To, co je často vyžadováno (nebo co administrátor explicitně označí), zůstává lokálně a do cloudu se pouze zálohuje (takže přístupy jsou velmi rychlé). Dokážete tak mít kapacitně relativně malou cenově dostupnou lokální storage a desetkrát ji nafouknout cloudem. Navíc je automaticky všechno zálohováno do cloudu, automaticky deduplikováno a při transportu komprimováno. Kromě toho můžete v případě havárie své StorSimple zařízení obnovit na jiném kusu, třeba v jiném místě (recovery z cloudu). Všechny vaše StorSimple se spravují centrálně přímo z Azure portálu. Co se bezpečnosti týče jsou všechna data v StorSimple appliance šifrována, komunikace s cloudem rovněž a data v cloudu mohou být také zašifrovaná.</p>
+<p>StorSimple nabízí dva typy přístupu. Buď blokové řešení přes iSCSI nebo souborové sdílení (SMB). První můžete použít pro servery a jejich aplikace, druhé se hodí například pro sdílené úložiště pracovních skupin uživatelů.</p>
+<h1>Jak nasadit StorSimple virtuální appliance</h1>
+<p>Pojďme společně rozchodit StorSimple. Nejdřív si v Azure portálu založme správce virtuálních StorSimple appliance.</p>
+<p id="TAGFkYY"><img class="img-fluid wp-image-351 " src="/images/2017/img_58a9ebf460583.png" alt="" /></p>
+<p>Zvolíme si nějaké jméno, region apod.</p>
+<p id="tYOfBoc"><img class="img-fluid wp-image-352 " src="/images/2017/img_58a9ec0b05fb8.png" alt="" /></p>
+<p>Následně si někam uložíme přístupový klíč, kterým se prokážeme později při registraci virtuální appliace.</p>
+<p id="sotAvRs"><img class="img-fluid wp-image-353 " src="/images/2017/img_58a9ec36750d9.png" alt="" /></p>
+<p>Na záložce rychlého startu získáte odkazy na stažení VM s virtuálním storage polem StorSimple pro Hyper-V nebo VMware.</p>
+<p id="SsYcRxo"><img class="img-fluid wp-image-354 " src="/images/2017/img_58a9ec6245dc7.png" alt="" /></p>
+<p>Postupujte podle návodu na instalaci. Musíme dodržet minimální požadavky (4 jádra, 8GB RAM) a přidat minimálně 500GB disk pro data. Pak stačí VM nastartovat a buď jít di grafiky a nastavit IP ručně, nebo pokud přidělujete IP z DHCP serveru (například pokud máte nějakou formu IaaS apod.), můžete se připojit rovnou na webovou konzoli. Přihlašte se výchozím heslem Password1 (budeme okamžitě donuceni k jeho změně).</p>
+<p id="yrHWWqz"><img class="img-fluid wp-image-355 " src="/images/2017/img_58a9ecd122e5b.png" alt="" /></p>
+<p>Pak už se dostaneme do průvodce nastavením.</p>
+<p id="VzUGJUh"><img class="img-fluid wp-image-356 " src="/images/2017/img_58a9ecf051491.png" alt="" /></p>
+<p>Stačí si vybrat, zda chceme tento StorSimple jako file share nebo jako blokové iSCSI pole. V případě file share (tomu se dnes věnuji) musíme zařadit appliance do domény.</p>
+<p id="LgyTPJV"><img class="img-fluid wp-image-357 " src="/images/2017/img_58a9ed35801f2.png" alt="" /></p>
+<p>Budeme samozřejmě požádáni o login do domény.</p>
+<p id="yxPbwpQ"><img class="img-fluid wp-image-358 " src="/images/2017/img_58a9ed4c53c53.png" alt="" /></p>
+<p>V části cloudového napojení potřebujeme zadat key našeho managera v Azure (to jsme na začátku návodu udělali).</p>
+<p id="XsHzUPK"><img class="img-fluid wp-image-359 " src="/images/2017/img_58a9ed7f20442.png" alt="" /></p>
+<p>Data v appliance budou šifrovaná a protože tohle je moje první appliance v rámci managera v Azure, byl pro mě klíč vygenerován (uložte si ho, bude se používat při instalaci dalších appliance).</p>
+<p id="QGPdUse"><img class="img-fluid wp-image-360 " src="/images/2017/img_58a9edb0d0cbc.png" alt="" /></p>
+<p>Od této chvíle můžeme interface appliance opustit, vše ostatní se odehrává přímo v Azure portálu.</p>
+<p id="olZOxIQ"><img class="img-fluid wp-image-361 " src="/images/2017/img_58a9ee13118cf.png" alt="" /></p>
+<p>Appliance si přidám, rozhodnu se pro šifrování dat uložených v cloudu a nasměruji appliance na storage account v cloudu.</p>
+<p id="abinCpv"><img class="img-fluid wp-image-362 " src="/images/2017/img_58a9ee3c7230e.png" alt="" /></p>
+<p>Po chvilce bude hotovo a moje storage je online.</p>
+<p id="AziNTYA"><img class="img-fluid wp-image-363 " src="/images/2017/img_58a9ee564098d.png" alt="" /></p>
+<h1>Přidáme si share</h1>
+<p>Detailněji se na fungování StorSimple podíváme příště, ale ještě dnes si uděláme jednoduchý share, ať víme, že instalace proběhla v pořádku. Přidejte share.</p>
+<p id="qpmKbrw"><img class="img-fluid wp-image-364 " src="/images/2017/img_58a9eea7da79c.png" alt="" /></p>
+<p>Dáme mu nějaký název a určíme, že tento share bude tierovaný (asi 90% málo používaného obsahu se bude průběžně obsluhovat z cloudu).</p>
+<p id="aghZsiJ"><img class="img-fluid wp-image-365 " src="/images/2017/img_58a9eedde8c74.png" alt="" /></p>
+<p>Definujeme kapacitu a také určíme, kdo má mít k tomuto share plný přístup.</p>
+<p id="VrJiDdl"><img class="img-fluid wp-image-366 " src="/images/2017/img_58a9ef02c08cd.png" alt="" /></p>
+<p>Pak stačí jen na nějakém počítači v síti objevit share na adrese StorSimple appliance - najdete tam právě tu naší.</p>
+<p id="VseSBwA"><img class="img-fluid wp-image-367 " src="/images/2017/img_58a9ef3e34715.png" alt="" /></p>
+<p>Mimochodem je také možné přistupovat na tento share z Linux systému. Možností je víc, ale jedna jednoduchá je přes smbclient.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo apt-get install smbclient
+smbclient //10.0.0.4/tomuvshare -U MOJEAD0/tom
+
+smb: <pre wp-pre-tag-0></pre>gt; ls
+  .                                   D        0  Tue Feb 21 05:03:29 2017
+  ..                                  D        0  Tue Feb 21 05:03:29 2017
+  .backups                            D        0  Tue Feb 21 06:30:38 2017
+  Application.evtx                    A    69632  Mon Sep 12 11:36:17 2016
+  HardwareEvents.evtx                 A    69632  Mon Sep 12 11:34:25 2016
+  Internet Explorer.evtx              A    69632  Mon Sep 12 11:34:25 2016
+  Key Management Service.evtx         A    69632  Mon Sep 12 11:34:25 2016
+</pre>
+<p>&nbsp;</p>
+<p><em>Můžete mít malé pole nějakého výrobce a k tomu storage v cloudu. Můžete zálohovat pole do cloudu, kde budou data třeba v šesti kopiích po třech v oddělených geografických regionech. Můžete vyřešit disaster recovery, šifrování dat jak v lokálním úložišti, tak v cloudu. Tohle všechno se dá udělat, ale nemusí to být jednoduché.</em></p>
+<p><em>StorSimple ale jednoduchý je. Velmi jednoduchý. Je to způsob, jak získat hybridní řešení pro vaše data, dostat se do cloudu a přitom se nemuset trápit nějakou složitou implementací a správou z mnoha různých nástrojů.</em></p>
+<p><em>Příště se podíváme na některé vlastnosti trochu podrobněji.</em></p>

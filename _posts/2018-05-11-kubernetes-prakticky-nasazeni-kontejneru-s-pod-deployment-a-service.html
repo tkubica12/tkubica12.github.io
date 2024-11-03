@@ -1,0 +1,252 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Kubernetes prakticky: nasazení kontejnerů s Pod, Deployment a Service'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2121
+wordpress_url: http://tomaskubica.cz/?p=2121
+date: '2018-05-11 04:47:32 +0000'
+date_gmt: '2018-05-11 03:47:32 +0000'
+categories:
+tags:
+- Kubernetes
+---
+<p>V dnešním díle si spustíme nějaké kontejnery. Zatím se nebudeme trápit síťařinou, spíš si projdeme základní koncepty Podů, Deploymentů a zkusíme nějaký upgrade nasazené služby za provozu.<!--more--></p>
+<h1>Váš první kontejner běžící v Kubernetes</h1>
+<p>V minulých dílech jsme si v Azure vytvořili AKS a umíme se do Kubernetes připojit jeho příkazovou řádkou kubectl. To můžeme použít ke spuštění našeho prvního kontejneru. Začneme jednoduchým imperativním způsobem, ale to je jen pro úvod - pak už budeme používat desired state předpisy v YAML, které zásadně doporučuji, protože jsou daleko blíž tomu, jak je Kubernetes vymyšlen (a ostatně kubectl příkazy stejně ve finále v clusteru vytvoří desired state předpis). Při založení kontejneru příkazem kubectl run použijeme restart politiku Never. Tím říkáme, že od clusteru zatím nechceme žádnou další pomoc - tedy chceme vytvořit skutečně jen jeden Pod (prozatím berme jako jeden kontejner). Každý kontejner je nastartován s nějakým procesem a ten když skončí svůj běh, skončí i kontejner a nám je to zatím jedno.</p>
+<p>Vytvořte ve svém clusteru Ubuntu kontejner a jako proces použijeme bash s krátkým skriptem, který něco vypíše na obrazovku, chvíli spí a pak se ukončí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl run spanek --image ubuntu \
+    --restart Never \
+    --command -- bash -c 'echo startuji; sleep 60; echo koncim'
+</pre>
+<p>Rychle se podívejme na stream událostí o Podech.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl get pods -w
+NAME      READY     STATUS              RESTARTS   AGE
+spanek    0/1       ContainerCreating   0          1s
+spanek    1/1       Running             0          3s
+spanek    0/1       Completed           0          1m
+</pre>
+<p>Všimněte si, že Pod byl nejdřív ve stavu ContainerCreating. V této fázi stahoval Kubernetes obraz Ubuntu kontejneru z Docker Hub. Následně ho spustil s tím, že předal uvnitř řízení procesu bash s naším skriptem. Po minutě ovšem skript skončil a protože jsme měli restart politiku Never, nic dalšího už se nedělo. Kontejnerový běh je ukončen.</p>
+<p>Podívejme se na logy.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl logs spanek
+startuji
+koncim
+</pre>
+<p>Máme je! U kontejnerů je velmi vhodné psát veškeré informace aplikace do stdout a stderr, protože to pak sám Kubernetes dokáže zachytávat (a AKS následně můžete integrovat s Log Analytics pro agregaci logů ze všech kontejnerů). Pokud píšete logy do lokálního souboru, do Kubernetes se nedostanou. Ideální je nastavit aplikaci tak, aby psala do stdout/stderr (tak je tomu třeba u NGINX kontejnerového image) a pokud to z nějakého důvodu nejde (například máte binárku a nic s tím neuděláte, píše prostě do souboru) tak doporučuji třeba nasadit pomocný kontejner (do stejného podu - jde o tzv. Side Car pattern, o kterém se pobavíme jindy), který bude sdílet Pod a uvidí na soubor s logem, který bude tailovat do stdout (ukážeme si jindy). Samozřejmě je tu i varianta logování přes Kubernetes obejít a napojit aplikaci třeba rovnou do Application Insights.</p>
+<p>Pod teď můžeme smazat.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl delete pod spanek
+</pre>
+<p>Zkusme něco trochu zajímavějšího - webový server v kontejneru. Použijeme zase standardní image z Docker Hubu a v příkazu run nebudeme uvádět restart politiku (takže se použije výchozí) a exponujeme port 80.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl run webik --image nginx --port 80
+</pre>
+<p>Vypišme si teď Pody.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get pods
+NAME                     READY     STATUS    RESTARTS   AGE
+webik-7c8f7c8c74-4wxtt   1/1       Running   0          19s</pre>
+<p>Hmm, jmenuje se nějak divně. Je to tím, že tentokrát jsme nechali Kubernetes starat se o zdraví našeho kontejneru (podrobnosti health checků si probereme jindy). Zjednodušeně řečeno pokud by Pod z nějakého důvodu umřel (rozbil by se Kubernetes node, na kterém běží nebo havaroval nginx proces), Kubernetes sjedná nápravu.</p>
+<p>Prohlédněme si tedy deployment.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get deployments
+NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+webik     1         1         1            1           50s
+</pre>
+<p>Kubernetes tedy hlídá, že realita odpovídá požadovanému stavu (čili jednomu běžícímu kontejneru).</p>
+<p>Sestřelme teď tento pod a rychle si vypišme proud změn v podech.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl delete pod webik-7c8f7c8c74-4wxtt
+
+kubectl get pods -w
+NAME                     READY     STATUS              RESTARTS   AGE
+webik-7c8f7c8c74-4wxtt   1/1       Terminating         0          25s
+webik-7c8f7c8c74-dlhc5   0/1       ContainerCreating   0          1s
+webik-7c8f7c8c74-4wxtt   0/1       Terminating   0         25s
+webik-7c8f7c8c74-dlhc5   1/1       Running   0         4s
+</pre>
+<p>Jak vidíte Kubernetes Deployment ihned nastartoval jiný kontejner (Pod).</p>
+<p>A funguje nám vůbec ten web? O síťařině se budeme podrobně bavit jindy (Pod nemá konektivitu zvenku), ale pro jednoduchý test můžeme využít kubectl funkce forwardování portů z vašeho notebooku do Kubernetes clusteru zabezpečeným tunelem. Nastartujte tunelování Pod z jeho portu 80 na váš lokální port 8080.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl port-forward webik-7c8f7c8c74-dlhc5 8080:80
+</pre>
+<p>V jiném okně nebo ve vašem prohlížeči se teď můžete na lokálu podívat na výchozí NGINX stránku.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">curl 127.0.0.1:8080
+</pre>
+<p>Kromě aktuálně spuštěného procesu můžeme také skočit přímo do běžícího kontejneru a spustit v něm nějaký další proces/příkaz. Tady ale musím upozornit na jednu zásadní věc. Kontejnery by vždy měly být přísně immutable. Nikdy neprovádějte modifikace v běžícím kontejneru; pokud potřebujete něco změnit, vytvořte novou verzi image. Přesto někdy může být vstup do kontejneru dobrá věc pro troubleshooting. Pro zkoušku tedy vyvoláme bash a to v interaktivním režimu (tedy něco jako kdybychom se přes SSH přihlásili do běžného VMka) a modifikujeme výchozí NGINX webovou stránku (jen pro zkoušku - je to špatný postup, kontejner má být immutable).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="shell">kubectl exec webik-7c8f7c8c74-dlhc5 -it -- bash
+root@webik-7c8f7c8c74-dlhc5:/# echo Moje nova stranka &gt; /usr/share/nginx/html/index.html
+root@webik-7c8f7c8c74-dlhc5:/# exit
+</pre>
+<p>Přes port-forward ověřte, že teď dostáváme novou stránku.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">curl 127.0.0.1:8080
+Moje nova stranka
+</pre>
+<p>Výborně!</p>
+<h1>Použití desired state předpisů</h1>
+<h2>Jeden Pod</h2>
+<p>Imperativní příkazy typu kubectl run jsou fajn na rychlou zkoušku, ale rozhodně je nedoporučuji běžně používat. Kubernetes je navržen jako desired state model a ten je mu nejlépe zadávat jako YAML předpis. Ten vám totiž může zůstat uložený, můžete ho verzovat třeba v gitu a zcela tím odpadají myšlenky typu jak zálohovat konfigurace a podobné záležitosti. Desired state předpis je "spustitelná dokumentace", z které kdykoli obnovíte stav nastavení Kubernetes objektů. Ostatně i imperativní příkazy vedou na YAML desired state předpisy. Pokud chcete, můžete se na ně podívat, ale vězte, že v nich je víc podrobností, než je pro definici potřeba + některé stavové informace.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get deployment/webik -o yaml
+</pre>
+<p>My tedy začneme od začátku a ukážeme si založení jednoduché instance kontejneru ubuntu. Já použiji image tutum/curl, který je postaven na základním ubuntu image a přidává k němu curl utilitku (ta se nám bude později hodit). Jak tedy vypadá definice Podu v deklarativní podobě? Takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Pod
+apiVersion: v1
+metadata:
+  name: ubuntu
+spec:
+  containers:
+    - name: ubuntu
+      image: tutum/curl
+      command: ["tail"]
+      args: ["-f", "/dev/null"]</pre>
+<p>Kind říká typ Kubernetes objektu (dnes uvidíme Pod, Deployment a Service, ale jsou i další). API version říká k jaké verzi implementace objektu se vztahuje (jak se Kubernetes vyvíjí, mohou se některé aspekty třeba Podu měnit a to lze zachytit verzí API a zajistit tak kompatibilitu) - to najdete vždy v dokumentaci. Metadata jsou další údaje, pro nás je teď podstatné jen jméno Podu. Pak už je sekce spec se specifikací podu. V něm je pole objektů containers (Pod jich totiž může obsahovat víc) a v ní máme jeden s názvem ubuntu, image je tutum/curl a následuje určení procesu, se kterým má kontejner nastartovat. U některých obrazů to dělat nemusíte, protože v obrazu je to připraveno (třeba u nginx). Já použiji příkaz tail a jako argumenty bude mít -f /dev/null. Dochází vám proč? Kontejner potřebuji jen na testování a budu do něj později skákat přes kubectl exec a něco z něj zkoušet. K tomu ale potřebuji, aby mi běžel - tzn. hledám proces, který pořád poběží (bude udržovat kontejner nahoře) a tohle je dobrá volba.</p>
+<p>Předpis si uložím do souboru podUbuntu.yaml a vytvoříme si tento zdroj.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f podUbuntu.yaml</pre>
+<p>Po chvilce nám Pod pojede.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get pods
+NAME      READY     STATUS    RESTARTS   AGE
+ubuntu    1/1       Running   0          4m</pre>
+<h2>Deployment webové aplikace</h2>
+<p>Pro webovou aplikaci použiji svůj jednoduchý image (tkubica/web:1), který hostuje web server na portu 3000 a vrací text označující verzi aplikace a také GUID instance. Budu chtít použít Deployment (ať se vše samo opravuje) a také ne jednu, ale hned tři instance kvůli rozdělení zátěže. Můj Deployment předpis vypadá takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: mujweb-deployment
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: mujweb
+    spec:
+      containers:
+      - name: mujweb-container
+        image: tkubica/web:1
+        ports:
+        - containerPort: 3000</pre>
+<p>Co se tam děje? Kind objektu je Deployment, v metadatech je jeho název, zajímavá je až spec. V té říkám, že chci tři repliky (instance toho stejného kontejnerového obrazu). Dále určuji šablonu pro každou instanci a všimněte si, že tato šablona odpovídá definici Podu tak, jak už ji známe. Co je navíc je položka labels, která přidává k podu nějakou nálepku (to bude za chvilku dost důležité, uvidíte). V definici kontejneru ještě navíc definuji port, na kterém web server běží. Uložím si soubor jako deploymentWebV1.yaml a pošlu do Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f deploymentWebV1.yaml</pre>
+<p>Po chvilce jsou všechny Pody nahoře.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get pods
+NAME                                 READY     STATUS    RESTARTS   AGE
+mujweb-deployment-5994cdf47b-kzfgm   1/1       Running   0          9m
+mujweb-deployment-5994cdf47b-pq5kj   1/1       Running   0          9m
+mujweb-deployment-5994cdf47b-zv8x8   1/1       Running   0          7m
+ubuntu                               1/1       Running   0          15m</pre>
+<p>Hmm, tak možná bych ale nakonec těch instancí chtěl pět. Není problém - upravme v souboru řádek replicas:5 (pokud používáte version control tak před tím zacommitujte existující stav... nebo vytvořme jiný soubor) a pošleme do Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f deploymentWebV1.yaml
+deployment.apps "mujweb-deployment" configured
+
+$ kubectl get pods
+NAME                                 READY     STATUS    RESTARTS   AGE
+mujweb-deployment-5994cdf47b-8rqp2   1/1       Running   0          9s
+mujweb-deployment-5994cdf47b-kzfgm   1/1       Running   0          12m
+mujweb-deployment-5994cdf47b-pq5kj   1/1       Running   0          12m
+mujweb-deployment-5994cdf47b-psbcj   1/1       Running   0          9s
+mujweb-deployment-5994cdf47b-zv8x8   1/1       Running   0          10m
+ubuntu                               1/1       Running   0          18m</pre>
+<h1>Balancing a vytvoření služby (Service)</h1>
+<p>Je sice fajn, že máme kontejner v několika instancích, ale ty dohromady tvoří jednu službu (balancovaný web například) a my máme jen pět samostatných podů a jejich IP adresy. Chtěli bychom je všechny zahrnout pod jednu virtuální IP adresu, přiřadit jim DNS jméno a balancovat provoz na instance. Samozřejmě pokud se změní počet replik, chceme automaticky zařadit či vyřadit instance z balancovací skupiny. Neřešme externí konektivitu (o tom jindy), zaměřme se zatím jen na účely uvnitř clusteru.</p>
+<p>Tohle pro nás udělá koncept Service. Bude vypadat takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kind: Service
+apiVersion: v1
+metadata:
+  name: mujweb-service
+spec:
+  selector:
+    app: mujweb
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000</pre>
+<p>Co se tam děje? Name je tentokrát důležité, protože bude sloužit pro service discovery uvnitř clusteru. Kubernetes pro účely vnitřku má svou dynamickou DNS a ostatní kontejnery najdou tuto službu pod DNS názvem. Druhá zajímavá věc je selector. To je způsob, jak Kubernetes pozná, na které kontejnery má provoz balancovat. Žádné IP adresy a podobné neflexibilní věci - selector se zajímá jen o label. Kontejnery se správnou nálepkou se do balancování zařadí. Poslední definujeme síťově o co jde a v mém případě chci službu běžet na portu 80 s tím, že backend (web server v kontejnerech) mi běží na portu 3000.</p>
+<p>Pošleme definici do Kubernetes.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f serviceWeb.yaml</pre>
+<p>Podívejme se na Service.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl get service
+NAME             TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes       ClusterIP   10.0.0.1       &lt;none&gt;        443/TCP   23h
+mujweb-service   ClusterIP   10.0.196.123   &lt;none&gt;        80/TCP    11s</pre>
+<p>Naší službu mujweb-service vidíme a má i IP adresu, ale pouze pro interní účely (o dalších možnostech jindy). Mohli bychom tedy skočit do našeho Ubuntu kontejneru a zjistit, jestli je služba uvnitř clusteru skutečně dostupná.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl exec ubuntu -- curl -s mujweb-service
+&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 0ffc2abd-1fe4-4c67-ba85-204abb4d6ec8
+&lt;/h1&gt;$</pre>
+<p>Funguje! A dokonce balancuje, zkuste to víckrát a dostanete odpověď od různých instancí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ kubectl exec ubuntu -- curl -s mujweb-service
+&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 11234f15-66f8-456a-9950-5a062398b224
+&lt;/h1&gt;$ kubectl exec ubuntu -- curl -s mujweb-service
+&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 0ffc2abd-1fe4-4c67-ba85-204abb4d6ec8
+&lt;/h1&gt;$ kubectl exec ubuntu -- curl -s mujweb-service
+&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 0ffc2abd-1fe4-4c67-ba85-204abb4d6ec8
+&lt;/h1&gt;$ kubectl exec ubuntu -- curl -s mujweb-service
+&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 2baebfb4-22af-4ba9-8d85-d3137d4f2f3b
+&lt;/h1&gt;$ kubectl exec ubuntu -- curl -s mujweb-service</pre>
+<h1>Rolling upgrade</h1>
+<p>Říkal jsem, že kontejner má být immutable. Já tady mám novou verzi aplikace a ta bude vracet Version 2. Jak ji nasadím? Tato nová verze bude mít nový kontejnerový obraz (o jejich tvorbě a práci s Azure Container Registry také někdy jindy podrobněji) a uložím do stejného názvu, ale s jiným tagem, tedy tkubica/web:2. Nejprve si připravím modifikovaný YAML soubor s názvem deploymentWebV2.yaml, kde změním jen tag image.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: mujweb-deployment
+spec:
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: mujweb
+    spec:
+      containers:
+      - name: mujweb-container
+        image: tkubica/web:2
+        ports:
+        - containerPort: 3000</pre>
+<p>V jiném okně si teď spustíme kontinuální přístupy na službu z kontejneru ubuntu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl exec ubuntu -- bash -c 'while true; do curl -s mujweb-service; sleep 0.3; done'</pre>
+<p>V původním okně aplikujeme nový předpis a rychle si vypíšeme proud změn stavu Podů.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">kubectl apply -f deploymentWebV2.yaml
+deployment.apps "mujweb-deployment" configured
+$ kubectl get pods -w
+NAME                                 READY     STATUS              RESTARTS   AGE
+mujweb-deployment-56865c86b9-6v4lg   0/1       ContainerCreating   0          3s
+mujweb-deployment-56865c86b9-9w449   0/1       ContainerCreating   0          3s
+mujweb-deployment-56865c86b9-g6spw   0/1       ContainerCreating   0          3s
+mujweb-deployment-5994cdf47b-8rqp2   1/1       Running             0          18m
+mujweb-deployment-5994cdf47b-kzfgm   1/1       Running             0          31m
+mujweb-deployment-5994cdf47b-pq5kj   1/1       Running             0          31m
+mujweb-deployment-5994cdf47b-zv8x8   1/1       Running             0          28m
+ubuntu                               1/1       Running             0          37m
+mujweb-deployment-56865c86b9-6v4lg   1/1       Running   0         14s
+mujweb-deployment-5994cdf47b-8rqp2   1/1       Terminating   0         18m
+mujweb-deployment-56865c86b9-644lg   0/1       Pending   0         0s
+mujweb-deployment-56865c86b9-644lg   0/1       Pending   0         0s
+mujweb-deployment-56865c86b9-644lg   0/1       ContainerCreating   0         0s
+mujweb-deployment-56865c86b9-9w449   1/1       Running   0         15s
+mujweb-deployment-5994cdf47b-zv8x8   1/1       Terminating   0         28m
+mujweb-deployment-56865c86b9-p6v4w   0/1       Pending   0         0s
+mujweb-deployment-56865c86b9-p6v4w   0/1       Pending   0         0s
+mujweb-deployment-56865c86b9-p6v4w   0/1       ContainerCreating   0         0s
+mujweb-deployment-5994cdf47b-zv8x8   0/1       Terminating   0         28m
+mujweb-deployment-56865c86b9-g6spw   1/1       Running   0         17s
+mujweb-deployment-56865c86b9-644lg   1/1       Running   0         3s
+mujweb-deployment-5994cdf47b-pq5kj   1/1       Terminating   0         31m
+mujweb-deployment-5994cdf47b-8rqp2   0/1       Terminating   0         19m
+mujweb-deployment-5994cdf47b-kzfgm   1/1       Terminating   0         31m
+mujweb-deployment-5994cdf47b-pq5kj   0/1       Terminating   0         31m
+mujweb-deployment-56865c86b9-p6v4w   1/1       Running   0         3s
+mujweb-deployment-5994cdf47b-kzfgm   0/1       Terminating   0         31m</pre>
+<p>Co se dělo? Kubernetes postupně přidával kontejnery v nové verzi a když byly nahoře ukončil některé stávající, následně přidal další v nové verzi a tak postupně až bylo všechno přemigrováno. To je ukázka immutable vlastností. Nemodifikujete běžící kontejnery, ale vytváříte nové, které původní nahrazují.</p>
+<p>Co se dělo v přístupech na službu? Nejprve to vracelo pořád verzi 1, pak po nějaký okamžik někdy 1 a někdy 2 a když byl rolling upgrade hotový, už je to pochopitelně jen verze 2.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 11234f15-66f8-456a-9950-5a062398b224
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server f7c475dc-7c0a-4759-8412-328e37fb2e61
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 0ffc2abd-1fe4-4c67-ba85-204abb4d6ec8
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server f7c475dc-7c0a-4759-8412-328e37fb2e61
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 2&lt;br&gt;&lt;br&gt;This is server 577a6d31-7f5f-4a45-99f1-30a7a4183e25
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 2&lt;br&gt;&lt;br&gt;This is server 577a6d31-7f5f-4a45-99f1-30a7a4183e25
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 11234f15-66f8-456a-9950-5a062398b224
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 1&lt;br&gt;&lt;br&gt;This is server 11234f15-66f8-456a-9950-5a062398b224
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 2&lt;br&gt;&lt;br&gt;This is server 84bc8904-c914-41dc-bd81-1bc37bd70623
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 2&lt;br&gt;&lt;br&gt;This is server 577a6d31-7f5f-4a45-99f1-30a7a4183e25
+&lt;/h1&gt;&lt;h1&gt;Welcome to Version 2&lt;br&gt;&lt;br&gt;This is server 577a6d31-7f5f-4a45-99f1-30a7a4183e25</pre>
+<p>Samozřejmě ne vždy jsou vaše aplikace schopné se vypořádat s tím, že v nějakém krátkém období mohou dostat odpověď ze staršího i nového systému. Možná někdy nová verze znamená i migraci databáze a současný běh obou není možný. Pak to samozřejmě budete řešit jinak, třeba s nějakou kratičkou odstávkou. Ale pro stateless webové služby, koncept mikroslužeb a častých releasů (časté, ale malé non-breaking změny) je to perfektní koncept. Mimochodem upgrade strategii můžete i trochu nastavit a technik je víc, ale o tom v detailu jindy.</p>
+<p>&nbsp;</p>
+<p><em>Dnes to bylo hodně úvodní a přestože vám jistě řada věcí vrtá hlavou, základní koncept se snad podařilo odhalit. Jak je to ale se síťařinou a přístupem do služeb v clusteru? A jak řešit privátní kontejnerové obrazy, ukládat je, vytvářet je, řešit jejich bezpečnost? A co TLS certifikáty a URL routing? O co stavové služby jako je databáze? A co cron joby typu zálohovací skripty? A jak řešit monitoring a sběr logů? Takových otázek je ale ještě mnohem víc. A na všechny chci dát odpověď, vracejte se pro další porci Kubernetes a zkuste si AKS v Azure ještě dnes.</em></p>

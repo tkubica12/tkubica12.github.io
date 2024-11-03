@@ -1,0 +1,232 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Networking v cloudu: IP balancing s Azure Load Balancer'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1065
+wordpress_url: http://tomaskubica.cz/?p=1065
+date: '2017-09-11 06:23:31 +0000'
+date_gmt: '2017-09-11 05:23:31 +0000'
+categories:
+tags:
+- Networking
+---
+<p>Azure nabízí vysoce výkonný naprosto elastický SDN-based L4 balancer, který je protokolově transparentní. V nabídce je také L7 balancer (Azure Application Gateway) a globální DNS balancer (Azure Traffic Manager). Podívejme se dnes na  Azure Load Balancer, který je zcela zdarma jako součást SDN fabric v Azure.<!--more--></p>
+<h1>Jak Azure Load Balancer funguje</h1>
+<p>Jedná se o základní formu balancování na úrovni L4, tedy zcela transparentně vůči protokolům. Balancer nekouká do provozu a nefunguje jako proxy. Jak to funguje?</p>
+<p>Jednou z komponent balanceru je udržování informací o setu vašich VM a zda aplikace žije, tedy health probe - ta může fungovat jako HTTP ale i generické TCP (testuje sestavení spojení) a je tedy vhodná pro jakýkoli protokol. Na vstupu paketu balancer provede HASH (5-tuple nebo 2-tuple nebo 3-tuple) na základě které rozloží zátěž. Díky tomu, že různé NAT funkce jsou distribuované v SDN fabric tak v tomto kroku balancer udělá Destination NAT na adresu vybrané VM, nicméně nechá zdrojovou IP adresu (to je velmi příjemné z pohledu logování i dráhy paketu). VM odpovídá přímo klientovi a distribuovaný SDN fabric zajistí Source NAT z privátní IP VM na adresu balanceru. Díky tomu odchozí provoz jde přímo z compute node do sítě, nemusí jít přes nějakou applicance. To je velký rozdíl oproti L7 řešením typu proxy (sem patří Azure Application Gateway). Kapacita Azure Load Balancer je tak vlastně neomezená a neovlivňuje váš síťový výkon, ani za ni neplatíte ani ji nemusíte nijak plánovat. Azure na pozadí automaticky škáluje balancovací cluster z pohledu health checků a odchozí zpracování je distribuované přímo do compute nodů. Dostáváte výhody Direct Server Return bez jeho obvyklých nepříjemných vlastnosti (= máte ho a přitom nemusíte mít na každé VM stejnou IP). A přitom se nejedná o klasický Source NAT, který by vaší aplikaci znemožnil vidět reálnou IP adresu klienta. Díky SDN získáváte současně vysoký výkon a pohodlnost/transparentnost. Více uvidíte v dnešním článku.</p>
+<h1>Vyzkoušejme Azure Load Balancer</h1>
+<p>Nejprve si vytvoříme prostředí na hraní. Balancer rozděluje zátěž na nějakou skupinu VM, která vychází z definice Availability Setu (což je zároveň dává do různých zón dostupnosti a update domén). Je také možné proces ještě více automatizovat (zejména z pohledu vytváření a změny počtu VM) se Scale Setem, ale o tom později. Vytvoříme si tedy přes CLI 3 VM. Abych mohl balancer zkoušet, potřebuji na nich rovnou rozběhnout jednoduchý web (ideálně takový, co mi umožní z vrácené hodnoty identifikovat konkrétní VM). Připravil jsem si jednoduchý web server, který vrací MAC adresu (je to binárka kompilovaná z jednoduché Go aplikace s Martini frameworkem). Tu přes extension nakopírujeme do VM a skriptem zajistíme spustitelnost (chmod) a samotné spuštění. Web běží na portu 3000. Takto nahodíme moje prostředí:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n mujlb -l westeurope
+az network vnet create -g mujlb -n lbnet --address-prefix 10.0.0.0/16 --subnet-name sub1 --subnet-prefix 10.0.0.0/24
+az vm availability-set create -n mujset -g mujlb
+
+az vm create -n vm1 -g mujlb --image ubuntults --vnet-name lbnet --subnet sub1 --availability-set mujset --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A1 --public-ip-address "" --nsg "" --storage-sku Standard_LRS
+az vm extension set -n CustomScriptForLinux --publisher Microsoft.OSTCExtensions -g mujlb --settings '{"fileUris": ["https://tomuvstore.blob.core.windows.net/sdilna/webstart.sh?st=2017-07-10T08%3A57%3A00Z&amp;se=2018-07-11T08%3A57%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=7Ln0GEAAkP9ycSMH7l2rZuKcf3NiIRHZ%2FUCUCeOtGHY%3D", "https://tomuvstore.blob.core.windows.net/sdilna/web?st=2017-07-11T00%3A50%3A00Z&amp;se=2018-07-12T00%3A50%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=4DDOUzLesBvd2BgaCbyuIFT6v12FGGeTb8i2PwqPbxg%3D"],"commandToExecute": "sh webstart.sh"}' --vm-name vm1   
+
+az vm create -n vm2 -g mujlb --image ubuntults --vnet-name lbnet --subnet sub1 --availability-set mujset --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A1 --public-ip-address "" --nsg "" --storage-sku Standard_LRS
+az vm extension set -n CustomScriptForLinux --publisher Microsoft.OSTCExtensions -g mujlb --settings '{"fileUris": ["https://tomuvstore.blob.core.windows.net/sdilna/webstart.sh?st=2017-07-10T08%3A57%3A00Z&amp;se=2018-07-11T08%3A57%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=7Ln0GEAAkP9ycSMH7l2rZuKcf3NiIRHZ%2FUCUCeOtGHY%3D", "https://tomuvstore.blob.core.windows.net/sdilna/web?st=2017-07-11T00%3A50%3A00Z&amp;se=2018-07-12T00%3A50%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=4DDOUzLesBvd2BgaCbyuIFT6v12FGGeTb8i2PwqPbxg%3D"],"commandToExecute": "sh webstart.sh"}' --vm-name vm2    
+
+az vm create -n vm3 -g mujlb --image ubuntults --vnet-name lbnet --subnet sub1 --availability-set mujset --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --admin-username tomas --size Standard_A1 --public-ip-address "" --nsg "" --storage-sku Standard_LRS
+az vm extension set -n CustomScriptForLinux --publisher Microsoft.OSTCExtensions -g mujlb --settings '{"fileUris": ["https://tomuvstore.blob.core.windows.net/sdilna/webstart.sh?st=2017-07-10T08%3A57%3A00Z&amp;se=2018-07-11T08%3A57%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=7Ln0GEAAkP9ycSMH7l2rZuKcf3NiIRHZ%2FUCUCeOtGHY%3D", "https://tomuvstore.blob.core.windows.net/sdilna/web?st=2017-07-11T00%3A50%3A00Z&amp;se=2018-07-12T00%3A50%3A00Z&amp;sp=rl&amp;sv=2015-12-11&amp;sr=b&amp;sig=4DDOUzLesBvd2BgaCbyuIFT6v12FGGeTb8i2PwqPbxg%3D"],"commandToExecute": "sh webstart.sh"}' --vm-name vm3    
+
+</pre>
+<p>Začneme jednoduchým scénářem - externí public IP adresa, která balancuje provoz na vnitřní web servery. Přidáme si Azure Load Balancer.</p>
+<p id="EmSDMou"><img class="img-fluid wp-image-1067 " src="/images/2017/img_5963577dbfd7a.png" alt="" /></p>
+<p>Použijeme public IP (pokud přímo v dialogu si můžete novou vytvořit).</p>
+<p id="QZKjhlM"><img class="img-fluid wp-image-1068 " src="/images/2017/img_596357d2ae7fe.png" alt="" /></p>
+<p>Až se vytvoříme, pojďme do jeho nastavení. Front IP adresa už tam je, ale všimněte si, že můžeme přidat další (k tomu se později ještě vrátíme).</p>
+<p id="ACEblkg"><img class="img-fluid wp-image-1080 " src="/images/2017/img_5964605535627.png" alt="" /></p>
+<p>Určitě nebudeme chtít posílat provoz na nody, které z aplikačního hlediska přestanou odpovídat. Ty chceme automaticky z poolu vyřadit. Přidáme tedy health Check.</p>
+<p id="GNlleir"><img class="img-fluid wp-image-1070 " src="/images/2017/img_5963589c96440.png" alt="" /></p>
+<p>Já použiji HTTP probe na nějaké URL (u mě jen / ) a pár parametrů. Protože Azure Load Balancer není aplikační proxy, podporuje jakýkoli protokol a můžeme provádět health check na úrovni sestavení TCP spojení, což je vhodné například pro databázový cluster. V mém případě běží web na portu 3000.</p>
+<p id="pHgxHha"><img class="img-fluid wp-image-1081 " src="/images/2017/img_596460c602799.png" alt="" /></p>
+<p>Na co má Azure balancovat? To mu musíme říct a vytvořit backend pool.</p>
+<p id="uTSZGVo"><img class="img-fluid wp-image-1072 " src="/images/2017/img_59635933f1bb8.png" alt="" /></p>
+<p>Přidáme náš Availability Set a specifikujeme konkrétní VM a jejich síťové karty.</p>
+<p id="mxzIKdy"><img class="img-fluid wp-image-1074 " src="/images/2017/img_59635efe6f8cd.png" alt="" /></p>
+<p>Teď už zbývá přidat balancovací pravidlo, tedy na jakém venkovním portu má balancer přijímat požadavky a jakým způsobem je distribuovat na backend.</p>
+<p id="IyubvlQ"><img class="img-fluid wp-image-1076 " src="/images/2017/img_59636027e2911.png" alt="" /></p>
+<p>Zadáme název, venkovní port (klasicky 80) a vnitřní port (v našem případě 3000), backend pool, health probe a také session perzistenci. Pokud dáme None, bude každý požadavek směrován na nějakou backend VM bez ohledu na předešlé požadavky (pro směrování se použije 5-tuple hash). To je ideální z hlediska škálování výkonu, ale vhodné pouze pro stateless aplikace, kdy si konkrétní VM nedrží nějaké session informace v paměti (typicky je externalizuje třeba do Azure Redis, kde si třeba drží obsah nákupního košíku nebo si state posílá tam a zpět s klientem). Začneme s None a vyzkoušíme si rozdíl.</p>
+<p id="VvSlBGs"><img class="img-fluid wp-image-1082 " src="/images/2017/img_596461531ea34.png" alt="" /></p>
+<p>Browser bude cachovat, tak použijeme curl v Linuxu. Odpověď se nám bude vracet z různých VM:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true; do curl http://13.81.6.243; echo; sleep 1; done
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;</pre>
+<p>Varianta Client IP (2-tuple hash) říká, že pokud klient z konkrétní IP vznesl dotaz a byl poslán na konkrétní VM, tato informace se po dobu 4 minut nečinnosti zapamatuje (resp. hodnotu timeoutu můžete změnit). Tzn. pokud za půl minuty provede klient další dotaz, dostane se na stejnou VM. To je potřeba v situaci kdy aplikace není bezestavová - například se drží session informace v paměti VM nebo používá TCP spojení pro řízení, ale data jdou po UDP (například u multimediálních přenosů). Nicméně rozložení zátěže nemusí být ideální, zejména pokud je vaším jediným zákazníkem firma, jejíž všichni zaměstnanci jsou schování NATem za jedinou public IP (pak to nebalancuje vůbec). Přepneme session persistence na Client IP a zkusíme znovu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true; do curl http://13.81.6.243; echo; sleep 1; done
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;</pre>
+<p>Balancing pojďme přepnout zase na 5-tuple (None v session persistence). Možná vás napadlo, že u web serverů by bylo lepší session persistance řešit přes cookie. To už ale znamená, že balancer kouká do protokolu samotného, tedy pracuje na L7. Takové řešení existuje a je to Azure Application Gateway, ale o té někdy jindy.</p>
+<p>Můžeme si vyzkoušet sestřelení webového procesu. Health probe selže a balancer přestane VM používat. Pustíme si zase kontinuální přístupy a v jednom z VM provedu kill webového procesu. Všimněte si, že stroj z F8 vypadl z balancování.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true; do curl http://13.81.6.243; echo; sleep 1; done
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+curl: (52) Empty reply from server
+
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;</pre>
+<p>Po nahození procesu se VM zase automaticky zařadí.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ while true; do curl http://13.81.6.243; echo; sleep 1; done
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:3a:fe&lt;/h1&gt;
+&lt;h1&gt;My MAC address is 00:0d:3a:20:2d:f8&lt;/h1&gt;</pre>
+<h1>Dráha paketu aneb co uvidíme uvnitř VM</h1>
+<p>Azure Load Balancer je součástí SDN fabric, takže funguje trochu jinak než klasický balancer ve formě appliance. Podívejme se co se konkrétně děje. Nejprve se potřebujeme připojit do VM přes SSH. To můžeme udělat na vnitřních adresách z nějaké jiné VM ve VNETu nebo si na balanceru nastavit NAT pravidla na jednotlivé stroje. Přidejme si na public IP prostupy na SSH jednotlivých VM.</p>
+<p id="ohdtCIm"><img class="img-fluid wp-image-1075 " src="/images/2017/img_59635fc2762d0.png" alt="" /></p>
+<p>Zadáme na venkovní port 9001 prostup na SSH (22) první VM. Totéž zopakujte pro další VM přes venkovní porty 9002 a 9003.</p>
+<p id="dWGxJTq"><img class="img-fluid wp-image-1084 " src="/images/2017/img_59646b5c44774.png" alt="" /></p>
+<p>Následně se přes SSH na public IP na portu 9001 dostanu do první VM. Spustímě tcpdump s filtrací na port 3000 (tam běží moje webová aplikace), vygeneruje pár requestů a podíváme se, co se děje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump port 3000
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+05:57:27.518687 IP 167.220.196.156.61461 &gt; 10.0.0.4.3000: Flags [S], seq 2639520074, win 5840, options [mss 1460,sackOK,TS val 246880231 ecr 0,nop,wscale 3], length 0
+05:57:27.518764 IP 10.0.0.4.3000 &gt; 167.220.196.156.61461: Flags [S.], seq 2507100457, ack 2639520075, win 28960, options [mss 1460,sackOK,TS val 1359658 ecr 246880231,nop,wscale 7], length 0
+05:57:27.526897 IP 167.220.196.156.61461 &gt; 10.0.0.4.3000: Flags [.], ack 1, win 730, options [nop,nop,TS val 246880231 ecr 1359658], length 0
+05:57:27.527029 IP 167.220.196.156.61461 &gt; 10.0.0.4.3000: Flags [P.], seq 1:76, ack 1, win 730, options [nop,nop,TS val 246880231 ecr 1359658], length 75
+05:57:27.527047 IP 10.0.0.4.3000 &gt; 167.220.196.156.61461: Flags [.], ack 76, win 227, options [nop,nop,TS val 1359660 ecr 246880231], length 0
+05:57:27.527983 IP 10.0.0.4.3000 &gt; 167.220.196.156.61461: Flags [P.], seq 1:161, ack 76, win 227, options [nop,nop,TS val 1359660 ecr 246880231], length 160
+05:57:27.536147 IP 167.220.196.156.61461 &gt; 10.0.0.4.3000: Flags [.], ack 161, win 804, options [nop,nop,TS val 246880232 ecr 1359660], length 0
+05:57:28.941402 IP 168.63.129.16.51233 &gt; 10.0.0.4.3000: Flags [P.], seq 1490355915:1490356077, ack 1090991334, win 508, length 162
+05:57:28.945671 IP 10.0.0.4.3000 &gt; 168.63.129.16.51233: Flags [P.], seq 1:161, ack 162, win 555, length 160
+05:57:29.003337 IP 168.63.129.16.51233 &gt; 10.0.0.4.3000: Flags [.], ack 161, win 507, length 0
+05:57:29.684412 IP 167.220.196.156.61464 &gt; 10.0.0.4.3000: Flags [S], seq 2316505632, win 5840, options [mss 1460,sackOK,TS val 246880457 ecr 0,nop,wscale 3], length 0
+05:57:29.684489 IP 10.0.0.4.3000 &gt; 167.220.196.156.61464: Flags [S.], seq 2912798739, ack 2316505633, win 28960, options [mss 1460,sackOK,TS val 1360243 ecr 246880457,nop,wscale 7], length 0
+05:57:29.693052 IP 167.220.196.156.61464 &gt; 10.0.0.4.3000: Flags [.], ack 1, win 730, options [nop,nop,TS val 246880458 ecr 1360243], length 0
+05:57:29.693177 IP 167.220.196.156.61464 &gt; 10.0.0.4.3000: Flags [P.], seq 1:76, ack 1, win 730, options [nop,nop,TS val 246880458 ecr 1360243], length 75
+05:57:29.693194 IP 10.0.0.4.3000 &gt; 167.220.196.156.61464: Flags [.], ack 76, win 227, options [nop,nop,TS val 1360245 ecr 246880458], length 0
+05:57:29.693733 IP 10.0.0.4.3000 &gt; 167.220.196.156.61464: Flags [P.], seq 1:161, ack 76, win 227, options [nop,nop,TS val 1360245 ecr 246880458], length 160
+05:57:29.702190 IP 167.220.196.156.61464 &gt; 10.0.0.4.3000: Flags [.], ack 161, win 804, options [nop,nop,TS val 246880459 ecr 1360245], length 0
+05:57:29.727241 IP 167.220.196.156.61464 &gt; 10.0.0.4.3000: Flags [R.], seq 76, ack 161, win 804, options [nop,nop,TS val 246880462 ecr 1360245], length 0
+</pre>
+<p>Veřejná IP adresa na mé straně je:</p>
+<p id="TjZoWcH"><img class="img-fluid wp-image-1085 " src="/images/2017/img_59646bccc474f.png" alt="" /></p>
+<p>Vidíme requesty z 168.63.129.16 - to je health probe balanceru. Pak už jsou tu requesty z 167.220.196.156 na privátní IP ve VM (10.0.0.4). To je důležité! Balancer neprovedl SNAT, jen DNAT, což má dvě zásadní výhody. Jednak aplikace vidí reálnou IP adresu klienta (nikoli balanceru) a umožňuje jí to přímo odpovědět klientovi. Azure SDN zajistí odchozí provoz a překlad odchozí IP z lokální 10.0.0.4 na IP adresu balanceru. To je funkce distribuovaná do SDN fabricu, takže se odehraje přímo v hostitelském SDN stacku, nikoli v nějakém centrální balanceru. Jinak řečeno z pohledu dráhy pakety implementuje Azure Load Balancer tzv. Direct Server Return.</p>
+<p>Tedy ještě jednou:</p>
+<ul>
+<li>Provoz letící od klienta: Source IP = moje IP, Destination IP = Balancer IP</li>
+<li>Provoz od balanceru do vybrané VM: Source IP = moje IP, Destination IP = privátní VM IP</li>
+<li>Odchozí provoz uvnitř VM: Source IP = privátní VM IP, Destination IP = moje IP</li>
+<li>Provoz tak jak odchází z compute nodu: Source IP = Balancer IP, Destination IP = moje IP</li>
+</ul>
+<p>Přesto - v nastavení jste si možná všimli volby Floating IP a v závorce práce Direct Server Return. Co to znamená? Technicky z hlediska dráhy paketu je Azure LB v režimu DSR vždy. Touto volbou je ovšem myšleno to, že balancer nebude překládat destination IP na privátní adresu VM (tedy na 10.0.0.4). Je pár situací, kdy technologie clusteringu vyžaduje, aby VM o adrese balanceru "věděla", tedy měla ji v sobě jako interface (dobrým příkladem je MS SQL AlwaysOn cluster. Pro balancer samotný je to globální nastavení a nový se mi kvůli tomu dělat nechce. Na vyzkoušení tedy použijeme NAT pravidlo - nic to nebude dělat, ale nám jde o to podívat se na pakety.</p>
+<p id="vweuixU"><img class="img-fluid wp-image-1086 " src="/images/2017/img_59646d5164a4b.png" alt="" /></p>
+<p>Pustíme si tam nějaký provoz (curl http://mojeip:10000) a podívejme se na pakety.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ sudo tcpdump port 10000
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 262144 bytes
+06:16:11.995614 IP 167.220.196.156.61528 &gt; 13.81.6.243.webmin: Flags [S], seq 2365489053, win 64240, options [mss 1460,nop,wscale 8,nop,nop,sackOK], length 0
+06:16:14.920766 IP 167.220.196.156.61528 &gt; 13.81.6.243.webmin: Flags [S], seq 2365489053, win 64240, options [mss 1460,nop,wscale 8,nop,nop,sackOK], length 0
+06:16:20.958445 IP 167.220.196.156.61528 &gt; 13.81.6.243.webmin: Flags [S], seq 2365489053, win 64240, options [mss 1460,nop,wscale 8,nop,nop,sackOK], length 0
+</pre>
+<p>Tady je ten rozdíl. Zdrojová IP je adresa klienta, ale cílová není privátní IP adresa VM (10.0.0.4) ale public IP balanceru. Všechny VM tak budou mít loopback interface s touto stejnou IP. Jak říkám obvykle něco takového není potřeba, ale některé clusterovací technologie to mohou vyžadovat - a Azure Load Balancer se vypořádá i s takovým scénářem.</p>
+<h1>Interní balancer</h1>
+<p>Ne vždy chcete mít na Azure Load Balancer venkovní public IP. Například jde o interní web aplikaci, která má být přístupná jen na privátní IP přes Azure VPN nebo jde o balancing uvnitř aplikace (třeba z webu na backend službu). Vytvořme tedy ještě jeden balancer se stejnými pravidly, ale tentokrát bude interní.</p>
+<p id="qWOkknf"><img class="img-fluid wp-image-1089 " src="/images/2017/img_596480b058bb9.png" alt="" /></p>
+<p>Založte všechny potřebná pravidla tak jako v předchozím případě a následně nastartujte jinou VM v rámci vašeho VNETu. Odtamtud se ujistěte, že balancing na interní adresu funguje.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">$ curl http://10.0.0.200
+&lt;h1&gt;My MAC address is 00:0d:3a:20:6a:53&lt;/h1&gt;</pre>
+<h1>Monitoring vašeho balanceru</h1>
+<p>Azure Load Balancer umí logovat a to buď jednoduše do storage accountu nebo Event Hub, ale logy můžete vizualizovat v Azure Network Watcher (tam se shromažďují diagnostické informace o síťařině v Azure) případně je posílat do Operations Management Suite (globální hybridní dohledový nástroj a analýza logů).</p>
+<p>Nejprve zapněme logování pro Azure Network Watcher.</p>
+<p id="fuvZEsh"><img class="img-fluid wp-image-1090 " src="/images/2017/img_5964854ddf501.png" alt="" /></p>
+<p>Klikněte na náš balancer a zapneme logování.</p>
+<p id="SwNOELF"><img class="img-fluid wp-image-1091 " src="/images/2017/img_5964858609747.png" alt="" /></p>
+<p>Pojďme teď do VM a zabijme webový proces, abychom vygenerovali nějaká selhání health probe.</p>
+<p id="bMLAuEA"><img class="img-fluid wp-image-1094 " src="/images/2017/img_596489799cef5.png" alt="" /></p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "records": 
+  [
+    
+    {
+       "time": "2017-07-11T08:01:30.1550746Z",
+       "systemId": "ad7273fd-7aba-479f-b4d2-7731e7d975b1",
+       "category": "LoadBalancerProbeHealthStatus",
+       "resourceId": "/SUBSCRIPTIONS/A0F4A733-4FCE-4D49-B8A8-D30541FC1B45/RESOURCEGROUPS/MUJLB/PROVIDERS/MICROSOFT.NETWORK/LOADBALANCERS/LB",
+       "operationName": "LoadBalancerProbeHealthStatus",
+       "properties": {"publicIpAddress":"13.81.6.243","port":80,"totalDipCount":3,"dipDownCount":0,"healthPercentage":100.000000}
+    }
+    ,
+    {
+       "time": "2017-07-11T08:04:56.2753991Z",
+       "systemId": "ad7273fd-7aba-479f-b4d2-7731e7d975b1",
+       "category": "LoadBalancerProbeHealthStatus",
+       "resourceId": "/SUBSCRIPTIONS/A0F4A733-4FCE-4D49-B8A8-D30541FC1B45/RESOURCEGROUPS/MUJLB/PROVIDERS/MICROSOFT.NETWORK/LOADBALANCERS/LB",
+       "operationName": "LoadBalancerProbeHealthStatus",
+       "properties": {"publicIpAddress":"13.81.6.243","port":80,"totalDipCount":3,"dipDownCount":1,"healthPercentage":66.666667}
+    }
+    ,
+    {
+       "time": "2017-07-11T08:07:43.7318168Z",
+       "systemId": "ad7273fd-7aba-479f-b4d2-7731e7d975b1",
+       "category": "LoadBalancerProbeHealthStatus",
+       "resourceId": "/SUBSCRIPTIONS/A0F4A733-4FCE-4D49-B8A8-D30541FC1B45/RESOURCEGROUPS/MUJLB/PROVIDERS/MICROSOFT.NETWORK/LOADBALANCERS/LB",
+       "operationName": "LoadBalancerProbeHealthStatus",
+       "properties": {"publicIpAddress":"13.81.6.243","port":80,"totalDipCount":3,"dipDownCount":0,"healthPercentage":100.000000}
+    }
+
+  ]
+}</pre>
+<p>Pojďme také posílat logy do mého OMS workspace (tedy do Log Analytics účtu).</p>
+<p id="TRMWvAz"><img class="img-fluid wp-image-1092 " src="/images/2017/img_5964872a74b08.png" alt="" /></p>
+<p>Tady je výsledek. Díky různým vlastnostem vizualizace a zpracování logů můžete s těmito záznamy dál pracovat.</p>
+<p id="AOTicwh"><img class="img-fluid wp-image-1095 " src="/images/2017/img_59648d02e7aaf.png" alt="" /></p>
+<p id="ylUpSOu"><img class="img-fluid wp-image-1097 " src="/images/2017/img_596490df59db0.png" alt="" /></p>
+<p>Můžeme si například vytvořit alert v okamžiku, kdy je nějaký z nodů dole. Na to musíme nejprve formulovat query, které by vypadalo nějak takhle:</p>
+<p id="vpthWMc"><img class="img-fluid wp-image-1098 " src="/images/2017/img_5964918a6d9ea.png" alt="" /></p>
+<p>Můžeme nastavit pravidlo, že přijde email nebo například dojde k automatickému založení incidentu v nějakém ITSM nástroji.</p>
+<p id="zoCRLkM"><img class="img-fluid wp-image-1099 " src="/images/2017/img_596491f4ac182.png" alt="" /></p>
+<p>Pokud bychom chtěli vizualizovat které balancery měly za poslední den problém s alespoň jedním nodem query by vypadalo takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">* Type=AzureDiagnostics Category=LoadBalancerProbeHealthStatus dipDownCount_d!=0 TimeGenerated&gt;NOW-24HOURS | distinct Resource</pre>
+<p id="IAbhWmo"><img class="img-fluid wp-image-1100 " src="/images/2017/img_596496927fef2.png" alt="" /></p>
+<p>Dokonce můžete z OMS logy exportovat do Power BI pro další byznysově orientované vizualizace.</p>
+<p>&nbsp;</p>
+<p><em>Azure Load Balancer je mocný a zejména vysoce výkonný nástroj, který díky SDN fabricu nezpomaluje váš provoz, nemusíte plánovat jeho kapacitu a je k dispozici pro VM kategorie Standard zdarma. Rozhodně stojí za nasazení.</em></p>

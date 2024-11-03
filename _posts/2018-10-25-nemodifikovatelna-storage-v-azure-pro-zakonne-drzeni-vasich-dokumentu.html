@@ -1,0 +1,46 @@
+---
+layout: post
+status: publish
+published: true
+title: Nemodifikovatelná storage v Azure pro zákonné držení vašich dokumentů
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2559
+wordpress_url: http://tomaskubica.cz/?p=2559
+date: '2018-10-25 05:26:58 +0000'
+date_gmt: '2018-10-25 04:26:58 +0000'
+categories:
+tags:
+- Storage
+- Security
+---
+<p>Jsou situace, kdy potřebujete do storage nahrát nějaké dokumenty a zajistit, že je po určité rozhodné období není možné smazat nebo modifikovat a to ani s největšími administrátorskými právy. Možná jde o uživatelem nahrané dokumenty nebo logy z vašich systémů, které musíte držet například po dobu dvou let pro případ důkazního řízení. Tento režim (WORM) dnes nabízí Azure Blob Storage a vyhovuje předpisům jako je SEC 17a-4(f). Pojďme si to vyzkoušet.<!--more--></p>
+<h1>Azure Blob Storage</h1>
+<p>Blob je nejlevnější storage v Azure a je postavena na objektových principech, tedy přistupuje se k ní přes HTTPS, každý objekt má svou unikátní URL a k dispozici je řada SDK do různých jazyků pro integraci do vašich aplikací.</p>
+<h1>Immutable politika</h1>
+<p>Vytvořil jsem Storage Account v2 a v ní jeden kontejner. Pojďme nastavit immutable politiku.</p>
+<p id="ZYqDLQZ"><img class="img-fluid wp-image-2560 " src="/images/2018/img_5bcd4c6f4fc54.png" alt="" /></p>
+<p>Pro zkoušku nastavím politiku tak, že vyžaduje jednodenní nesmazatelnost a nemodifikovatelnost.</p>
+<p id="irLwVPE"><img class="img-fluid wp-image-2561 " src="/images/2018/img_5bcd4ca133b39.png" alt="" /></p>
+<p>Moje politika je aktuálně v unlocked stavu, takže ještě není aplikována. To změníme.</p>
+<p id="yczNgRi"><img class="img-fluid wp-image-2562 " src="/images/2018/img_5bcd4cd918181.png" alt="" /></p>
+<p id="PqozkMV"><img class="img-fluid wp-image-2563 " src="/images/2018/img_5bcd4cf253797.png" alt="" /></p>
+<p>Do storage nahraji nějaký dokument.</p>
+<p id="vCpRDkb"><img class="img-fluid wp-image-2564 " src="/images/2018/img_5bcd4d47029ac.png" alt="" /></p>
+<p>Pokusím se teď dokument smazat.</p>
+<p id="woUhoby"><img class="img-fluid wp-image-2565 " src="/images/2018/img_5bcd4d911e33e.png" alt="" /></p>
+<p>To se nepodařilo. Je moc brzo, dokument je zamčený.</p>
+<p id="bySleOb"><img class="img-fluid wp-image-2566 " src="/images/2018/img_5bcd4db9b125b.png" alt="" /></p>
+<p>Počkám tedy jeden den a zkusím to znova. Prošlo.</p>
+<h1>Auditování přístupů</h1>
+<p>Pojďme si zapnout logování přístupů.</p>
+<p id="CUgPqBX"><img class="img-fluid wp-image-2567 " src="/images/2018/img_5bcd4fba4aa40.png" alt="" /></p>
+<p>V storage accountu se vytvoří kontejner $logs, který není normálně vidět, ale ze Storage Explorer desktopové aplikace nebo API se k němu dostanete. Všechny operace se storage jsou tam zaprotokolované včetně co se dělo, s čím, z jaké IP a tak podobně.</p>
+<p id="qYyOzSC"><img class="img-fluid wp-image-2573 " src="/images/2018/img_5bcea8f24164c.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Immutable storage je velmi zajímavý způsob jak se vypořádat s nutností ukládat data tak, že je není možné modifikovat ani mazat po určitou rozhodnou dobu. A to nejlepší? Je to zdarma v rámci Azure Blob Storage služby.</em></p>

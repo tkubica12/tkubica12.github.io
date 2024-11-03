@@ -1,0 +1,529 @@
+---
+layout: post
+status: publish
+published: true
+title: Helm - v&aacute;&scaron; package manager pro Kubernetes
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 984
+wordpress_url: http://tomaskubica.cz/?p=984
+date: '2017-08-09 05:49:02 +0000'
+date_gmt: '2017-08-09 04:49:02 +0000'
+categories:
+tags:
+- Kubernetes
+comments: []
+---
+{% raw %}
+<p>Kubernetes v r&aacute;mci Azure Container Service je skvěl&eacute; ře&scaron;en&iacute; pro va&scaron;e kontejnerizovan&eacute; aplikace. Jenže co když ta se skl&aacute;d&aacute; z několika komponent ať už technologick&yacute;ch (web, cache, datab&aacute;ze, ...) nebo s byznys logikou (mikroslužby)? Jak koordinovaně nasadit, upgradovat a rollbackovat cel&eacute; aplikace bez nutnosti ře&scaron;it každ&yacute; d&iacute;lek zvl&aacute;&scaron;ť? V Linuxu m&aacute;te package manager jako je apt nebo yum. Existuje něco podobn&eacute;ho pro Kubernetes? Ano a jmenuje se Helm. Vyzkou&scaron;ejme si dnes.<!--more--></p>
+<h1>Deis, Helm a k čemu to je</h1>
+<p>Jak už jsem v &uacute;vodu psal modern&iacute; aplikace se typicky skl&aacute;d&aacute; z několika technologick&yacute;ch i byznysov&yacute;ch komponent. Kubernetes se dok&aacute;že par&aacute;dně postarat o běh a deployment komponent (kontejnerů), ale jak koordinovaně ře&scaron;it aplikaci jako celek? Open source firma Deis, kter&aacute; je dnes po akvizici souč&aacute;st&iacute; Microsoft, vyvynula ře&scaron;en&iacute; Helm - "package manager" pro Kubernetes. Celou aplikaci pak dok&aacute;žete popsat (vytvořit Chart) a tu pak lze jednodu&scaron;e nasadit i upgradovat.</p>
+<p id="xFSBPvH"><img class="alignnone size-full wp-image-991 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5950df13150c5.png" alt="" /></p>
+<h1>Sestavme si Kubernetes s Helm a vyzkou&scaron;ejme</h1>
+<p>Protože se mi nechce stavět si Kubernetes cluster s&aacute;m, použiji Azure Container Service. Ta pro v&aacute;s připrav&iacute; cluster na z&aacute;kladě best practice v Azure, je to plně open source ře&scaron;en&iacute; a cel&aacute; služba je zdarma (plat&iacute;te jen za použit&eacute; VM zdroje). Cluster naběhne s řadou hotov&yacute;ch integrac&iacute;, např&iacute;klad CNI pluginu pro Azure networking, takže z Kubernetes jednodu&scaron;e ovl&aacute;d&aacute;te i Azure Load Balancer a nemus&iacute;te tunelovat provoz (napoj&iacute;te se na Azure networking, respektive VNet).</p>
+<p>Sestavme si Kubernetes cluster s využit&iacute;m Azure CLI 2.0. Nejprve vytvoř&iacute;me Resource Group.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az group create -n kube -l westeurope</pre>
+<p>N&aacute;sledně spust&iacute;me vytvořen&iacute; clusteru Kubernetes. J&aacute; zvol&iacute;m ře&scaron;en&iacute; z jedn&iacute;m masterem (nepotřebuji teď redundanci control plane, nicm&eacute;ně stač&iacute; zvolit č&iacute;slo 3 a m&aacute;te ji - postup je stejn&yacute;) a trojic&iacute; agent nodů s Linux (Kubernetes v Azure podporuje i Windows nody, pokud chcete orchestrovat svět Windows kontejnerů). Použiji vlastn&iacute; SSH kl&iacute;č, ale můžete nechat ACS rovnou nějak&eacute; vygenerovat, pokud nem&aacute;te.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acs create --orchestrator-type=kubernetes --resource-group kube --name=mujkubernetes --agent-count=3 --ssh-key-value "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDFhm1FUhzt/9roX7SmT/dI+vkpyQVZp3Oo5HC23YkUVtpmTdHje5oBV0LMLBB1Q5oSNMCWiJpdfD4VxURC31yet4mQxX2DFYz8oEUh0Vpv+9YWwkEhyDy4AVmVKVoISo5rAsl3JLbcOkSqSO8FaEfO5KIIeJXB6yGI3UQOoL1owMR9STEnI2TGPZzvk/BdRE73gJxqqY0joyPSWOMAQ75Xr9ddWHul+v//hKjibFuQF9AFzaEwNbW5HxDsQj8gvdG/5d6mt66SfaY+UWkKldM4vRiZ1w11WlyxRJn5yZNTeOxIYU4WLrDtvlBklCMgB7oF0QfiqahauOEo6m5Di2Ex" --dns-prefix mujkubernetes --agent-vm-size Standard_A1_v2 --admin-username tomas
+</pre>
+<p>Teď stač&iacute; jen čekat. N&aacute;sledně si nainstalujte kubectl, tedy př&iacute;kazovou ř&aacute;dku pro Kubernetes. To můžete udělat př&iacute;mo z Azure CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">sudo az acs kubernetes install-cli 
+</pre>
+<p>T&iacute;m m&aacute;me nainstalov&aacute;n&eacute; kubectl. Př&iacute;mo ze sv&eacute; stanice můžeme ovl&aacute;dat Kubernetes cluster, stač&iacute; si st&aacute;hnout &uacute;daje o konektivitě a kl&iacute;če. I to pro v&aacute;s uděl&aacute; Azure CLI.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">az acs kubernetes get-credentials --resource-group=kube --name=mujkube</pre>
+<p>Pokud v&scaron;echno dopadlo dobře, jste ve sv&eacute;m Kubernetes clusteru.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ kubectl get nodes
+NAME                    STATUS                     AGE       VERSION
+k8s-agent-6d417f1c-0    Ready                      7m        v1.6.6
+k8s-agent-6d417f1c-1    Ready                      6m        v1.6.6
+k8s-agent-6d417f1c-2    Ready                      6m        v1.6.6
+k8s-master-6d417f1c-0   Ready,SchedulingDisabled   7m        v1.6.6
+</pre>
+<p>Teď si můžeme st&aacute;hnout helm př&iacute;kazovou ř&aacute;dku.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">wget https://kubernetes-helm.storage.googleapis.com/helm-v2.5.0-linux-amd64.tar.gz
+tar -xvf helm-v2.5.0-linux-amd64.tar.gz
+sudo mv linux-amd64/helm /usr/bin/</pre>
+<p>Proveďme potřebnou inicializaci (Helm nainstaluje svou serverovou č&aacute;st) a updatujme repozit&aacute;ř.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">helm init
+helm repo update</pre>
+<p>Vyzkou&scaron;ejme si teď nějak&yacute; z veřejn&yacute;ch Helm bal&iacute;čků, např&iacute;klad Wordpress. Ten se bude skl&aacute;dat z kontejneru s datab&aacute;z&iacute;, kter&yacute; bude m&iacute;t jen intern&iacute; adresu. D&aacute;le s webovou č&aacute;st&iacute;, kter&aacute; si vezme extern&iacute; adresu - tedy zaž&aacute;d&aacute; si o ni (Kubernetess Ingress) a Kubernetes d&iacute;ky Azure pluginu zavol&aacute; samotn&yacute; Azure a vytvoř&iacute; novou veřejnou IP adresu na balanceru. Souč&aacute;st&iacute; Helm mohou b&yacute;t i dal&scaron;&iacute; vstupn&iacute; parametry, v m&eacute;m př&iacute;padě např&iacute;klad heslo do blogu a jeho n&aacute;zev.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ helm install stable/wordpress --name mujwp --set wordpressUsername=tomas,wordpressPassword=Azure12345678,wordpressBlogName=Muj-super-blog
+NAME:   mujwp
+LAST DEPLOYED: Mon Jun 26 08:44:43 2017
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/Secret
+NAME             TYPE    DATA  AGE
+mujwp-mariadb    Opaque  2     2s
+mujwp-wordpress  Opaque  3     2s
+
+==> v1/ConfigMap
+NAME           DATA  AGE
+mujwp-mariadb  1     2s
+
+==> v1/PersistentVolumeClaim
+NAME             STATUS   VOLUME                                    CAPACITY  ACCESSMODES  STORAGECLASS  AGE
+mujwp-wordpress  Bound    pvc-b48a4780-5a4b-11e7-bfac-000d3a250d6e  10Gi      RWO          default       2s
+mujwp-mariadb    Pending  default                                   2s
+
+==> v1/Service
+NAME             CLUSTER-IP    EXTERNAL-IP  PORT(S)                     AGE
+mujwp-mariadb    10.0.65.25    <none>       3306/TCP                    2s
+mujwp-wordpress  10.0.200.140  <pending>    80:32674/TCP,443:32156/TCP  2s
+
+==> v1beta1/Deployment
+NAME             DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+mujwp-mariadb    1        1        1           0          2s
+mujwp-wordpress  1        1        1           0          2s
+
+
+NOTES:
+1. Get the WordPress URL:
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        Watch the status with: 'kubectl get svc --namespace default -w mujwp-wordpress'
+
+  export SERVICE_IP=$(kubectl get svc --namespace default mujwp-wordpress -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP/admin
+
+2. Login with the following credentials to see your blog
+
+  echo Username: tomas
+  echo Password: $(kubectl get secret --namespace default mujwp-wordpress -o jsonpath="{.data.wordpress-password}" | base64 --decode)</pre>
+<p>Jak vid&iacute;me Helm nasadil dva kontejnery - jeden s webem a jeden s datab&aacute;z&iacute;. Extern&iacute; IP adresa je pending, takže mus&iacute;me chvilku počkat, až se Kubernetes a Azure Load Balancer domluv&iacute;. Po chvilce najdeme IP adresu takto:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ kubectl get services
+NAME              CLUSTER-IP     EXTERNAL-IP       PORT(S)                      AGE
+kubernetes        10.0.0.1       <none>            443/TCP                      1h
+mujwp-mariadb     10.0.65.25     <none>            3306/TCP                     1h
+mujwp-wordpress   10.0.200.140   137.116.197.194   80:32674/TCP,443:32156/TCP   1h
+</pre>
+<p>Připoj&iacute;m se na tuto IP adresu a můj blog je nahoře.</p>
+<p id="pNqoevs"><img class="alignnone size-full wp-image-987 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5950de8e68e58.png" alt="" /></p>
+<p>Mohu se přihl&aacute;sit &uacute;daji, kter&eacute; jsme specifikovali při spu&scaron;těn&iacute; a můžeme zač&iacute;t ps&aacute;t čl&aacute;nky.</p>
+<p id="SzkfLfH"><img class="alignnone size-full wp-image-988 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5950debee04fa.png" alt="" /></p>
+<p id="efHXyDO"><img class="alignnone size-full wp-image-989 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5950dece485f3.png" alt="" /></p>
+<h1>Pod&iacute;vejme se Helmu pod kapotu</h1>
+<p>Chcete si vytvořit vlastn&iacute; Helm bal&iacute;ček? Dobr&yacute; způsob jak se to naučit je pod&iacute;vat se pod kapotu nějak&eacute;mu hotov&eacute;mu, jako např&iacute;klad už vyzkou&scaron;en&yacute; wordpress. Ten se nach&aacute;z&iacute; v Helm cache, tak si ho rozbalme a prozkoumejme jeho strukturu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tar -xvf .helm/cache/archive/wordpress-0.6.6.tgz
+</pre>
+<p>Jednotliv&eacute; souč&aacute;stky Helmu se naz&yacute;vaj&iacute; Chart. Wordpress Chart m&aacute; dependency na Chart s mariadb. Tuto z&aacute;vislost najdeme v souboru requirements.yaml:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat requirements.yaml
+dependencies:
+- name: mariadb
+  version: 0.6.3
+  repository: https://kubernetes-charts.storage.googleapis.com/
+</pre>
+<p>Tak např&iacute;klad onen Chart pro datab&aacute;zi obsahuje v adres&aacute;ři templates &scaron;ablony pro Kubernetes, kter&eacute; Helm při deploymentu vypln&iacute; v z&aacute;vislosti na konfiguračn&iacute;ch parametrech. Tak např&iacute;klad takhle vypad&aacute; samotn&yacute; deployment template:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat charts/mariadb/templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  template:
+    metadata:
+      labels:
+        app: {{ template "fullname" . }}
+      annotations:
+        pod.alpha.kubernetes.io/init-containers: '
+          [
+            {
+              "name": "copy-custom-config",
+              "image": "{{ .Values.image }}",
+              "imagePullPolicy": {{ .Values.imagePullPolicy | quote }},
+              "command": ["sh", "-c", "mkdir -p /bitnami/mariadb/conf &amp;&amp; cp -n /bitnami/mariadb_config/my.cnf /bitnami/mariadb/conf/my_custom.cnf"],
+              "volumeMounts": [
+                {
+                  "name": "config",
+                  "mountPath": "/bitnami/mariadb_config"
+                },
+                {
+                  "name": "data",
+                  "mountPath": "/bitnami/mariadb"
+                }
+              ]
+            }
+          ]'
+    spec:
+      containers:
+      - name: {{ template "fullname" . }}
+        image: "{{ .Values.image }}"
+        imagePullPolicy: {{ .Values.imagePullPolicy | quote }}
+        env:
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: mariadb-root-password
+        - name: MARIADB_USER
+          value: {{ default "" .Values.mariadbUser | quote }}
+        - name: MARIADB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: mariadb-password
+        - name: MARIADB_DATABASE
+          value: {{ default "" .Values.mariadbDatabase | quote }}
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        ports:
+        - name: mysql
+          containerPort: 3306
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /bitnami/mariadb
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "fullname" . }}
+      - name: data
+      {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.existingClaim | default (include "fullname" .) }}
+      {{- else }}
+        emptyDir: {}
+      {{- end -}}
+</pre>
+<p>Použ&iacute;v&aacute; perzistentn&iacute; volume, jehož template je zde:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat charts/mariadb/templates/pvc.yaml
+{{- if and .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  annotations:
+  {{- if .Values.persistence.storageClass }}
+    volume.beta.kubernetes.io/storage-class: {{ .Values.persistence.storageClass | quote }}
+  {{- else }}
+    volume.alpha.kubernetes.io/storage-class: default
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | quote }}
+{{- end }}
+</pre>
+<p>K datab&aacute;zi se přistupuje přes Kubernetes Service a i jej&iacute; template můžeme prozkoumat:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat charts/mariadb/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  type: {{ .Values.serviceType }}
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: mysql
+  selector:
+    app: {{ template "fullname" . }}
+</pre>
+<p>Velmi podobně se ře&scaron;&iacute; template pro samotn&yacute; Wordpress.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat templates/deployment.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ template "fullname" . }}
+    spec:
+      containers:
+      - name: {{ template "fullname" . }}
+        image: "{{ .Values.image }}"
+        imagePullPolicy: {{ default "" .Values.imagePullPolicy | quote }}
+        env:
+        - name: ALLOW_EMPTY_PASSWORD
+        {{- if .Values.allowEmptyPassword }}
+          value: "yes"
+        {{- else }}
+          value: "no"
+        {{- end }}
+        - name: MARIADB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "mariadb.fullname" . }}
+              key: mariadb-root-password
+        - name: MARIADB_HOST
+          value: {{ template "mariadb.fullname" . }}
+        - name: MARIADB_PORT_NUMBER
+          value: "3306"
+        - name: WORDPRESS_DATABASE_NAME
+          value: {{ default "" .Values.mariadb.mariadbDatabase | quote }}
+        - name: WORDPRESS_DATABASE_USER
+          value: {{ default "" .Values.mariadb.mariadbUser | quote }}
+        - name: WORDPRESS_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "mariadb.fullname" . }}
+              key: mariadb-password
+        - name: WORDPRESS_USERNAME
+          value: {{ default "" .Values.wordpressUsername | quote }}
+        - name: WORDPRESS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: wordpress-password
+        - name: WORDPRESS_EMAIL
+          value: {{ default "" .Values.wordpressEmail | quote }}
+        - name: WORDPRESS_FIRST_NAME
+          value: {{ default "" .Values.wordpressFirstName | quote }}
+        - name: WORDPRESS_LAST_NAME
+          value: {{ default "" .Values.wordpressLastName | quote }}
+        - name: WORDPRESS_BLOG_NAME
+          value: {{ default "" .Values.wordpressBlogName | quote }}
+        - name: SMTP_HOST
+          value: {{ default "" .Values.smtpHost | quote }}
+        - name: SMTP_PORT
+          value: {{ default "" .Values.smtpPort | quote }}
+        - name: SMTP_USER
+          value: {{ default "" .Values.smtpUser | quote }}
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "fullname" . }}
+              key: smtp-password
+        - name: SMTP_USERNAME
+          value: {{ default "" .Values.smtpUsername | quote }}
+        - name: SMTP_PROTOCOL
+          value: {{ default "" .Values.smtpProtocol | quote }}
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+        livenessProbe:
+          httpGet:
+            path: /wp-login.php
+            port: http
+          initialDelaySeconds: 120
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /wp-login.php
+            port: http
+          initialDelaySeconds: 30
+          timeoutSeconds: 3
+          periodSeconds: 5
+        volumeMounts:
+        - mountPath: /bitnami/apache
+          name: wordpress-data
+          subPath: apache
+        - mountPath: /bitnami/wordpress
+          name: wordpress-data
+          subPath: wordpress
+        - mountPath: /bitnami/php
+          name: wordpress-data
+          subPath: php
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+      volumes:
+      - name: wordpress-data
+      {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ template "fullname" . }}
+      {{- else }}
+        emptyDir: {}
+      {{ end }}
+</pre>
+<p>Opět najdete definici i pro perzistentn&iacute; Volume a tak&eacute; Service. Nav&iacute;c je tu definice Ingress, což je Kubernetes ře&scaron;en&iacute; pro z&iacute;sk&aacute;n&iacute; extern&iacute;ho př&iacute;stupu na službu (Kubernetes se domluv&iacute; s Azure Load Balancer):</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/wordpress$ cat templates/ingress.yaml
+{{- if .Values.ingress.enabled -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+ name: {{ template "fullname" . }}
+ labels:
+    app: {{ template "fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+ annotations:
+   {{- range $key, $value := .Values.ingress.annotations }}
+     {{ $key }}: {{ $value | quote }}
+   {{- end }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.hostname }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ template "fullname" . }}
+              servicePort: 80
+{{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+{{- end -}}
+{{- end -}}
+</pre>
+<h1>Zkusme jednoduch&yacute; Helm Chart</h1>
+<p>Nechme Helm vytvořit jednoduchou kostru pro Chart, kter&yacute; v r&aacute;mci př&iacute;kladu bude nginx kontejner.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">helm create mujtest
+</pre>
+<p>Prohl&eacute;dněte si strukturu, zejm&eacute;na jednotliv&eacute; templaty. N&aacute;sledně pojďme tento Chart nainstalovat s t&iacute;m, že si zapneme Ingress, tedy pož&aacute;d&aacute;me Kubernetes o přiřazen&iacute; extern&iacute; balancovan&eacute; public IP z Azure Load Balancer.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~$ cd mujtest/
+tomas@jump:~/mujtest$ helm install . --name mujtest --set ingress.enabled=true,service.type=LoadBalancer
+NAME:   mujtest
+LAST DEPLOYED: Mon Jun 26 11:06:03 2017
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1beta1/Ingress
+NAME             HOSTS                ADDRESS  PORTS  AGE
+mujtest-mujtest  chart-example.local  80       1s
+
+==> v1/Service
+NAME             CLUSTER-IP  EXTERNAL-IP  PORT(S)       AGE
+mujtest-mujtest  10.0.32.62  <pending>    80:30506/TCP  1s
+
+==> v1beta1/Deployment
+NAME             DESIRED  CURRENT  UP-TO-DATE  AVAILABLE  AGE
+mujtest-mujtest  1        1        1           0          1s
+
+
+NOTES:
+1. Get the application URL by running these commands:
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get svc -w mujtest-mujtest'
+  export SERVICE_IP=$(kubectl get svc --namespace default mujtest-mujtest -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:80
+</pre>
+<p>Po chvilce si zjist&iacute;me veřejnou IP a zkus&iacute;me se připojit prohl&iacute;žečem.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/mujtest$ kubectl get services
+NAME              CLUSTER-IP     EXTERNAL-IP       PORT(S)                      AGE
+kubernetes        10.0.0.1       <none>            443/TCP                      2h
+mujtest-mujtest   10.0.32.62     40.114.150.4      80:30506/TCP                 4m
+mujwp-mariadb     10.0.65.25     <none>            3306/TCP                     2h
+mujwp-wordpress   10.0.200.140   137.116.197.194   80:32674/TCP,443:32156/TCP   2h
+</pre>
+<p id="TzBSJgR"><img class="alignnone size-full wp-image-992 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5950ec7568ef4.png" alt="" /></p>
+<p>Vyzkou&scaron;ejme si teď využ&iacute;t Kubernetes ConfigMap k tomu, abychom v r&aacute;mci instalaci zajistili jednoduch&yacute; statick&yacute; obsah pro webovky. Nejprve zru&scaron;te předchoz&iacute; deployment Helmu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">helm delete mujtest --purge</pre>
+<p>Vytvořte tento soubor:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">nano templates/configmap.yaml</pre>
+<p>Toto bude obsah na&scaron;eho souboru. V z&aacute;sadě ř&iacute;k&aacute;me, že obsah soubor index.html si chceme vz&iacute;t z proměnn&eacute; index v na&scaron;em Values.yaml souboru (nebo z př&iacute;kazov&eacute; ř&aacute;dky při instalaci).</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app: {{ template "name" . }}
+data:
+  index.html: {{ .Values.index | quote }}
+
+</pre>
+<p>Tuto konfiguračn&iacute; mapu může namountovat do kontejneru na m&iacute;sto, kam si nginx d&aacute;v&aacute; obsah webov&yacute;ch str&aacute;nek. Za t&iacute;m &uacute;čelem potřebujeme změnit deployment.yaml &scaron;ablonu - nastav&iacute;me mountpoint a tak&eacute; specifikujeme volume. Cel&yacute; soubor vypad&aacute; takhle:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}
+  labels:
+    app: {{ template "name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalPort }}
+          volumeMounts:
+            - mountPath: /usr/share/nginx/html
+              name: wwwdata-volume
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.internalPort }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+    {{- end }}
+      volumes:
+        - name: wwwdata-volume
+          configMap:
+            name: {{ template "fullname" . }}
+</pre>
+<p>Teď už zb&yacute;v&aacute; jen nainstalovat tento Chart a předat mu na&scaron;e parametry.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">helm install . --name dalsitest --set ingress.enabled=true,service.type=LoadBalancer,index="Tohle je moje webovka"</pre>
+<p>Zjist&iacute;me si veřejnou adresu.</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">tomas@jump:~/mujtest$ kubectl get services
+NAME                CLUSTER-IP     EXTERNAL-IP       PORT(S)                      AGE
+dalsitest-mujtest   10.0.247.205   52.174.240.147    80:30206/TCP                 1m
+kubernetes          10.0.0.1       <none>            443/TCP                      1d
+mujwp-mariadb       10.0.65.25     <none>            3306/TCP                     1d
+mujwp-wordpress     10.0.200.140   137.116.197.194   80:32674/TCP,443:32156/TCP   1d
+</pre>
+<p>Připojte se na ni. Měli bychom zjistit, že se n&aacute;m podařilo vytvořit Helm, kter&yacute; nainstaluje nginx, z Azure si Kubernetes z&iacute;sk&aacute; veřejnou adresu a v kontejneru je nastrčen n&aacute;&scaron; statick&yacute; obsah.</p>
+<p id="DGCIshY"><img class="alignnone size-full wp-image-997 " src="http://tomaskubica.cz/wp-content/uploads/2017/06/img_5952788fae5ba.png" alt="" /></p>
+<p>Povedlo se!</p>
+<p>&nbsp;</p>
+{% endraw %}

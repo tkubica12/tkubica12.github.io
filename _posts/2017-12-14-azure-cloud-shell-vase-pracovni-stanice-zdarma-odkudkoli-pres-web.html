@@ -1,0 +1,63 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Azure Cloud Shell: vaše pracovní stanice zdarma odkudkoli přes web'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1769
+wordpress_url: http://tomaskubica.cz/?p=1769
+date: '2017-12-14 06:40:00 +0000'
+date_gmt: '2017-12-14 05:40:00 +0000'
+categories:
+tags:
+- Automatizace
+---
+<p>Azure sice nabízí krásný portál, ale pokročilejší uživatel Azure dříve či později objeví sílu a efektivitu příkazové řádky, skriptů a automatizačních nástrojů typu Ansible či Terraform. Víte, že máte zcela zdarma přístup ke stanici, která má všechno potřebné nainstalované (Azure CLI, Terraform, Ansible, různé SQL klienty) a ještě je rovnou zalogovaná? A že se k ní dostanete třeba přes prohlížeč či z mobilu? A že má i svou PowerShell variantu? Podívejme se dnes na cloud shell - neuvěřitelně praktické řešení, které vás nic nestojí.<!--more--></p>
+<h1>Na co můžu použít cloud shell</h1>
+<p>Pro začátek si vyvolejte cloud shell přímo v portálu kliknutím nahoře na ikonu &gt;_</p>
+<p id="zemhLUY"><img class="img-fluid wp-image-1770 " src="/images/2017/img_5a3181d2e82c4.png" alt="" /></p>
+<p>O dalších možnostech přístupu si řekneme za chviličku, pojďme nejdříve k čemu cloud shell je a jak funguje.</p>
+<h2>Perzistence uložených souborů</h2>
+<p>Pokud jste toto tlačítko spustili poprvé, místo příkazové řádky vás uvítá konfigurační obrazovka, kde budete vyzváni k vytvoření Azure Files Storage. Ta se následně bude používat pro perzistenci vašich dat. To k čemu jsme se připojili je kontejner, který po 20 minutách neaktivity bude vypnut, nicméně díky připojené storage si různé skripty a playbooky uchováte. Bash využívá Azure Files dvojím způsobem. Zajímavý pro nás bude domovský adresář a uvnitř něj také adresář clouddrive.</p>
+<p id="XCzTQwf"><img class="img-fluid wp-image-1771 " src="/images/2017/img_5a3182b87eb9f.png" alt="" /></p>
+<p>Podívejme se přes Storage Explorer do této storage. Zjistíme, že obsah složky clouddrive je přímo vidět na tomto share. Linux v cloud shellu má namountovaný tento SMB share.</p>
+<p id="PzAOsmj"><img class="img-fluid wp-image-1772 " src="/images/2017/img_5a31832e1d00a.png" alt="" /></p>
+<p>To znamená, že nejen máte perzistentně uchované soubory, ale můžete si tento share také namapovat na svůj notebook a jednoduše tak přetahovat soubory tam i ven z vašeho cloud shellu.</p>
+<p>Nicméně to má také jednu nevýhodu - SMB share neumí uchovávat nastavení práv Linuxového file systému, neumí linky a podobné věci. Proto cloud shell používá ještě druhou fintu. Ve storage najdete 5 GB img soubor. Jde o diskový obraz, který je mountovaný na váš home adresář. Ten tedy můžete číst jen z cloud shellu, ale na druhou stranu má všechny Linuxové vlastnosti.</p>
+<p id="zGFpZvm"><img class="img-fluid wp-image-1773 " src="/images/2017/img_5a31845c86ed8.png" alt="" /></p>
+<h2>Připravené nástroje</h2>
+<p>Cloud shell má automaticky nainstalované CLI do Azure (a další nástroje jako AzCopy pro kopírování do Blob Storage a další utilitky) a nemusíte se logovat. Protože jste přihlášeni do webové session, cloud shell je pro vás automaticky zalogovaný.</p>
+<p id="GjMDVPG"><img class="img-fluid wp-image-1774 " src="/images/2017/img_5a3184d041777.png" alt="" /></p>
+<p>Z pohledu klasických linux nástrojů nechybí tmux (například pro vytváření více oken), samozřejmě bash, komunikační nástroje typu dig, curl, wget, ssh (z cloud shell tak můžete dál do vašich VM!). Příjemná je i přítomnost nástrojů pro práci s databázemi MS SQL, MySQL a PostgreSQL:</p>
+<p id="OzqOssz"><img class="img-fluid wp-image-1775 " src="/images/2017/img_5a3186ef769b7.png" alt="" /></p>
+<p>Pro svět automatizace cloud shell rovnou přichází s podporou Terraform (automatizace vaší infrastruktury v Azure) a Ansible (desired state konfigurace obsahu vašich VM).</p>
+<p id="yejpwkd"><img class="img-fluid wp-image-1776 " src="/images/2017/img_5a3188b456689.png" alt="" /></p>
+<p>Velmi milá je i připravenost nástrojů pro svět kontejnerů - Docker, kubectl (Kubernetes) i Helm, ale také Cloud Foundry.</p>
+<p id="ANWJozc"><img class="img-fluid wp-image-1778 " src="/images/2017/img_5a31897770a48.png" alt="" /></p>
+<p>Cloud shell je také připraven na skriptování. Zajímavou specialitkou je PowerShell pro .NET Core. Můžete tedy skočit do PowerShellu a ten se vám také sám zaloguje do Azure a nemusíte opustit Linuxový cloud shell (kromě toho je také k dispozici Windows Cloud Shell, kde jste na Windows kontejneru s nativním PowerShell).</p>
+<p id="XPVqZhY"><img class="img-fluid wp-image-1780 " src="/images/2017/img_5a3206d08589e.png" alt="" /></p>
+<p>Z dalších jazyků nechybí Python, Node, .NET, Java ani Go.</p>
+<p id="MUQLBnq"><img class="img-fluid wp-image-1781 " src="/images/2017/img_5a3208262463e.png" alt="" /></p>
+<h1>Jak se do cloud shell dostat</h1>
+<p>První způsob jsme si vyzkoušeli - přímo v portálu kliknete na ikonku a ve spodní části stránky se vám otevře shell. Ten můžete posouvat nahoru a dolu a tím si prostor zvětšovat.</p>
+<p>Druhý způsob je využít ho bez portálu. Jednoduše jděte na <a href="https://shell.azure.com">https://shell.azure.com</a></p>
+<p id="yhTCMZe"><img class="img-fluid wp-image-1782 " src="/images/2017/img_5a3208f0d1157.png" alt="" /></p>
+<p>Třetí způsob je integrace cloud shell do Azure mobilní aplikace. Plnohodnotnou příkazovou řádku tak dostanete i do svého mobilu či tabletu aniž byste museli otevírat prohlížeč.</p>
+<p id="Dasiniy"><img class="img-fluid wp-image-1786 " src="/images/2017/img_5a320c412f6b4.png" alt="" /></p>
+<p>Zatím poslední, ale velmi zajímavá možnost, je napojení přes open source Visual Studio Code. Nejprve si nainstalujte extension pro nalogování do Azure.</p>
+<p id="GpggWbx"><img class="img-fluid wp-image-1783 " src="/images/2017/img_5a320a5751273.png" alt="" /></p>
+<p>Následně vyvolejte příkazovou lištu (u mne CTRL SHIFT P) a najdete tam spuštění cloud shellu ve verzi Bash i PowerShell.</p>
+<p id="QDgyYsC"><img class="img-fluid wp-image-1784 " src="/images/2017/img_5a320aa2ce383.png" alt="" /></p>
+<p>Nejprve se přihlásíme a po chvilce jsme v cloud shellu.</p>
+<p id="QmxcbUF"><img class="img-fluid wp-image-1785 " src="/images/2017/img_5a320b9e55aa6.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Řada z vás si jistě staví jump servery, aby se administrátoři mohli připojovat odkudkoli, kde mají alespoň RDP. Pak řešíte zabezpečení a údržbu a za server se musí platit. Díky Azure Cloud Shell tohle pro správu vaší Azure infrastruktury dělat nemusíte. Autentizace je přes Azure Active Directory, tedy přes velmi robustní mechanismus včetně podpory dvoufaktorové autentizace. Funguje to přes web, mobilní aplikaci nebo integrované do Visual Studio Code. Připojit se můžete na Bash, kde najdete mnoho užitečných nástrojů pro kontejnery, Azure, skriptování a dokonce i PowerShell pro Linux, ale cloud shell přichází také ve své Windows-based podobě, kdy se připojujete rovnou na PowerShell. A to nejlepší - neplatíte vůbec nic navíc!</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

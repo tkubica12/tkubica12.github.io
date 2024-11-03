@@ -1,0 +1,59 @@
+---
+layout: post
+status: publish
+published: true
+title: Backup, restore a copy Azure SQL databází
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 180
+wordpress_url: http://tomaskubica.cz/?p=180
+date: '2017-02-23 13:02:23 +0000'
+date_gmt: '2017-02-23 12:02:23 +0000'
+categories:
+tags:
+- SQL
+---
+<p>Azure SQL je databáze jako služby (PaaS) a mnoho let best practice vám nabízí doslova na kliknutí. Například Azure na pozadí neustále zálohuje vaše data a umožní vám se vrátit do minulosti. Nemusíte nic nastavovat ani zapínat, tato ochrana je v ceně řešení. Kromě toho můžete jednoduše exportovat data, kopírovat celé databáze nebo si nastavit dlouhodobé ukládání záloh třeba na několik let. Pojďme se dnes podívat, jak se s tím pracuje.<!--more--></p>
+<h1>Point-in-time restore</h1>
+<p>Azure SQL pro vás na pozadí neustále zálohuje data. Typicky použije plnou zálohu každý týden, za každou jednu až pár hodin udělá rozdílovou zálohu a transakční log backupuje každých 5-10 minut. Nemusíte nic nastavovat, ani vytvářet nějaký storage prostor - v ceně Azure SQL máte 35 dní historie (u Basic tier jen 7 dní) a zdarma storage prostor v objemu dvojnásobku maximální velikosti databáze v daném tieru (například v tieru Standard tak máte 500GB na backup v ceně).</p>
+<p>Nic se nenastavuje, takže stačí přikročit k obnovení dat. V zásadě potřebujete jen určit nějaké datum a čas, ke kterému chcete obnovu provést a necháte na Azure, ať si najde příslušné plné, rozdílové a transakční zálohy a přehraje je správným způsobem. Jednoduše u své DB klikněte na Restore.</p>
+<p id="CzcOMKe"><img class="img-fluid wp-image-181 " src="/images/2017/img_588502fe9a19b.png" alt="" /></p>
+<p>Obnovu nemůžete provést do existující databáze, vždy do jiné (ale můžete pak třeba po ověření původní smazat a novou přejmenovat). Zjistíme ze kdy je nejstarší záloha a já zvolím obnovu dat ve stavu ze včerejška a pošlu ji na stejný virtuální server.</p>
+<p id="QyYgSDm"><img class="img-fluid wp-image-182 " src="/images/2017/img_588503772a6cc.png" alt="" /></p>
+<p>Chvíli počkejte a obnovená data budou na světě.</p>
+<p id="doFztiB"><img class="img-fluid wp-image-183 " src="/images/2017/img_5885057c1859a.png" alt="" /></p>
+<h1>Long-term backup retention</h1>
+<p>Možná je vám 35 dní ve standardním tieru málo a potřebujete data držet třeba hned několik let. To už sice není v ceně Azure SQL, ale můžete jednoduše přidat službu dlouhodobého zálohování. Platíte za Backup službu a samotnou storage, ale pro 300GB dat databáze vás to vyjde asi na 20 EUR měsíčně včetně geo-replikace zálohy do vzdáleného regionu.</p>
+<p>Nejprve si vytvoříme Recovery service vault.</p>
+<p id="yoDlMde"><img class="img-fluid wp-image-185 " src="/images/2017/img_5885065de1939.png" alt="" /></p>
+<p>Jděte na svůj virtuální Azure SQL server a klikněte na Long-term backup retention a zvolte které databáze potřebujete zálohovat dlouhodobě.</p>
+<p id="FSazgly"><img class="img-fluid wp-image-184 " src="/images/2017/img_588505f34a341.png" alt="" /></p>
+<p>Vybereme náš Recovery services vault.</p>
+<p id="rnTiSbs"><img class="img-fluid wp-image-186 " src="/images/2017/img_588507948c4cd.png" alt="" /></p>
+<p>Vytvoříme retention policy - držíme dva roky.</p>
+<p id="tqEEncR"><img class="img-fluid wp-image-187 " src="/images/2017/img_588507b81729a.png" alt="" /></p>
+<p>Nakonec všechno uložte a máme hotovo.</p>
+<p>Pokud pak chcete data obnovit, použijte na databázi tlačítko Restore, ale překlikněte na dlouhodobé zálohy.</p>
+<p id="TmkvzQk"><img class="img-fluid wp-image-188 " src="/images/2017/img_5885083a2e06d.png" alt="" /></p>
+<h1>Kopie databáze</h1>
+<p>Potřebujete kopii databáze, třeba pro testovací účely? Vyzkoušejme tlačítko Copy.</p>
+<p id="kKYoaGd"><img class="img-fluid wp-image-189 " src="/images/2017/img_58850875b1eb3.png" alt="" /></p>
+<p>Pak už jen zadejte cílový virtuální server a název kopie databáze to je všechno.</p>
+<p id="JasvUyF"><img class="img-fluid wp-image-190 " src="/images/2017/img_588508a682c58.png" alt="" /></p>
+<p>&nbsp;</p>
+<p>Po nějaké době bude vaše kopie připravena.</p>
+<p id="nTMFnGP"><img class="img-fluid wp-image-193 " src="/images/2017/img_588509a1503e3.png" alt="" /></p>
+<h1>Export databáze do souboru</h1>
+<p>Potřebujete obsah své databáze do souboru? Prozkoumejme tlačítko Export.</p>
+<p id="oUCgOzg"><img class="img-fluid wp-image-191 " src="/images/2017/img_58850906913f3.png" alt="" /></p>
+<p>Export se bude provádět do Azure Storage, takže v následujícím kroku vyberte nějaký váš storage account a kontejner, do kterého chcete soubory nahrát (odtamtud si je samozřejmě pak můžete stáhnout třeba do počítače).</p>
+<p id="muHDUgI"><img class="img-fluid wp-image-192 " src="/images/2017/img_5885097953c70.png" alt="" /></p>
+<p>Po nějaké době se ve vašem storage accountu objeví příslušné soubory.</p>
+<p id="xCgnhOT"><img class="img-fluid wp-image-195 " src="/images/2017/img_58850add14cef.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Azure SQL je hostovaná databáze a přináší vám na kliknutí mnoho funkcí kolem zálohování a obnovy dat, aniž byste museli řešit složité nastavení, správu a organizační složitosti s tím spojené (ukládání záloh na nějakou storage, replikaci těchto dat do jiného regionu či pásky do trezoru, náročné obnovování a hledání příslušných pásek a správných souborů pro disaster recovery apod.). Zkuste to!</em></p>

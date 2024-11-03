@@ -1,0 +1,57 @@
+---
+layout: post
+status: publish
+published: true
+title: 'Governance v Azure: jak se kupuje, organizuje a dělají subskripce'
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 1896
+wordpress_url: http://tomaskubica.cz/?p=1896
+date: '2018-02-19 06:42:28 +0000'
+date_gmt: '2018-02-19 05:42:28 +0000'
+categories:
+tags:
+- Governance
+- Security
+---
+<p><em>Jste enterprise firma a myslíte to s cloudem vážně? Pak určitě budete chtít dobře řídit governance - kdo co smí, co komu patří, jaké politiky se mají vynutit, jak si rozdělit práci, jak řídit náklady. V tomto seriálu se na to zaměříme.</em></p>
+<p><em>Pokud Azure zkoušíte a platíte kreditkou, máte asi jen jednu subskripci. Jakmile ale řešíte enterprise nasazení v rámci vaší EA smlouvy, jak spravovat subskripce? </em><!--more--></p>
+<h1>Základní tři varianty správy a pořízení Azure</h1>
+<p>Existuje poměrně dost variant získání Azure. Já se zaměřím na tři nejčastější placené modely. V samostatném článku vám pak ukážu jak získat trial subskripci s následným free accountem, jak fungují volné kredity v rámci subskripce Visual Studio (ex-MSDN), případně jaké jsou další programy.</p>
+<p>Ještě jedné variantě se věnovat nebudu a to je nákup Azure kreditu (s platností 12 měsíců) přes partnera (tzv. Open program). Osobně se domnívám, že místo tohoto typu přeprodeje je lepší se zaměřit na partnery s přidanou hodnotou, pro kterou je určen právě níže zmíněný program CSP.</p>
+<h2>Enterprise Agreement (EA)</h2>
+<p>Následující článek se bude primárně věnovat této variantě. Ta je ideální pro firmy enterprise typu, může smluvně zahrnovat celé portfolio Microsoft služeb a v rámci komunikace s Microsoft máte prostor pro diskusi ohledně případné slevy oproti běžné koncové ceně (ale v případě Azure očekávejte spíše procenta než desítky procent, nejde "jen" o licence a za službou je reálné železo, elektřina, datové centrum a lidé, co se o všecho pro vás starají).</p>
+<p>V tomto režimu většinou fungujete systémem nabití kreditu v rámci EA smlouvy a jeho následnou spotřebu na cokoli (s možností doplatit a tak podobně). Pro potřeby své organizace můžete vytvářet neomezené množství subscription a celý proces si řídit a mít zcela pod kontrolou (viz dále).</p>
+<p>EA je sice vaše, ale neznamená to, že nemůžete požádat o pomoc partnera. Microsoft má pro ně program DPOR (Digital Partner of Record) s incentivami pro partnery, kteří vám pomáhají dostat z Azure maximum. Pokud máte pro různé projekty různé partnery, není to problém, ale vytvořte jim separátní subskripce.</p>
+<h2>Pay as you go (PAYG)</h2>
+<p>Pokud jste malá firma nebo s Azure teprve začínáte, možná považujete za zbytečné uzavírat nějaké smlouvy, nabíjet si kredit dopředu a tak. Právě pro vás je určena varianta PAYG. Ke každé subscription, kterou chcete vytvořit, přiřadíte platební kartu (kreditní či debetní) a platíte průběžně tak, jak spotřebováváte. Platí ceny co vidíte na webu. Jednoduché, předvídatelné.</p>
+<p>Příkladem může být středně velká firma, která se rozhodla Azure využívat pro jeho kognitivní služby, které začlenila do své aplikace (rozpoznávání obličejů, computer vision nebo překlady). To vede na jednu subskripci a PAYG je nejjednodušší cesta. Pokud se využití Azure rozšíří (aplikace, datové věci, infrastruktura, ...), doporučoval bych uvažovat o přechodu na EA.</p>
+<h2>Cloud Solution Provider (CSP)</h2>
+<p>První dva zmíněné typy nákupu jsou hodně orientované na vztah zákazníka s Microsoftem, ale možná se nechcete nebo nemůžete Azure v rámci třeba konkrétního projektu plně věnovat. Rádi byste si koupili komplexní řešení od partnera, který ho pro vás v Azure bude provozovat. Na to je zaměřen program CSP, kdy pro vás partner Azure nakoupí, přidá svoje služby jako je podpora, správa či nadstavbové aplikace a vy si od něj koupíte tohle všechno. Azure je tak nákladem na straně partnera a dostává samozřejmě přesné vyúčtování. Je na vás, zda chcete platit za službu a přistupovat jen do aplikace partnera (tzn. o Azure vůbec nevíte) nebo se s partnerem dohodnete na přístupu do Azure či využijete Azure jeho prostřednictvím s tím, že vám dodává podporu a školení.</p>
+<p>Příkladem může být například aplikační systému na zakázku (či customizací hotového řešení), který se z pohledu zákazníka bude chovat jako komplexní služba (SaaS) garantovaná partnerem. Váš aplikační partner pro nasazení a vysokou dostupnost aplikace použije Azure v modelu CSP a přidá k tomu aplikaci, správu a další garance. Vy pořizujete tohle jako celek a víc vás nezajímá. Neznamená to ale, že není dobré nebo možné k tomu mít i vlastní Azure přes EA pro vaše účely, například aplikace, které spravujete sami.</p>
+<p>Druhým příkladem může být rozšíření vašeho interního IT o správu, analýzu logů, zálohování do cloudu a disaster recovery. Máte partnera, který se přesně o tyto věci u vás stará v on-premises prostředí a požádáte ho, aby službu rozšířil o backup a DR v Azure, sběr logů do Azure, případně další věci stran monitoringu. Současně chcete do Azure přístup a využít napojení monitoringu pro zprovoznění bezpečnostních funkcí Azure Security Center. Toto je rovněž dobrý příklad pro CSP model.</p>
+<h1>EA portál, pojmy a doporučení</h1>
+<p>V minulých článcích jsem mluvil o governance na úrovni od subskripce dolu, tedy přes resource group k jednotlivým skupinám. Probrali jsme přístupy a role, politiky, tagování a jmennou konvenci. K tomu všemu ale už musí subscription existovat. Pravidla uvnitř subskripce by měl myslím řešit někdo s IT rolí - šéf projektu, šéf vývojového týmu, šéf provozu, někdo z bezpečnosti či governance/compliance. Určovat kdo smí subskripce vůbec zakládat by měl myslím někdo  netechnický - finanční oddělení, celková firemní governance nebo tak někdo. Samotné založení subskripce může mít na starost třeba pověřená osoba pobočky určité zěmě. Na to vše je určen EA portál. Pojďme se rozebrat jednotlivé termíny v hierarchii, s kterými se setkáte.</p>
+<h2>Enrollment</h2>
+<p>Nejvyšší úrovní je enrollment, který reprezentuje vaší EA smlouvu. Vrcholným administrátorem tady je  Enterprise Administrator. Tato osoba může vytvářet departmenty a accounty (viz dále).</p>
+<p id="ZGDqUBE"><img class="img-fluid wp-image-1902 " src="/images/2018/img_5a884b7237a56.png" alt="" /></p>
+<h2>Department</h2>
+<p>Pokud potřebujete vícero nezávislých účtů se schopností vytvářet subscription, například jste nadnárodní firma, můžete použít departmenty. Jsou to vlastně škatulky obsahující libovolný počet accountů (lidí s právem vytvářet subscription) a libovolný počet subscription. Nadnárodní firma tak může mít jako Department jednotlivé zěmě, které mají vlastní správce. Pokud je vaše firma spíše konsorcium firem s centrálním nákupem, mohou být Departmentem jednotlivé dceřinky. U obrovské vysoké školy může být Azure centrálně zřízen rektorátem a jednotlivé fakulty mohou mít své departmenty. Správcem departnementu je Department Administrator.</p>
+<p id="tFgSGKt"><img class="img-fluid wp-image-1903 " src="/images/2018/img_5a884c6a2dd77.png" alt="" /></p>
+<h2>Azure Account</h2>
+<p>Jde o účet se schopností vytvářet a mazat subscription. Je buď uvnitř departmentu nebo i zcela bez něj (pokud je nepoužíváte). Jeho správcem je Account Administrator. Ten už pak může vytvářet jednotlivé subskripce, mazat je i sledovat jejich spotřebu (ale o tom jindy).</p>
+<p id="UGFVCeu"><img class="img-fluid wp-image-1904 " src="/images/2018/img_5a884cbd31331.png" alt="" /></p>
+<h2>Subskripce</h2>
+<p>Account Administrátor se také současně stává servisním administrátorem uvnitř subskripce a může tak přiřazovat další co-administrátory. V tento okamžik nastupuje co už známe - role based access control, Azure Policy a další governance možnosti Azure portálu.</p>
+<p id="ydISkaA"><img class="img-fluid wp-image-1905 " src="/images/2018/img_5a884cfca7d51.png" alt="" /></p>
+<p>Pak už se v subskripci přes Azure portál přiřadí další administrátoři, například tím, že najdete sekci Subscriptions a přidáte je.</p>
+<p id="NMvXazH"><img class="img-fluid wp-image-1906 " src="/images/2018/img_5a884d66beb27.png" alt="" /></p>
+<p id="muZLfnI"><img class="img-fluid wp-image-1907 " src="/images/2018/img_5a884da834831.png" alt="" /></p>
+<p id="knEoWMF"><img class="img-fluid wp-image-1908 " src="/images/2018/img_5a884dd686951.png" alt="" /></p>
+<p>&nbsp;</p>
+<p><em>Jak vidíte Azure vám umožňuje nasadit dobrou governance nad celým prostředím. Dnes jsme se podívali na vršek celé governance, tedy jak vůbec zřizovat subskripce. V jiných dílech už jsme se věnovali řízení přístupů, politikám či jmenné konvenci a tagování. Příště se zaměříme na správu nákladů či bezpečnosti, hybridní virtuální datová centra a další témata.</em></p>

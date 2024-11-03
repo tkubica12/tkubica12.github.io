@@ -1,0 +1,43 @@
+---
+layout: post
+status: publish
+published: true
+title: Nové rychlé disky v Azure - Ultra SSD a 160 000 IOPS na perzistentní disk
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 2495
+wordpress_url: http://tomaskubica.cz/?p=2495
+date: '2018-09-24 19:24:58 +0000'
+date_gmt: '2018-09-24 18:24:58 +0000'
+categories:
+tags:
+- Storage
+---
+<p>Chcete ještě větší výkon disků pro vaše VM například pro náročnou databázi? Potřebujete sice malý disk, ale s vysokým výkonem nebo naopak velký disk s nízkou latencí, ale nízkými IOPS? A co disky, kterým můžete bez restartu VM změnit jejich výkonnostní charakteristiky a přes noc ušetřit? Seznamte se s novými Ultra SSD Azure Disk.<!--more--></p>
+<h1>Azure Managed Disk</h1>
+<p>Moderním řešením disků pro vaše VM v Azure je Managed Disk. Jde v zásadě o LUN ve velikostech standardně do 4 TB, ale od tohoto týdne jsou v preview i velikosti 8 TB, 16 TB a 32 TB. Navíc disků si můžete do VM připojit obvykle hned několik (kolik záleží na typu VM). Všechna data jsou na těchto zařízeních plně redundantní a uložena ve třech synchronních kopiích. V plné dostupnosti jsou varianty Standard HDD, Standard SSD a Premium SSD, které tento týden doplnilo preview Ultra SSD, které fungují výrazně jinak.</p>
+<h2>Standard HDD</h2>
+<p>Standardní točivé disky jsou nejlevnější Azure Disk. Velikostně jsou k dispozici od S4 (32GB) až po S50 (4TB) v plné dostupnosti a všechny nabízí 500 IOPS 60 MBps přenosovou rychlost. Nové varianty v preview jdou až do S80 (32TB), kde je 2000 IOPS a až 500 MBps přenosová rychlost. U těchto standardních disků jsou poplatky za transakce. Tím, že jde o vzdálenou HDD technologii je nutné počítat s latencí, takže řešení není vhodné pro náročné databáze, nicméně je to cenově velmi efektivní řešení perfektní pro testovací prostředí, webové aplikace a tak podobně.</p>
+<h2>Standard SSD</h2>
+<p>O krůček dál se zhruba 70% nárůstem ceny jsou Standard SSD. Jedná se o řešení, které (jak je z názvu jasné) využívá SSD, což vede na řádově lepší latenci. Nicméně co do IOPS a throughput jsou na tom stejně, jako Standard HDD. Kdy to tedy dává smysl? Pokud máte nějaké sekvenční čtení třeba video souborů, tak je to celkem jedno, ale nějaká databáze se skákáním na různé malé kousky dat bude na Standard SSD mnohem spokojenější, díky lepší latenci. Totéž platí o aplikace, které se musí po každém načtení nějakého bloku rozhodnout, jaký budou číst dál (nemohou použít nějaký bulk).</p>
+<h2>Premium SSD</h2>
+<p>Prémiové SSD disky už jsou jiné zvířátko, ale to se samozřejmě odráží na ceně, která se pohybuje zhruba na dvojnásobku Standard SSD. Odměnou vám bude ale nejen velmi slušná latence, ale i podstatně větší IOPS. Ty jsou ale odvozené z velikosti disku, který si koupíte. U tohoto typu storage je to tak, že nechť existuje třeba SSD čip o nějaké velikost a IOPS. Pokud si ho koupíte celý, máte to celé pro sebe. Pokud si koupíte jen půlku kapacity, dostanete i půlku IOPS a tak dále. Výsledkem je, že P4 (32GB) dává 120 IOPS zatímco P80 (32TB) 20 000 IOPS.</p>
+<h1>Nový tier Ultra SSD</h1>
+<p>Podívejme se na nový tier Ultra SSD. Některé jeho vlastnosti jsou výrazně jiné.</p>
+<h2>Ještě nižší latence</h2>
+<p>Ultra SSD je implementováno tak, že vaše VM běží velmi blízko k vaší storage a to umožňuje dosahovat ještě nižších latencí. Ty se u Ultra SSD pohybují pod 1ms, což velmi ocení zejména náročné OLTP databáze.</p>
+<h2>Oddělení kapacity od IOPS a propustnosti</h2>
+<p>Druhá velmi zajímavá vlastnost je (do značné míry) oddělení kapacity od IOPS a propustnosti. Musíte se pohybovat v určitých hranicích, ale v principu už nemusíte kupovat brutální kapacitu jen proto, abyste dosáhli na potřebné IOPS nebo propustnost. Tyto věci se účtují zvlášť. Platíte tedy za kapacitu a nastavený IOPS a nastavenou propustnost. Tak například vezměme si 128 GB disk. U Premium SSD vás čeká 500 IOPS, ale u Ultra SSD si můžete koupit mezi 300 a 38 400 IOPS! I s malinkatým diskem se dostanete na výkony na dvojnásobku stávající 32 TB Premium SSD. U větších disků (od 1TB do 64TB) se maximální IOPS zastavují na 160 000. Podobné je to s propustností, kterou si také můžete kupovat zvlášť. Pokud například vaše potřeby jsou spíše o rychlém sekvenčním čtení velkých souborů, můžete dát relativně malé IOPS, ale pořídit si 2000 MBps propustnost. Všimněte si o kolik více výkonu si můžete s Ultra SSD užít oproti už velmi slušné rychlosti Premium SSD.</p>
+<h2>Dynamické nakupování výkonu</h2>
+<p>Podívejme se na další aspekt, v kterém se Ultra SSD chová jinak, než předchozí typy disků. Vaše rozhodnutí o tom, kolik si chcete zaplatit IOPS a propustnosti můžete změnit bez restartu serveru! Účtování probíhá po hodinách (takže nemá cenu spekulovat na kratší úseky), ale v pohodě tak můžete na noc snížit výkon disků (a ušetřit) nebo naboostovat jejich výkon v okamžiku, kdy se chystá nějaký pravidelný load dat. Velmi příjemná flexibilita.</p>
+<h2>Preview a další plány</h2>
+<p>V rámci preview jsou tu zásadní limity. Nepoužívejte v produkci, neumí to zatím snapshoty, Azure Backup, funguje jen v jednom regionu v US, zatím je jen přes ARM šablonu (z portálu půjde ale velmi brzy) a tak podobně. Je to aktuálně skutečně pro seznámení se a poskytnutí zpětné vazby produktovému týmu. Nicméně doufejme, že se tato služba dostane do plné produkce velmi brzy, protože pokud potřebujete opravdu maximum, Ultra SSD je právě pro vás.</p>
+<h1>Pozor na limity VM</h1>
+<p>Nicméně při tom všem nezapomeňte, že výkon storage je jedna věc, ale server má také nějaká omezení z hlediska kapacity výkonu storage subsystému hypervisoru a v připojení. Fyzický server má nějaké charakteristiky - RAM, CPU, storage subsystém, výkon sítě. Když si ho vezmete celý (= největší VM v dané řadě), máte ho celý. Když si vezmete poloviční, máte polovinu RAM, cores a samozřejmě i storage subsystému. Čím menší dílek, čím menší VM v dané řadě zvolíte, tím méně je pro vás rezervováno v těchto parametrech. Tak například u D32v3 si můžete přes hypervisor sáhnout na 51 200 IOPS a dávat tam silnější storage nedává smysl. Nicméně když si vezmete malý server D2v3, dosáhnete jen na 3200 IOPS. Mějte proto prosím limity na straně VM na paměti, ať naplno využete svých investic do Ultra SSD. Mimochodem pro dosažení 160 000 IOPS v řadách D/E v3 zatím nenajdete vhodnou VM (např. D64 se dostane "jen" na 80 000 IOPS) a typ VM, který vyžvíká Ultra SSD na úplné maximum prý bude k dispozici co nevidět.</p>
+<p>&nbsp;</p>
+<p><em>Jste nároční a potřebujete ještě výkonější disky v Azure? Potřebujete relativně malé disky, ale připlatit si za velký výkon? Máte velmi velké ale předvídatelné změny v požadavcích na výkon a chcete si na pondělí přikoupit výkon storage bez nutnosti restartovat server? Podívejte se na Ultra SSD. Vyzkoušejte, dejte zpětnou vazbu a těšme se na uvedení do plné produkce. Ostatně 160 000 IOPS v plné perzistenci  je <span style="font-size: 1rem;">v cloudu </span><span style="font-size: 1rem;">hodně, ostatní se dnes pohybují kolem 32 000 na disk.</span></em></p>

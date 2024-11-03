@@ -1,0 +1,43 @@
+---
+layout: default
+---
+<meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+
+<!-- Page Header -->
+<header class="masthead" style="background-image: url('/images/front.jpg'); background-size: cover; background-position: center center;">
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-8 col-md-10 mx-auto">
+        <div class="page-heading mx-auto" style="padding-top: 120px; padding-bottom: 80px;">
+          <h2>Témata</h2>
+          <span class="subheading">{{ page.tag }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="row">
+    <div class="col-lg-8 col-md-10 mx-auto">
+
+      {{ content }}
+
+      <div class="tag-cloud">
+        <h3>Všechna témata:</h3>
+        {% assign tags = site.tags | sort %}
+        {% for tag in tags %}
+         <span class="site-tag">
+            <a href="/tag/{{ tag | first | slugify }}/"
+                style="font-size: {{ tag | last | size  |  times: 4 | plus: 80  }}%">
+                    {{ tag[0] | replace:'-', ' ' }}&nbsp;({{ tag | last | size }})
+            </a>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+

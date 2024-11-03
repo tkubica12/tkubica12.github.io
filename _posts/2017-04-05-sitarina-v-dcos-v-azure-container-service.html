@@ -1,0 +1,156 @@
+---
+layout: post
+status: publish
+published: true
+title: Síťařina v DC/OS v Azure Container Service
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 205
+wordpress_url: http://beta.tomaskubica.cz/?p=205
+date: '2017-04-05 07:18:17 +0000'
+date_gmt: '2017-04-05 06:18:17 +0000'
+categories:
+tags:
+- Networking
+---
+<p>V síťařině jsem působil mnoho let a vždycky to bylo docela složité. Virtualizace a cloud situaci díky nástupu overlay sítím a mikrosegmentaci zrovna nezjednodušují a dnes se pak musí řešit otázka síťařiny v kontejnerech běžících nad virtualizací. Azure Container Service odladila a připravila robustní řešení pro open source orchestrátor dle vaší volby - Docker Swarm, Kubernetes, DC/OS.</p>
+<p>Dnes se společně podíváme na síťování v DC/OS v Azure.<!--more--></p>
+<h1>Koncept síťařiny v DC/OS (Marathon)</h1>
+<h2>IP per kontejner</h2>
+<p>Původně byla síťařina v DC/OS postavena na sdílení adresy s hostitelem podobně, jako to dělal Docker. To s sebou při větším nasazení nese náročnou správu portů, nutnost služeb běžících na nestandardních portech apod. DC/OS to řešil konceptem virtuální IP, nicméně od verze 1.8 podporuje to, co považuji za správný postup - IP per kontejner s využitím otevřeného rámce Container Network Interface.</p>
+<p>V Azure je automaticky připravena a nasazena overlay (VXLAN propojení mezi agenty) se zabudovaným řešením Navstar.</p>
+<p>Otevřete svůj DC/OS cluster v Azure a v záložce network je vytvořena jedna obrovská výchozí síť (/8 pro cluster a /24 pro každého agenta).</p>
+<p id="JeYbcll"><img class="img-fluid wp-image-209 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec5512a4df.png" alt="" /></p>
+<p>Můžeme spustit nějaký kontejner v této IP-per-kontejner síti - jděte do Services.</p>
+<p id="sLNodxY"><img class="img-fluid wp-image-210 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec5b2d8bfd.png" alt="" /></p>
+<p>Spustíme kontejner, který bude trvale vypisovat svojí IP adresu.</p>
+<p id="QqKoOPV"><img class="img-fluid wp-image-211 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec5ff2e42b.png" alt="" /></p>
+<p id="TnBHnqm"><img class="img-fluid wp-image-212 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec63d60962.png" alt="" /></p>
+<p>A použijeme overlay síť.</p>
+<p id="DZWFVya"><img class="img-fluid wp-image-213 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec674c2ced.png" alt="" /></p>
+<p>Podívejme se do logů - uvidíme jeho IP adresu.</p>
+<p id="yUyblvp"><img class="img-fluid wp-image-214 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec6b6ab437.png" alt="" /></p>
+<p>Totéž najdeme i v DC/OS GUI v části o sítích.</p>
+<p id="Fcbcqjk"><img class="img-fluid wp-image-215 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec6e75b2fe.png" alt="" /></p>
+<p>Spustíme jiný kontejner ve virtuální overlay síti a vyzkoušíme přímou IP konektivitu mezi nimi.</p>
+<p id="JMZKjfe"><img class="img-fluid wp-image-216 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec72bf1103.png" alt="" /></p>
+<p>Použijte image busybox a virtuální síť. Podívejme se do logu - kontejnery nám skutečně napřímo komunikují.</p>
+<p id="iFuRkya"><img class="img-fluid wp-image-217 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec76cbcd18.png" alt="" /></p>
+<h2>Private vs. Public agent</h2>
+<p>DC/OS při připojení uživatelů z reálného světa používá koncept privátních a veřejných agentů. Máte tedy kromě master dvě kategorie hostitelů. V privátních hostitelech poběží prakticky všechno a nic nebude mít veřejnou kontektivitu. Z hlediska Azure mají tyto vyhrazen svůj subnet pro hostitele (a jak už víme DC/OS použije overlay pro získání IP per kontejner).</p>
+<p>Public agent má v Azure jiný subnet ve VNetu a kontejnery spuštěné v těchto VM mohou mít "externí" kontektivitu (tou zatím myslíme subnet tohoto VNetu). Ta vypadá tak, že kontejner může "vystrčit" svou službu na nějaký port hostitele. V typickém případě běží všechno v privátních VM a v public VM budou aplikační load balancery (viz dále).</p>
+<p>Podíváme-li se do DC/OS GUI, najdeme v mém případě šest agentů - všimněte si jejich IP adres.</p>
+<p id="Vhmogpp"><img class="img-fluid wp-image-219 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec81442294.png" alt="" /></p>
+<p>Podívejme se v Azure portálu na VNet, který nám Azure Container Service založila.</p>
+<p id="qrrhCcV"><img class="img-fluid wp-image-220 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec88aa344e.png" alt="" /></p>
+<p>A také na přidělené adresy.</p>
+<p id="NgloEbd"><img class="img-fluid wp-image-221 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec8b572531.png" alt="" /></p>
+<h2>Azure balancing public agentů</h2>
+<p>Princip "vystrčení" služby v public VM spočívá v tom, že služba bude dostupná na každém z public agentů. Abychom se k aplikacím dostali, potřebujeme reálnou veřejnou IP a také load balancer, který bude požadavky na tuto veřejnou IP posílat na nějakou z public agent VM. To je pro vás v Azure připraveno. Podívejme se na veřejnou IP balanceru.</p>
+<p id="uAGtiHn"><img class="img-fluid wp-image-222 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec90c8a3b2.png" alt="" /></p>
+<p>A na pool adres, na který Azure požadavky směruje.</p>
+<p id="PfWZOmC"><img class="img-fluid wp-image-223 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec941f125d.png" alt="" /></p>
+<h2>Marathon Load Balancer</h2>
+<p>Zatím jsme si prošli všechno potřebné k tomu, abychom mohli mluvit mezi kontejnery a aby se k nim z venkovního světa někdo dostal. Můžeme tak nasadit třeba vlastní HAProxy balancer/proxy v public agentovi a v ní balancovat na aplikační kontejnery v privátním agentovi. Naštěstí si to nemusíme vytářet sami - marathon-lb dělá právě tohle.</p>
+<p>Služba není v základu nainstalována, ale stačí jednou kliknout v DC/OS Universe - nic složitého.</p>
+<p id="nVxhAEK"><img class="img-fluid wp-image-225 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ec9dff0ef2.png" alt="" /></p>
+<p>Aplikaci vytvoříme s využitím JSON předpisu (potřebujeme totiž použít některé parametry, které v GUI nejsou). Deployment můžeme provést z GUI, jen použijeme JSON režim.</p>
+<p id="DPAEoCw"><img class="img-fluid wp-image-226 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ecd8ba1bbb.png" alt="" /></p>
+<p>Vymažeme co tam je a použijeme tento JSON:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="json">{
+  "id": "web",
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "yeasy/simple-web",
+      "network": "USER",
+      "portMappings": [
+        { "hostPort": 0, "containerPort": 80 }
+      ],
+      "forcePullImage":true
+    }
+  },
+  "instances": 3,
+  "cpus": 0.1,
+  "mem": 65,
+  "healthChecks": [{
+      "protocol": "HTTP",
+      "path": "/",
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "gracePeriodSeconds": 10,
+      "intervalSeconds": 2,
+      "maxConsecutiveFailures": 10
+  }],
+  "labels":{
+    "HAPROXY_GROUP":"external",
+    "HAPROXY_0_VHOST":"tomuvdcosagents.westeurope.cloudapp.azure.com",
+    "HAPROXY_0_MODE":"http"
+  },
+  "ipAddress": {
+    "networkName": "dcos"
+  }
+}</pre>
+<p>Okomentujme klíčové části. V sekci kontejner vybíráme image a používáme síť typu USER (tou je overlay). ipAddress nám určuje naší overlay síť. Podívejme se na labels. VHOST je DNS jméno mé virtuální IP load balanceru pro public agenty v Azure.</p>
+<p>Připojíme se na cluster a uvidíme aplikaci - pokud dáte refresh uvidíte, že požadavky jsou skutečně balancovány na instance webové aplikace.</p>
+<p id="qKeGjYQ"><img class="img-fluid wp-image-227 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ecedc9d4c1.png" alt="" /></p>
+<p id="HYTEEGQ"><img class="img-fluid wp-image-228 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588eceecea678.png" alt="" /></p>
+<p>Pozor ještě na jednu věc - Azure Container Service nám připravila balancing public agentů na těchto portech:</p>
+<p id="gbozxje"><img class="img-fluid wp-image-229 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ecf34f0d29.png" alt="" /></p>
+<p>Pokud chcete nějaké další, musíte si pravidla přidat.</p>
+<h2>Marathon-lb v kombinaci s Azure DNS</h2>
+<p>Potíž v předchozím odstavci byla, že jsme jednou aplikací zabrali na portu 80 celý cluster. Můžeme samozřejmě nasadit další aplikace na jiných portech, ale to není praktické (uživatelům nechceme v URL říkat i nestandardní čísla portů). Marathon-lb je ale L7 balancer, takže můžeme identifikovat příchozí provoz podle URL a na základě toho si vybrat příslušnou aplikaci. Doménovým jménem můžeme rozlišit aplikace a přitom vše směřuje jen na jednu IP adresu.</p>
+<p>Část své domény jsem delegoval do Azure DNS, tedy do DNS serverů jako služba, které mohu ovládat přímo z portálu či jinými Azure prostředky. Vytvořím záznam pro novou subdoménu, která bude směřovat na veřejnou IP mého public agent balanceru.</p>
+<p id="BgSKGUr"><img class="img-fluid wp-image-231 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ed01aeb4d8.png" alt="" /></p>
+<p>Vyzkoušel jsem teď v prohlížeči zadat appka.azure.tomaskubica.cz</p>
+<p id="eCmmcJc"><img class="img-fluid wp-image-232 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ed06759833.png" alt="" /></p>
+<p>Dostávám zprávu o chybějící službě přestože se dostáváme na naprosto stejnou IP jako v případětomuvdcosagents.westeurope.cloudapp.azure.com. Marathon-lb tedy dokáže rozlišit jakou doménu klient použil. Abychom si to potvrdili, pojďme rozjet v DC/OS jinou službu, třeba prázdný NGINX server.</p>
+<p>Použijme tento JSON:</p>
+<pre class="EnlighterJSRAW" data-enlighter-language="null">{
+  "id": "web2",
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "nginx",
+      "network": "USER",
+      "portMappings": [
+        { "hostPort": 0, "containerPort": 80 }
+      ],
+      "forcePullImage":true
+    }
+  },
+  "instances": 3,
+  "cpus": 0.1,
+  "mem": 65,
+  "healthChecks": [{
+      "protocol": "HTTP",
+      "path": "/",
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "gracePeriodSeconds": 10,
+      "intervalSeconds": 2,
+      "maxConsecutiveFailures": 10
+  }],
+  "labels":{
+    "HAPROXY_GROUP":"external",
+    "HAPROXY_0_VHOST":"appka.azure.tomaskubica.cz",
+    "HAPROXY_0_MODE":"http"
+  },
+  "ipAddress": {
+    "networkName": "dcos"
+  }
+}</pre>
+<p>Zkuste znovu web.</p>
+<p id="KMQWcSH"><img class="img-fluid wp-image-233 " src="http://beta.tomaskubica.cz/wp-content/uploads/2017/01/img_588ed17359aff.png" alt="" /></p>
+<p>Funguje !</p>
+<h1>Rekapitulace</h1>
+<p>Shrňme si tedy celou komunikační dráhu. Klient zadá URL a jeho prohlížeč vytvoří DNS dotaz na aplikace.azure.tomaskubica.cz. DNS infrastruktura mu na to vrátí veřejnou IP load balanceru public agentů. Provoz jde do jednoho (náhodně vybraného) public agenta. Tam se dostává do marathon-lb, který si přečte požadovanou URL. Na základě jména vybere příslušnou Marathon službu běžící na privátních agentech a dál vybere jeden z kontejnerů, na kterém služba běží. Přes overlay síť do něj pošle požadavek.</p>
+<p>&nbsp;</p>
+<p><em>Síťařina v kontejnerech zní možná trochu složitě, ale díky Azure Container Service se nemusíte nutně trápit s implementačními detaily. Vyzkoušejte, stojí to za to.</em></p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

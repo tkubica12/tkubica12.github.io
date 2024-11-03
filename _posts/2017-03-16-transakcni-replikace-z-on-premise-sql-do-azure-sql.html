@@ -1,0 +1,58 @@
+---
+layout: post
+status: publish
+published: true
+title: Transakční replikace z on-premise SQL do Azure SQL
+author:
+  display_name: Tomáš Kubica
+  login: tomas
+  email: tkubica@centrum.cz
+  url: ''
+author_login: tomas
+author_email: tkubica@centrum.cz
+wordpress_id: 160
+wordpress_url: http://tomaskubica.cz/?p=160
+date: '2017-03-16 08:55:39 +0000'
+date_gmt: '2017-03-16 07:55:39 +0000'
+categories:
+tags:
+- SQL
+---
+<p>Je vícero způsobů jak migrovat on-premise SQL databázi do Azure SQL (tedy do hostované PaaS verze, migrace do SQL v Azure VM je jiná kapitola). Většina z nich vyžaduje nějaký čas, kdy se on-premise vypne, udělá se záloha a ta se obnoví v Azure SQL - podle množství dat to může trvat docela dlouho. Pokud chcete migrovat postupně tak, že například čtecí část aplikací už pojede v cloudu a zapisovací zatím on-premise a celé finální překlopení nechť otázkou chvilky, můžete zvolit transakční replikaci. V tomto scénáři jsou data v cloudu stejná (resp. jen o pár vteřin starší) jako data on-premise (to je rozdíl oproti stretch databázi, kde to funguje jakou tiering - o tom jindy).<!--more--></p>
+<p>O co jde? V zásadě on-premise verze bude obsluhovat aplikace, ale každou transakci také asynchronně zopakuje v příslušné Azure SQL (resp. při úvodním nastavení se pošle snapshot a pak jednotlivé transakce). Takto dokážete průběžně držet Azure SQL téměř shodný s on-premise verzí (třeba jen o pár vteřin pozadu). V rozhodný okamžik tak on-premise vypnete a aplikace pošlete na Azure SQL. Celkově to může proběhnout během několika minut (v jednoduchých příkladech bych si uměl představit i desítky vteřin).</p>
+<h1>Transakční replikace do Azure SQL</h1>
+<p>SQL Server má mnoho vlastností replikace. Role typu distributor, publisher, subscriber a různé metody - kromě transakční třeba i merge (dvoucestjné slučování). Azure SQL tento engine nemá, ale to nevadí. Nemůže mít roli distributor nebo publisher, ale to jako příjemce nepotřebuje. Azure SQL musí být jako subscriber typu push, tedy SQL Server na něj bude data aktivně tlačit.</p>
+<p>Namířil jsem SQL Server Management Studio na SQL Server, kde mám tuto jednoduchou tabulku.</p>
+<p id="SfkjNmb"><img class="img-fluid wp-image-163 " src="/images/2017/img_5884f85f6ad42.png" alt="" /></p>
+<p>Budeme chtít tuto tabulku transakčně replikovat do Azure SQL. Nejprve vytvoříme distributora, kterým bude přímo ten stejný server. Současně budeme fungovat jako publisher.</p>
+<p id="pAtKlqF"><img class="img-fluid wp-image-164 " src="/images/2017/img_5884f89b59cb4.png" alt="" /></p>
+<p id="unTdGnr"><img class="img-fluid wp-image-165 " src="/images/2017/img_5884f9fc59205.png" alt="" /></p>
+<p id="xALwjWW"><img class="img-fluid wp-image-166 " src="/images/2017/img_5884fa583db4f.png" alt="" /></p>
+<p>V dalším kroku musíme říci co chceme replikovat, tedy vytvořit "publikaci".</p>
+<p id="iqqcVjD"><img class="img-fluid wp-image-167 " src="/images/2017/img_5884fac53250c.png" alt="" /></p>
+<p>Použijeme mojí onpremdb.</p>
+<p id="pbabGNM"><img class="img-fluid wp-image-168 " src="/images/2017/img_5884faf2e4c3c.png" alt="" /></p>
+<p>S Azure SQL potřebujeme transakční replikaci.</p>
+<p id="OUJtVgj"><img class="img-fluid wp-image-169 " src="/images/2017/img_5884fb1bf3916.png" alt="" /></p>
+<p>Můžeme si z databáze vybrat jen konkrétní tabulky a v nich dokonce jen některé sloupečky.</p>
+<p id="mePGrdT"><img class="img-fluid wp-image-170 " src="/images/2017/img_5884fb4889c02.png" alt="" /></p>
+<p>Stejně tak nemusíme replikovat všechny řádky. Můžeme použít nějaký filtr (já to dělat nebudu).</p>
+<p id="pQSrlzb"><img class="img-fluid wp-image-171 " src="/images/2017/img_5884fb7500349.png" alt="" /></p>
+<p>Na dalších stránkách průvodce jen vyřešíme bezpečnost (já pro jednoduchost použiji stejný account pro replikaci, což sice není ideální, ale je to jednoduché).</p>
+<p>Teď už nám zbývá jen přidat odběratele, kterým bude naše Azure SQL databáze. Ta si neumí data stahovat sama, takže použijeme push z on-premise serveru. Přidejme subscribera.</p>
+<p id="TTMSqJy"><img class="img-fluid wp-image-172 " src="/images/2017/img_5884fc0c1b2f9.png" alt="" /></p>
+<p>Budeme posílat to, co jsme si před chvilkou vytvořili.</p>
+<p id="MjfEoKf"><img class="img-fluid wp-image-173 " src="/images/2017/img_5884fc34eb055.png" alt="" /></p>
+<p>Použijeme push metodu.</p>
+<p id="hsGXpcB"><img class="img-fluid wp-image-174 " src="/images/2017/img_5884fc50d377a.png" alt="" /></p>
+<p>Přidáme subscribera.</p>
+<p id="Trzshke"><img class="img-fluid wp-image-175 " src="/images/2017/img_5884fc714c46e.png" alt="" /></p>
+<p>Namiřte na Azure SQL databázi, ale nezapomeňte, že IP adresa tohoto serveru musí být nastavena ve firewallu na Azure SQL virtuálním serveru.</p>
+<p id="zFrjpYI"><img class="img-fluid wp-image-176 " src="/images/2017/img_5884fd15a63c3.png" alt="" /></p>
+<p id="SIeqEGo"><img class="img-fluid wp-image-177 " src="/images/2017/img_5884fd37bd2d4.png" alt="" /></p>
+<p>Pak už jen pořešíme bezpečnost (pod kterým accountem co provádět) a máme hotovo.</p>
+<p>Můžeme se připojit do Azure SQL z management studia a uvidíte, že tabulka tam je.</p>
+<p id="OLdYEdR"><img class="img-fluid wp-image-178 " src="/images/2017/img_5884fe11e4007.png" alt="" /></p>
+<p>Šel jsem do on-premise serveru a přidal řádek a současně sledoval, kdy se objeví v Azure SQL databázi. V mém případě to trvalo asi 3 vteřiny. Samozřejmě to celé může záležet na objemu dat, kvalitě připojení, výkonu zdrojové serveru a tieru (DTU) Azure SQL, nicméně očekával bych hodnoty velmi příjemné.</p>
+<p>&nbsp;</p>
+<p><em>Chcete velmi pozvolna a nenásilně migrovat on-premise SQL server do Azure SQL s nejkratší odstávkou? Replikace je myslím výborná volba!</em></p>
