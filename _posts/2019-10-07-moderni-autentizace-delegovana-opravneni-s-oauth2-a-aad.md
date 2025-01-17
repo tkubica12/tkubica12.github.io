@@ -3,7 +3,7 @@ layout: post
 title: 'Moderní autentizace: delegovaná oprávnění s OAuth2 a AAD'
 tags:
 - Security
-- AAD
+- Entra
 ---
 Představme si, že budujeme aplikaci, ve které si uživatel může prohlédnout a změnit svoje údaje - číslo účtu pro posílání výplaty, svoje telefonního číslo apod. Například ten telefon bude uložen v AAD profilu a tak budeme chtít zavolat Microsoft Graph API. To se dá použít na spoustu věcí v rámci Office365 - číst a psát emaily, projíždět kontakty, psát zprávy do Teams, pracovat s kalendářem, vytvářet Excel či Word soubory, ukládat věci do OneDrive a mnoho dalšího. Mohli bychom použít dvě varianty, ale obě nejsou moc dobré:
 - uživatel dá aplikaci svoje heslo do Office365 a ta pak může dělat všechno (úžasný nápad)

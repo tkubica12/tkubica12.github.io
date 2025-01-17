@@ -4,7 +4,6 @@ title: 'Kubernetes praticky: nejmocnější Service Mesh část 2 - traffic mana
 tags:
 - Kubernetes
 - Networking
-- ServiceMesh
 ---
 Minule jsme si prošli základní věci typu retry, circuit breaker a dnes se pustíme do pokročilého směrování provozu. Budeme pokračovat s prostředím z minula, kdy Istio jako takové mám zprovozněno a pustili jsme si dva deploymenty, každý v jiné verzi.
 

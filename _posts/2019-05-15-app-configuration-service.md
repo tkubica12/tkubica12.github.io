@@ -3,7 +3,7 @@ layout: post
 published: true
 title: Centrální řízení aplikačních konfigurací s Azure Application Configuration Service
 tags:
-- Apps
+- AppService
 ---
 Konfigurace aplikace můžete řešit přímo v kódu třeba přes statickou proměnnou. Jejich změna znamená novou kompilaci, což není ideální. Proto konfigurace vytáhnete ven do souboru nebo proměnných prostředí, takže není nutné provádět build a stačí v provozu podhodit příslušý soubor nebo env a všechno jede. Tohle řešení má ale stále nějaké nevýhody:
 * Každá komponenta nebo replika má svou nezávislou konfiguraci. Centrální řízení je problematické a obvykle ho řešíte v rámci CI/CD pipeline. To ale vede na to, že změna konfigurace znamená přenasazení a to může mít vliv na dostupnost.

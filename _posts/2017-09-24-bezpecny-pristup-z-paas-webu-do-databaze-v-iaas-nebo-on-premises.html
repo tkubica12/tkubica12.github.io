@@ -18,7 +18,6 @@ categories:
 tags:
 - Networking
 - AppService
-- ServiceBus
 ---
 <p>Platformní služba, například aplikace běžící v Azure App Service, je v principu veřejná služba. Pokud přistupojete k platformní databázi (Azure SQL, MySQL, Postgresql, Cosmos DB) tak se tak děje na úrovni public endpointů, ale zůstává uvnitř Microsoft sítě (nejde přes Internet). Totéž platí pro DB v IaaS VM s veřejnou IP adresou. Co když ale potřebujete přistupovat k databázi, která z nějakých důvodů musí zůstat s privátní adresou? Podívejme se na možnosti.<!--more--></p>
 <p>První řešení by bylo místo multi-tenantní platformy zvolit vytvoření vašeho vlastního PaaS ve vašem VNETu. Něco takového je možné a jmenu je so App Service Isolated (dříve App Service Environment) - všechny potřebné komponenty včetně balancingu, SSL akcelerace, deployment a monitoring prostředků budou pro vás plně dedikované a poběží ve vašem VNETu. To je fajn, ale připravte se na vyšší cenu. Obrovským přínosem cloudu jsou výnosy z rozsahu a rozpuštění některých nákladů - toho v tomto režimu nedosáhnete. Pro  tajné interní aplikace nevhodné pro cestovatele i doma pracující zaměstnance dobrá volba. Ale pro v principu veřejné aplikace případně moderní řešení například mobilní služby dostupné pro zaměstance odkudkoli to je možná zbytečné. Front-end dobře, ale co když stále trvám na tom, že data v platformní službě nechci - musí zůstat ve VM ať už v cloudu nebo u mě?</p>

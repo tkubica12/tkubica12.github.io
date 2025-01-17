@@ -3,7 +3,7 @@ layout: post
 title: 'Moderní autentizace: oprávnění pro procesy běžící v pozadí s AAD'
 tags:
 - Security
-- AAD
+- Entra
 ---
 V minulém díle jsme se pustili do autorizace aplikace, která přistupovala na Payroll API. Dnes budeme chtít vyřešit dva problémy. Co když potřebujeme, aby naše aplikace fungovala v pozadí i po té, co uživatel opustil stránku a v pozadí s Payroll API komunikovala jménem uživatele? Token po hodině vyprší a co dál. Navíc můžeme mít ještě jinou aplikaci, která odesílá peníze v dávkách a autorizace jménem uživatele tam nedává smysl - potřebovali bychom se přihlásit ke všem účtům a dávkově zpracovávat.
 

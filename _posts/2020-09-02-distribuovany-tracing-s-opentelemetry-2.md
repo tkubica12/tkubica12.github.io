@@ -4,7 +4,6 @@ published: true
 title: "Distribuovaný tracing s OpenTelemetry, Python a Azure Monitor (2): další instrumentace, vizualizace a pokročilé query"
 tags:
 - Monitoring
-- Apps
 - OpenTelmetry
 ---
 Minule jsme se dostali z aplikace bez jakékoli instrumentace až provozu v Kubernetes a sbírání dat obohacených o aplikační i infrastrukturní atributy v Azure Monitor Application Insights. Dnes budeme pokračovat a přidáme si trasování přístupu do databáze, uděláme si vlastní span, zkusíme auto-instrumentaci a naučíme se pracovat se surovými daty v Azure Monitor. 

@@ -4,8 +4,8 @@ title: Federace tokenů GitHub Actions s Azure Active Directory pro přístup z 
 tags:
 - Automatizace
 - Security
-- AAD
 - GitHub
+- Entra
 ---
 V článku [Federace vnitřních Kubernetes identit s Azure Active Directory pro přístup k cloudovým službám bez hesel](https://www.tomaskubica.cz/post/2022/federace-kubernetes-identit-s-aad/) jsem ukazoval, jak lze využít federaci workload identit AAD v kombinaci s Kubernetes. Díky možnosti doručit kontejneru token Kubernetes identity a ten si směnit v AAD za token například pro Azure Key Vault nebo Azure SQL jsme vyřešili bezpečný přístup bez předávání hesel či certifikátů. Něco hodně podobného by se nám hodilo v CI/CD pipeline s GitHub Actions. Jak na to?
 

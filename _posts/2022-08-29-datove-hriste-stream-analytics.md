@@ -5,7 +5,6 @@ title: Datové hřiště - zpracování proudu událostí s Azure Stream Analyti
 tags:
 - Data Analytics
 - Automatizace
-- Stream Analytics
 ---
 Minule jsem k projektíku datového hřiště [https://github.com/tkubica12/dataplayground](https://github.com/tkubica12/dataplayground) popsal generování dat a dnes se mrkneme na zpracování té proudové části s využitím Azure Stream Analytics. To samé se pak někdy příště pokusím udělat v Databricks s využitím Structured Streaming. Čeká nás pak určitě i ETL s Data Factory, zpracování s Databricks, možná trocha Synapse, PowerBI, AzureML a uvidím čeho ještě. Proč to vlastně všechno dělám a jaké předpoklady to má splňovat? To se dočtete v [předchozím článku](https://www.tomaskubica.cz/post/2022/datove-hriste-jak-si-hrat-s-daty-s-terraform-a-azure/).
 

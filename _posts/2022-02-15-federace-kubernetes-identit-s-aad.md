@@ -4,7 +4,7 @@ title: Federace vnitřních Kubernetes identit s Azure Active Directory pro př�
 tags:
 - Kubernetes
 - Security
-- AAD
+- Entra
 ---
 Předávat aplikacím nějaké tajnosti jako jsou hesla nebo certifikáty je vždy docela nepohodlné, zejména, když nechcete prasit a dodržujete bezpečnostní hygienu (pravidelná rotace, nikdy neuloženo v Gitu nebo na disku, nikdy nezalogováno nebo odesláno do crash dumpu). Ve zdrojích běžících v Azure ve vašem tenantu to lze elegantně řešit přes Managed Identity (byť pro Kubernetes s některými omezeními viz dále) - žádná hesla ani certifikáty, ale můžete si vyzvednou časově omezený token. Aplikaci nemusím vůbec nic předávat a i kdyby to ta někde zalogovala, bezpečnostní dopad není tak velký, protože token má krátkou platnost (teď si nevybavuji jestli hodinu, 8 nebo 24 hodin, ale víc určitě ne) - než se k němu někdo potenciálně dostane, už dost možná neplatí (na rozdíl od situace se zalogovaným heslem k účtu, které i ti docela poctiví točí tak jednou za rok). Ale co když neběžím v Azure - například mám část aplikace v on-premise, někde blízko místa potřeby (třeba uvnitř výdejního boxu nebo na ropné plošině) nebo v jiném cloudu? Tam samozřejmě služba Managed Identity není resp. v AWS a Google je, ale samozřejmě nevydává Azure tokeny, ale AWS resp. Google, což pro autentizaci do služby typu Azure Key Vault nebo Azure SQL není k ničemu .... nebo je? Kubernetes má také vnitřního providera identit a můžete ho využít ve formě Service Accountů, ale zase - je vám to platné při ověřování vůči třeba Azure Blob Storage? Je, čtěte dál.
 

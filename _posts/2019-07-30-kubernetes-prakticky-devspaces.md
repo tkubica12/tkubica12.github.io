@@ -3,7 +3,6 @@ layout: post
 title: 'Kubernetes praticky: vývoj a testování s DevSpaces'
 tags:
 - Kubernetes
-- Apps
 ---
 Používáte architekturu mikroslužeb s Kubernetes? Z pohledu vývoje vás čeká jedna zajímavá výzva. Mikroslužby jsou samostatně nasaditelné jednotky, takže můžu testovat každou zvlášť. Na lokálním PC vývojáře si ten může hrát a před tím, než změnu publikuje, by si měl lokálně sjet základní testy včetně těch, které zavolají jeho API a kontrolují, že to nevrací nesmysly. Ještě lepší varianta mi přijde situace, kdy tyto testy nepřipravuje přímo majitel této mikroslužby, ale naopak její konzumenti. Jako vývojář dané služby si tak mohu u sebe sjet testy připravené mými "zákazníky" (analogie, kdy mikroslužba je vlastně samostatný produkt s životním cyklem mi přijde mentálně dost užitečná), konzumenty.
 

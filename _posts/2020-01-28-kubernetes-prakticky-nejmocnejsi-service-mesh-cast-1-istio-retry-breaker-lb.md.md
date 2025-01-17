@@ -4,7 +4,6 @@ title: 'Kubernetes praticky: nejmocnější Service Mesh část 1 - Istio retry,
 tags:
 - Kubernetes
 - Networking
-- ServiceMesh
 ---
 Než se pustíme do Istio, opět připomenu, že jsem nejprve psal o tom, proč Service Mesh ano, ale také proč ne. Nemyslím si, že je pro každého a jsou i jiné, v některých případech lepší, varianty. Také připomínám svůj hodně zjednodušený pohled na tři nejznámější zástupce:
 - Istio, které je zaměřeno na maximální množství funkcí, umí toho strašně moc, ale znamená velký overhead, spotřebu zdrojů a zvýšenou latenci - trochu riskantní se může jevit, že to není oficiální CNCF projekt (může zavánět vendor tlačenou záležitostí)

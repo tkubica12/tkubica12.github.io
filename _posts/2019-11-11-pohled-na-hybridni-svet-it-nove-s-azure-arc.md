@@ -7,7 +7,6 @@ tags:
 - Security
 - Governance
 - IoT
-- AzureStack
 - Kubernetes
 - Arc
 ---

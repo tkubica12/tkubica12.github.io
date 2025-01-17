@@ -3,7 +3,6 @@ layout: post
 title: 'Kubernetes praticky: používání externí konfigurace v Azure App Configuration Service'
 tags:
 - Kubernetes
-- Apps
 ---
 Kubernetes přichází s prostředky správy aplikačních konfigurací s ConfigMap a správu tajností se Secrets. Tyto vlastnosti jsou pro Kubernetes specifické a možná máte potřebu univerzálnějšího řešení. Něčeho, co bude dostupné z AKS, ale i VM v Azure, Web App v Azure Stack, Azure Function, Javascript klienta v browseru, IoT zařízení nebo z nativní mobilní aplikace. Minule jsem popisoval jak využít AAD Pod Identity a ukládat tajnosti univerzálně do velmi bezpečného Azure Key Vault (ať už si budete vyzvedávat aplikačně nebo v případě AKS zvolíte Flex Volume).
 

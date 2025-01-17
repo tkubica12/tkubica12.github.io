@@ -2,7 +2,6 @@
 layout: post
 title: 'Azure Stack: disaster recovery do Azure s Azure Site Recovery'
 tags:
-- BackupDR
 - AzureStack
 ---
 Přemýšlíte o využití Azure Stack pro aplikace, které z důvodů latence chcete provozovat lokálně nebo pro které chcete využít CAPEX modelu a přitom si zachovat vlastnosti cloudu? Možná ale budete potřebovat některé stroje z Azure Stack zrcadlit do Azure. Důvodem může být třeba DR strategie, kdy chcete mít zdroje v Azure Stack, ale než platit drahé záložní centrum, použijete pro DR Azure. Platíte jen za nějaký replikační software a storage, ale VMka vytočíte (a zaplatíte) jen když to bude potřeba. Další scénář může být, že na infrastruktuře pro aplikaci pracujete lokálně v Azure Stack, ale pak ji budete potřebovat přesunout do Azure. Možná z důvodu navýšení celkové kapacity před Vánoční špičkou nebo přesun aplikace, která se stala tak úspěšnou u zákazníků, že dává větší smysl provozovat ji v public cloudu. Samozřejmě takový scénář je ideální řešit moderními prostředky typu mikroslužby a kontejnery a aplikaci v Azure přenasadit, ale mohou být situace, kdy chcete sáhnout po infrastrukturním řešení a nareplikovat VMka do Azure tak jak jsou v Azure Stack.

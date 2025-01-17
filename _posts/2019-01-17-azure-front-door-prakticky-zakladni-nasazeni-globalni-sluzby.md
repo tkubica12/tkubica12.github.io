@@ -4,7 +4,6 @@ status: publish
 published: true
 title: Azure Front Door prakticky - základní nasazení globální služby
 tags:
-- FrontDoor
 - Networking
 ---
 V minulém díle jsme se teoreticky seznámili s Azure Front Door Service a dnes už si ji vyzkoušíme prakticky. Začneme z nejjednodušších věcí a prozkoumáme jak to funguje. Na pokročilé záležitosti se podíváme zas příště.

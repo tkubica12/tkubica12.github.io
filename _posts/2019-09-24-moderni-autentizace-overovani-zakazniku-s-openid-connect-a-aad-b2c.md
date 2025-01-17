@@ -3,7 +3,7 @@ layout: post
 title: 'Moderní autentizace: ověřování zákazníků s OpenID Connect v AAD B2C'
 tags:
 - Security
-- AAD
+- Entra
 ---
 V minulém díle jsme použili OpenID Connect pro ověřování interních (nebo federovaných) uživatelů v AAD a dnes se zaměříme na koncové zákazníky. Ty typicky nechcete spravovat ve stejném tenantu, ale ve vyčleněném pro tyto účely. Přesně na to je Azure Active Directory B2C, která ale řeší dost dalších věcí, které určitě ve své aplikaci potřebujete. Tak například se umí integrovat na jiné identitní systémy jako je Google či Facebook a jednoduše vám zprostředkovat možnost logování zákazníků přes jejich účty na sociálních sítí (bez nutnosti psát pokáždé znovu kód, který by to dělal). Také umožňuje uživatelům vytvořit si samostatně účet, ověřit například platnost jejich emailu nebo jim umožnit resetovat zapomenuté heslo a tak podobně - vše jako součást služby, tedy bez práce a jednotně pro všechny vaše zákaznické aplikace.
 

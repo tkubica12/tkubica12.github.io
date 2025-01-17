@@ -4,7 +4,6 @@ published: true
 title: Aplikační monitoring bez proprietárních SDK v aplikaci
 tags:
 - Monitoring
-- Apps
 - OpenTelmetry
 ---
 Stále se potkávám se snahou řešit potřebu dohledu aplikace infrastrukturními prostředky. Je vám tohle povědomé?

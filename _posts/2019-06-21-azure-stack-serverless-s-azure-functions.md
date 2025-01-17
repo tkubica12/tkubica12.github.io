@@ -3,7 +3,6 @@ layout: post
 title: 'Azure Stack: serverless s Azure Functions'
 tags:
 - Serverless
-- AzureStack
 ---
 Co si takhle koupit servery v balíku Azure Stack a pak běžet appky bez serverů? Možná se to zdá divné, ale dává to smysl, protože serverless je o tom, že se o servery a jejich škálování nestarám a soustředím se na logiku. Azure Functions jsou platformní služba, kterou v Azure Stack můžete mít. Podívejme se jak vypadá.
 

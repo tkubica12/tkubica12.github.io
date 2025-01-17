@@ -3,7 +3,7 @@ layout: post
 title: 'Moderní autentizace: od SELECT password FROM k Oauth2'
 tags:
 - Security
-- AAD
+- Entra
 ---
 V sérií článků na téma moderní autentizace budu objevovat detaily přihlašování a autorizace z pohledu protokolů. Projdeme si proč to vzniklo a k čemu je to dobré a pak se pustíme do jednotlivých scénářů a vyzkoušíme si je s Azure Active Directory. Nejste programátoři? Já také ne, nemusíte se děsit. Půjdeme po stopách fungování protokolů a vystačíme si s prohlížečem a Postmanem ... do appky ať to pak dá někdo jiný :)
 

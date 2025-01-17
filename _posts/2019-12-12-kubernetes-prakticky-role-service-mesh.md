@@ -5,7 +5,6 @@ tags:
 - Kubernetes
 - Networking
 - Security
-- ServiceMesh
 ---
 V poslední době je mnoho diskusí kolem konceptu Service Mesh a mnoho lidí se na něj dívá jako ná spásu světa. Něco na tom je, ale nic není zadarmo - roste složitost, latence a spotřeba zdrojů. Stojí to za to? Na to se dnes zkusím podívat.
 

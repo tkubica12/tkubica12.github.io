@@ -3,7 +3,6 @@ layout: post
 title: Azure SQL pro kritické aplikace
 tags:
 - SQL
-- BackupDR
 ---
 Tým kolem Azure SQL publikoval v červenci nové SLA pro vaše nejkritičtější aplikace a nabízí garance, které jsou na trhu public cloudu vyjímečné. Podívejme se co znamená provozovat kritické systémy na Azure SQL.
 

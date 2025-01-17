@@ -4,7 +4,6 @@ status: published
 published: true
 title: Globální aplikace s dveřmi blízko uživatelů díky Azure Front Door
 tags:
-- FrontDoor
 - Networking
 ---
 Jak udělat globální aplikaci tak, aby uživatel měl co nejlepší přístup z hlediska latence, pásma a stability spojení? Prozkoumejme Azure Front Door.

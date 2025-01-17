@@ -4,7 +4,6 @@ title: 'Kubernetes praticky: Service Mesh zaměřený na rychlost a efektivitu -
 tags:
 - Kubernetes
 - Networking
-- ServiceMesh
 ---
 Než se pustíme do Linkerd, rád bych připomenul předchozí článek, který se zamýšlí nad rolí service mesh, jestli to vůbec potřebuji a jaké výhody a nevýhody přináší. V rámci pokračování tématu se budu věnovat třem implementacím a dopustím se v úvodu velmi hrubého a nepřesného zjednodušení:
 - Istio, které je zaměřeno na maximální množství funkcí, umí toho strašně moc, ale znamená velký overhead, spotřebu zdrojů a zvýšenou latenci - trochu riskantní se může jevit, že to není oficiální CNCF projekt (může zavánět vendor tlačenou záležitostí)

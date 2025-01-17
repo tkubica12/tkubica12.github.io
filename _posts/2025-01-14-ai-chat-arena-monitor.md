@@ -6,6 +6,7 @@ tags:
 - AI
 - Monitoring
 - OpenTelemetry
+- GitHub
 ---
 Potřeboval jsem pro svoje účely vyrobit jednoduché demo, kde bych ukázal nasazení jednoduché aplikace sloužící pro rychlé interaktivní porovnání dvou modelů mezi sebou, například z rodiny Phi open source modelů s high-end řešeními od OpenAI a zajistit monitoring a logování. Řešení mělo splňovat následující požadavky:
 - Kompletně automatizované nasazení infrastruktury a aplikace přes Terraform do Azure (AI služby, modely, aplikační platforma, monitoring).

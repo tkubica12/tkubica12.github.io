@@ -3,7 +3,6 @@ layout: post
 published: true
 title: Nový runtime pro Logic App integrační platformu vám umožní ji běžet i v on-premises
 tags:
-- LogicApps
 - Serverless
 ---
 Na konferenci Ignite tento týden bylo uvolněno preview novinky součásti Microsoft integrační platformy jako služba (iPaaS) - workflow nástroje Logic Apps. Ten v kombinaci se službami jako je Azure API Management, Service Bus nebo Event Grid nabízí kompletní integrační platformu v cloudu. A nebo i mimo něj? Nová generace Logic Apps mění technologii zabalení a spuštění procesu tak, že využívá serverless přístupy Azure Functions. To znamená nejen levnější a jednodušší integraci do VNETu, ale i možnost zabalit prostředí do kontejneru a provozovat kdekoli - včetně vašeho on-premises Kubernetes clusteru nebo i pouhé mašiny s Dockerem.

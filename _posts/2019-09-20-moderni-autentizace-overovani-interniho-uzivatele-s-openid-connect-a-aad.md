@@ -3,7 +3,7 @@ layout: post
 title: 'Moderní autentizace: ověřování interního uživatele s OpenID Connect v AAD'
 tags:
 - Security
-- AAD
+- Entra
 ---
 Dnes se podíváme na scénář jednoduchého přihlašování uživatele a nebudeme vyžadovat autorizaci, tedy neřešíme přístup k nějakým dalším zdrojům a API, chceme jen čistě zjistit, kdo s námi vlastně mluví. K tomu využijeme OpenID Connect, standardizovanou nadstavbu nad OAuth2. V dnešním díle si vyzkoušíme pro firemní aplikaci s AAD a příště se pustíme do řešení pro koncové uživatele s AAD B2C včetně integrací na jiné systémy jako jsou Google účty.
 

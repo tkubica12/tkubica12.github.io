@@ -5,9 +5,6 @@ title: Datové hřiště - jak si hrát s daty bez sebemenšího kliknutí s Ter
 tags:
 - Data Analytics
 - Automatizace
-- Databricks
-- Data Factory
-- SQL
 ---
 Chci se vzdělat v datové oblasti a neznám lepší způsob než si všechno vyzkoušet. Jenže většinou jsem v příkladech nalezl hromadu klikání, skriptování a závislost na existujících datech a to se mi nelíbí. Chci 100% automatizovatelné opakovatelné hřiště zcela bez jakýchkoli závislostí - na spuštění Terraformu chci všechno od založení infrastruktury přes vygenerování syntetických dat k jejich přesouvání, spouštění Data Factory pipeline a Databricks Jobů, zpracování a snad i nějakou vizualizaci. Takovou tělocvičnu jsem nenašel, tak se ji pokusím vytvořit tady: [https://github.com/tkubica12/dataplayground](https://github.com/tkubica12/dataplayground).
 
