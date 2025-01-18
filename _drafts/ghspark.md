@@ -11,12 +11,12 @@ Začněme výsledkem - tady je aplikace, kterou si dnes vytvoříme bez napsán�
 [![](/images/2025/GitHubSparkDemo.gif){:class="img-fluid"}](/images/2025/GitHubSparkDemo.gif)
 
 # GitHub Spark
-Jde o technologické preview (tedy zatím ne nějaký hotový produkt) od GitHubu, na který je aktuálně [waitlist](https://github.com/github_spark_waitlist_signup). Přináší možnost člověku, který neumí programovat, ale má nápady a chce je zhmotnit, ukázat kolegům, šéfům, uživatelům - prototypovat, hledat podporu, získat feedback. Už jsem takové jednoduché generátory z jiných stránek zkoušel a problém byl, že první iterace dobrá, ale pak to začne být horší a horší. GitHub Spark ale tenhle problém neměl, zdálo se mi spíše naopak. Nejen, že držel projekt pohromadě, nerozbíjel moc často co už má, ale je hlavně připraven na iterativní způsob práce. 
+Jde o technologické preview (tedy zatím ne nějaký hotový produkt) od GitHubu, na který je aktuálně [waitlist](https://github.com/github_spark_waitlist_signup). Dodává supersílu člověku, který neumí programovat, ale má nápady a chce je zhmotnit, ukázat kolegům, šéfům, uživatelům - prototypovat, hledat podporu, získat feedback. Už jsem takové jednoduché generátory z jiných stránek zkoušel a problém byl, že první iterace dobrá, ale pak to začne být horší a horší. GitHub Spark ale tenhle problém neměl, zdálo se mi spíše naopak. Nejen, že držel projekt pohromadě, nerozbíjel moc často co už má, ale je hlavně připraven na iterativní způsob práce. 
 
 Další co je jiné je to, že má nástroj pod kapotou sběr chybových hlášek, datovou perzistentní vrstvu a přístup k AI modelům. Osobně myslím, že tohle je budoucnost low-code platforem. Ne pseudojazyk, přesouvání nějakých ovládacích prvků myší a tak podobně, ale prostě přirozená řeč a diskuse nad výsledky.
 
 # Povídání s AI a jak appka postupně vznikala
-Na začátku je úvodní obrazovka a výběr z několika AI modelů. Mně se jednoznačně nejvíc osvědčilo o1-preview. Je sice pomalejší, ale ten model je opravdu chytrý a dává nejlepší výsledky. Jak uvidíte později v jeden okamžik jsem použil běžnější modely (ja byl zvědavý na Claude - v porovnání s GPT-4o byly výsledky o chlup lepší, než klasický GPT-4o) a to z toho důvodu, že GitHub Spark pak umí vygenerovat několik pokusů, z kterých si lze vybrat (super když jsem řešil UI požadavky).
+Na začátku je úvodní obrazovka a výběr z několika AI modelů. Mně se jednoznačně nejvíc osvědčilo o1-preview. Je sice pomalejší, ale ten model je opravdu chytrý a dává nejlepší výsledky. Jak uvidíte později v jeden okamžik jsem použil běžnější modely (já byl zvědavý na Claude - v porovnání s GPT-4o byly výsledky o chlup lepší, než klasický GPT-4o) a to z toho důvodu, že GitHub Spark pak umí vygenerovat několik pokusů, z kterých si lze vybrat (super když jsem řešil UI požadavky).
 
 [![](/images/2025/2025-01-17-09-36-24.png){:class="img-fluid"}](/images/2025/2025-01-17-09-36-24.png)
 
@@ -76,19 +76,27 @@ Dal to na první pokus - tohle mě dostalo. Vlevo vidím, že GitHub Spark je na
 
 [![](/images/2025/2025-01-17-11-17-02.png){:class="img-fluid"}](/images/2025/2025-01-17-11-17-02.png)
 
-Themes
+Co teď udělat něco s designem? GitHub Spark používá framework, ve kterém můžu barvy a zakulacenost ovládacích prvků přímo nastavit - třeba dát tmavý režim.
 
 [![](/images/2025/2025-01-17-11-18-29.png){:class="img-fluid"}](/images/2025/2025-01-17-11-18-29.png)
+
+Nicméně pojďme to zkusit udělat s AI. Stávající UI vypadá podle mě dobře, ale bude to pro studenty, mohlo by to být trochu barevnější. Tentokrát použiji klasičtější model GPT-4o, ať mi AI může vyrobit víc variant, z kterých si vyberu.
 
 > Application work well, but since it is for young students, make it more fresh and cool. Don't be afraid to use colors, animations, unusual UI and so on. Make it more playful.
 
 [![](/images/2025/2025-01-17-12-42-26.png){:class="img-fluid"}](/images/2025/2025-01-17-12-42-26.png)
 
+Tenhle mi přijde nejlepší.
+
 [![](/images/2025/2025-01-17-12-45-51.png){:class="img-fluid"}](/images/2025/2025-01-17-12-45-51.png)
+
+Nicméně nadpis by byl lepší na jeden řádek. Dál jsem v některých variantách viděl, že to umělo dělat hvězdičky na rating. Řeknu si tedy o to. Výsledek se mi líbí.
 
 > Title should fit one line, it looks better. Also rating should be visualized as starts and Edit button shout not have ? icon, but something like pencil button.
 
 [![](/images/2025/2025-01-17-12-49-21.png){:class="img-fluid"}](/images/2025/2025-01-17-12-49-21.png)
+
+Co kdyby studenti mohli uploadnout fotografii ze své návštěvy?
 
 > Allow students to upload optional images and implement image galery for each item showing few thumbnails on main screen.
 
@@ -96,13 +104,19 @@ Themes
 
 [![](/images/2025/2025-01-17-13-14-23.png){:class="img-fluid"}](/images/2025/2025-01-17-13-14-23.png)
 
+Je to fajn, ale upload tlačítko je hnusné, ať to vylepší.
+
 > Picture upload button is not very nice and not aligned with UI elements, can you make it more consistent with overall app look?
 
 [![](/images/2025/2025-01-17-13-18-37.png){:class="img-fluid"}](/images/2025/2025-01-17-13-18-37.png)
 
+V suggestions se objevil další dobrý nápad - vyhledávání a filtrování v návštěvách.
+
 > Enable search and filter functionality on list of visits
 
 [![](/images/2025/2025-01-17-13-24-47.png){:class="img-fluid"}](/images/2025/2025-01-17-13-24-47.png)
+
+Na závěr pojďme přidat další AI do naší aplikace - visits chat, kde bude možné se jednak doptávat na věci ze svých návštěv (takže by je měl mít jako kontext) a také se nechat inspirovat dalšími nápady na místa. Na tohle jsem potřeboval čtyři iterace. Nejdřív se tam nějak nedostával kontext, pak ignoroval systémovou zprávu, pak neuměl zobrazit markdown, ale nakonec to všechno fungovalo.
 
 > Add "visits chat" which will be AI powered engine to find the best visits based on user interests and its conversation with agent. Make sure chat fits into existing UI style nicely. I want it to be just button and new dialog might open, similar in style to Add New Visit, but this time with simple chat interface do talk about visits with AI.
 
@@ -115,3 +129,12 @@ Themes
 [![](/images/2025/2025-01-17-15-57-43.png){:class="img-fluid"}](/images/2025/2025-01-17-15-57-43.png)
 
 [![](/images/2025/2025-01-17-16-05-09.png){:class="img-fluid"}](/images/2025/2025-01-17-16-05-09.png)
+
+Výborně - jsem velmi spokojen.
+
+V průběhu vytváření jsem ocenil hlavně to, že jednotlivé iterace postupují kupředu a výsledek vylepšují, což u jiných podobných platforem nebývá (tam to dobře začne, ale u páté iterace se to začne rozpadat). Ale jednoho bugu jsem si všiml a není to poprvé, je to něco, co LLM zdá se mi dělá často. Někdy udělá to, že kód uzavře do markdown značek (takové to \`\`\`javascript) a tím kód přestane fungovat. Problém je, že chybová hláška mu moc nepomůže a když mu řeknete, ať to opraví, tak to často nevidí. Evidentně si model vyloží tuhle značku logicky tak, že tady začíná ten kód a nedojde mu, že to už je ale uvnitř kódu a být to tam nemá. Může trvat několik iterací, než se z toho vymotá ... stalo se mi to asi dvakrát a bylo lepší mu tyhle značky na prvním a posledním řádku odstranit, než ho nechat hledat chybu. Chápu, že pro LLM je tohle nepříjemná situace, ale počítám, že to GitHub Spark vyřeší programaticky.
+
+# Závěr
+GitHub Spark je sice zatím jen experimentální, ale je to výborný nástroj pro prototypování aplikací a za mě určitě budoucnost no-code platforem. S GitHub Copilot byste to dokázali také, ale museli byste řešit spouštění aplikace, hledání chyb, connection stringy na AI, řešit perzistentní vrstvu, takže pro neprogramátora je to problematické. GitHub Spark je jiný - nic se nikam neinstaluje, neřešíte počítač, repozitář, databázi nebo nějaká složitá menu či klávesové zkratky. 
+
+Pro programátory je tedy spíše GitHub Copilot, než GitHub Spark? Ano, to si myslím, ale současně očekávám, že stávající přístup k programování v IDE jako je Visual Studio Code se taky změní s tím, jak budou schopnosti AI postupovat kupředu. Jak může vypadat nová generace IDE? Tou je GitHub Copilot Workspace (a myslím, že hodně z GitHub Spark je z něj pod kapotou využíváno) - AI first IDE, multi-agent platforma. Na to se mrkneme někdy příště.
