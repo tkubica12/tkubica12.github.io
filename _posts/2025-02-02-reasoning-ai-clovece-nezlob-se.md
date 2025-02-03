@@ -18,6 +18,7 @@ Tady je prompt, který jsem použil:
 > Tady jsou výsledky hodů kostkou pro jednotlivé hráče (červený začíná):
 > 
 > Červená - 4, 6, 3, 5, 6, 6, 1, 1, 6, 6, 6
+> 
 > Modrá - 2, 3, 3, 6, 6, 6, 5, 5, 2
 >
 > Který hráč došel dál?
