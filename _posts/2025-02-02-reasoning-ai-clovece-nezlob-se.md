@@ -109,4 +109,4 @@ Každopádně předpokládám, že pokud budu mít dost tokenů, model to snad n
 
 
 
-Pokud jste jako já hledali něco, co dokáže AI pořádně zatopit, takže se oddělí zrno od plev, a přitom to všichni dobře známe a není to raketová věda, tak podle mě Člověče nezlob se je to, co jsme chtěli. Držení se pravidel a simulace, to jsou pro jazykové modely složité otázky. A ti se vezměme, že až figurka obejde celé kolo, čeká ji cesta do domečku, kde nelze přeskakovat. Ufff, tak to už je moc, jak jsme to ve školce mohli dát?
+Pokud jste jako já hledali něco, co dokáže AI pořádně zatopit, takže se oddělí zrno od plev, a přitom to všichni dobře známe a není to raketová věda, tak podle mě Člověče nezlob se je to, co jsme chtěli. Držení se pravidel a simulace, to jsou pro jazykové modely složité otázky. A to si vezměme, že až figurka obejde celé kolo, čeká ji cesta do domečku, kde nelze přeskakovat. Ufff, tak to už je moc, jak jsme to ve školce mohli dát?
