@@ -160,7 +160,7 @@ INFO     [agent] ✅ Successfully
 ```
 
 # Computer Use
-Computer use je obecněji zaměřen na interakci s aplikacemi a systémy počítače na základě sledování obrazovky a klikání či psaní na klávesnici. Dva komerční produkty s plnou podporou jsou **Anthropic Computer Use v Claude 3.5** a **OpenAI Operator**. Google o tom hovořil, ale reálný výstup pokud vím ještě nemá a Microsoft je na tom podobně s tím, že demonstroval, jak Windows Copilot pomáhá uživateli s nastavením počítače. Kromě toho jsou tu i open source projekty, například právě použitý browser-use nebo [OmniParser](https://www.microsoft.com/en-us/research/articles/omniparser-v2-turning-any-llm-into-a-computer-use-agent/) od Microsoftu.
+Computer use je obecněji zaměřen na interakci s aplikacemi a systémy počítače na základě sledování obrazovky a klikání či psaní na klávesnici. Dva komerční produkty s plnou podporou jsou **Anthropic Computer Use v Claude 3.5** a **OpenAI Operator**. Google o tom hovořil, ale reálný výstup pokud vím ještě nemá a Microsoft demonstroval, jak Windows Copilot pomáhá uživateli s nastavením počítače. Je tu ale i code-first služba, kdy computer use najdete pod Responses API u OpenAI a **Azure OpenAI Service**. Kromě toho existují i open source projekty, například právě použitý browser-use nebo [OmniParser](https://www.microsoft.com/en-us/research/articles/omniparser-v2-turning-any-llm-into-a-computer-use-agent/) od Microsoftu.
 
 Zásadní výhodou webu je, že AI ho může rozebrat přes accessibility snapshot v Playwrightu, což je výpočetně méně náročné, než screenshot. Nicméně snímek obrazovky používá browser-use taky (kombinuje to) a pro computer use obecně to je důležité, protože ne-webové aplikace jinak neuděláte.
 
