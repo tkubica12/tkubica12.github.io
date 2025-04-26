@@ -11,7 +11,7 @@ layout:
 tabs:
   # format: <filename_without_extension>: <value>
   home: Domů
-  categories: Kategorie
+  # categories: Kategorie
   tags: Štítky
   archives: Archivy
   about: O mně
@@ -35,12 +35,11 @@ copyright:
     link: https://creativecommons.org/licenses/by/4.0/
 
   # Displayed in the footer
-  brief: Některá práva vyhrazena.
+  brief: Pracuji pro Microsoft, ale tohle je můj osobní blog.
   verbose: >-
-    Pokud není uvedeno jinak, jsou příspěvky na tomto webu licencovány
-    pod licencí Creative Commons Attribution 4.0 International (CC BY 4.0) Licence autora.
+    Pracuji pro Microsoft. Všechno na tomto webu vyjadřuje můj osobní názor, pochází z veřejně dostupných zdrojů a žádným způsobem nevyjadřuje stanoviska Microsoftu.
 
-meta: Použití :PLATFORM s motivem :THEME
+meta: ""
 
 not_found:
   statement: Omlouváme se, adresu URL jsme špatně umístili nebo odkazuje na něco, co neexistuje.
