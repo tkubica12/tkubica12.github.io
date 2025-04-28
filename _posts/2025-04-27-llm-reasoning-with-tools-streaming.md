@@ -5,7 +5,7 @@ title: Jak nechat jazykový model přemýšlet a při tom používat nástroje p
 tags:
 - AI
 ---
-Chci se dnes věnovat něčemu, co zdá se mi občas lidem ne plně dochází - reasoning modely o3 a o4-mini mohou přistupovat k nástrojům opakovaně v průběhu svého přemýšlení. To hodně zajímavý rozdíl oproti předešlé generaci, tedy o3-mini a o1. Podívejme se proč.
+Chci se dnes věnovat něčemu, co zdá se mi občas lidem ne plně dochází - reasoning modely o3 a o4-mini mohou přistupovat k nástrojům opakovaně v průběhu svého přemýšlení. To je hodně zajímavý rozdíl oproti předešlé generaci, tedy o3-mini a o1. Podívejme se proč.
 
 # Chování o3-mini vs. o4-mini
 Nástroje jsou čím dál zásadnější pro výsledky vašich AI aplikací a jsou jádrem toho, čemu dnes obvykle lidé říkají AI Agent. Nástroje zahrnují například vyhledávání na Internetu, vyhledávání v databázi dokumentů (RAG), pokročilé datové dotazy do klasických databází, spouštění AI generovaného počítačového kódu, ovládání počítače nebo provolávání nějakých API a tak podobně. 
