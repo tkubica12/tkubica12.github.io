@@ -14,48 +14,11 @@ Když se podíváte pod kapotu všech AI chat aplikací velkých hráčů (OpenA
 
 Tady je základní pohled na architekturu:
 
-```mermaid
-flowchart LR
-    Client[Client UI] -->|HTTP POST| Front[Front Service]
-    Client -->|SSE| SSE[SSE Service]
-    Front -->|enqueue| UserMsgTopic[(user-messages<br/>topic)]
-    UserMsgTopic --> Worker[Worker Service]
-    Worker -->|store/fetch| DB[(Conversation&nbsp;DB)]
-    Worker -->|LLM call| LLM[LLM&nbsp;API]
-    Worker -->|stream tokens| TokenTopic[(token-streams<br/>topic)]
-    TokenTopic -->|tokens| SSE
-    SSE -->|SSE stream| Client
-```
+[![](/images/2025/2025-06-03-20-59-48.png){:class="img-fluid"}](/images/2025/2025-06-03-20-59-48.png)
 
 A tady je flow chart:
 
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant F as Front Service
-    participant S as SSE Service
-    participant UM as user-messages topic
-    participant TS as token-streams topic
-    participant W as Worker Service
-    participant D as Conversation DB
-    participant L as LLM API
-
-    C->>F: 1. HTTP POST /api/session/start
-    F-->>C: Returns sessionId
-    C->>F: 2. HTTP POST /api/chat (question, sessionId, chatMessageId)
-    F->>UM: 3. Enqueue user message (text, sessionId, chatMessageId)
-    F-->>C: 4. Return success response
-    C->>S: 5. HTTP GET /api/stream/{sessionId}/{chatMessageId} (SSE)
-    UM-->>W: 6. Worker dequeues message
-    W->>D: 7. Fetch history for sessionId (optional)
-    W->>L: 8. Call LLM API with question & history (streaming)
-    L-->>W: 9. Receive LLM response (streamed tokens)
-    W->>TS: 10. Enqueue response (token/EOS, sessionId, chatMessageId)
-    TS-->>S: 11. SSE service dequeues response tokens (session-aware)
-    S-->>C: 12. Stream tokens to Client via SSE (filtered by chatMessageId)
-    W->>D: 13. Save question & answer to DB (optional)
-```
-
+[![](/images/2025/2025-06-03-21-00-11.png){:class="img-fluid"}](/images/2025/2025-06-03-21-00-11.png)
 
 - Klient (jednoduchý webový frontend) si nejprve řekne ve Front Service o sessionId, což v příštích dílech spojíme i s nějakou autentizací a pamětí, ale o tom později. 
 - Jakmile uživatel něco napíše, odešle klient tuto zprávu na Front Service. Ta zprávu vezme a společné s ID session a ID zprávy ji pošle do fronty uživatelských zpráv (user-messages topic). V ten okamžik Front Service vrátí klientovi úspěšnou odpověď, že zpráva byla přijata a zpracovává se. Front Service tak nemá žádný stav v paměti a může horizontálně škálovat.
