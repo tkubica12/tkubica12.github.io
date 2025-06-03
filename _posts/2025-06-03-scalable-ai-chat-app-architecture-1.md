@@ -52,4 +52,5 @@ Co bych chtěl v této sérii řešit?
 - [ ] Chaos engineering
 - [ ] CI/CD pipeline
 - [ ] A/B testing a progressive delivery
+- [ ] Multi-region active/active deployment
 
