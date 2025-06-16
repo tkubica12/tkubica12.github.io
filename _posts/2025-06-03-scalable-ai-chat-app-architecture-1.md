@@ -7,7 +7,7 @@ tags:
 ---
 Typický začátek AI chatbota je nějaký monolit. Vezme se třeba frontend příjemný pro Python vývojáře (Gradio, Streamlit) nebo se napíše v Reactu, Vue.js či Svetle a k tomu backend, který přijímá dotazy uživatele, posílá je do LLM a streamuje odpovědi. Pro PoC výborné, jenže není to aplikační architektura vytvořená pro škálování. Výpadky spojení často končí chybou, stavový backend se rozbije nebo nestíhá a jeho škálování je podobné situacím, kdy se stará webová aplikace namigruje do cloudu a veškeré škálování je o spouštění další repliky, nicméně díky stavovosti její přidání neulehčí stávajícím uživatelským instancím, neumožní nenásilné seškálování zpět, neulehčuje průběžné nasazování nových verzí či různé formy chytrého směrování a shardingu z důvodů produktových (VIP vs. normální vs. free zákazník), regulatorních (datová rezidence nebo specifické instance podle typu regulatoriky), operačních (různé instance různých LLM modelů a poskytovatelů) a tak podobně. Zkrátka. Často mluvíme o cloud-native aplikacích, ale AI chaty stavíme jako klasické monolity. V této sérii se pokusím navrhnout škálovatelnější architekturu.
 
-Celý projekt prostupně vzniká [na mém GitHubu](https://github.com/tkubica12/azure-workshops/tree/main/d-ai-app-patterns/scalable_chat)
+Celý projekt prostupně vzniká [na mém GitHubu](https://github.com/tkubica12/scalable-ai-chat)
 
 # Škálovatelná architektura AI chatu s mikroslužbami a asynchronním zpracováním
 Když se podíváte pod kapotu všech AI chat aplikací velkých hráčů (OpenAI, Google, Microsoft, Anthropic), dají se najít společné rysy. Základem je rozdělit problém do samostatných komponent schopných nezávislého nasazování a škálování a stavovost buď zcela eliminovat nebo ji externalizovat. Hlavním principem je, že každý uživatel a každá jednotlivá zpráva je zpracovávána samostatně a nezávisle na ostatních a nepotřebuje tedy, aby byl uživatel směrován stále na tu stejnou instanci s využitím například cookie sticky session. Dokonce potenciálně i při výpadku spojení při streamování odpovědi na konkrétní dotaz by mělo být možné na klientovi spojení obnovit vůči jiné replice a zbylé tokeny dostat.
@@ -42,10 +42,12 @@ Použité Azure zdroje:
 Takhle aplikace vypadá v prohlížeči:
 [![](/images/2025/scalableChat.gif){:class="img-fluid"}](/images/2025/scalableChat.gif)
 
+---
+
 Co bych chtěl v této sérii řešit?
 - [x] Základní architektura s asynchronním zpracováním a streamováním
-- [ ] Observabilita a monitoring
 - [ ] Paměť konverzací a dlouhodobá paměť ve jménu uživatele
+- [ ] Observabilita a monitoring
 - [ ] Autentizace a autorizace uživatelů
 - [ ] Popis praktického postupu s GitHub Copilotem (od architektury ke kódu a ne naopak)
 - [ ] Perf testy
