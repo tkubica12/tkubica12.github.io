@@ -19,6 +19,7 @@ Podívejme se na pár tabulek s výsledky a pak si vysvětlíme každý scéná�
 Všechny detaily včetně kódu na testování a trénování najdete na mém [GitHubu](https://github.com/tkubica12/d-ai-sentiment/tree/main).
 
 ## Úspěšnost klasifikace
+
 | Experiment | Model/Approach | Strategy | Accuracy | Completed Predictions | Failed Predictions | Total Tokens | Input Tokens | Output Tokens | Estimated Cost | Execution Time | Samples/sec |
 |------------|---------------|----------|----------|---------------------|-------------------|--------------|--------------|---------------|----------------|----------------|-------------|
 | **LLM Approaches** |
@@ -41,6 +42,7 @@ Všechny detaily včetně kódu na testování a trénování najdete na mém [G
 | BERT_SENTIMENT | BERT-base Fine-tuned | Trained on full dataset | 74.5% | 5,205 (100%) | 0 (0%) | N/A | N/A | N/A | $0.028 | 465.4s | 11.19 |
 
 ## Náklady na klasifikaci
+
 | Experiment | Cost per 1K Samples | Cost Efficiency Rank |
 |------------|-------------------|---------------------|
 | **Most Cost-Effective** |
@@ -62,6 +64,7 @@ Všechny detaily včetně kódu na testování a trénování najdete na mém [G
 | LLM_MINI_FEWSHOT_1000 | $10.670 ($6.402 cached) | 14th (Most Expensive) |
 
 ## Latence
+
 | Experiment | Processing Speed Rank | Time per Sample (seconds) |
 |------------|---------------------|---------------------------|
 | **Fastest Processing** |
