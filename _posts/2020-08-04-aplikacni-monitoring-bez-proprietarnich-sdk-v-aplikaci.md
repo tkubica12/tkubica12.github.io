@@ -4,7 +4,7 @@ published: true
 title: Aplikační monitoring bez proprietárních SDK v aplikaci
 tags:
 - Monitoring
-- OpenTelmetry
+- OpenTelemetry
 ---
 Stále se potkávám se snahou řešit potřebu dohledu aplikace infrastrukturními prostředky. Je vám tohle povědomé?
 - Posbíraná telemetrie zahrnuje CPU, IO, obsazenost paměti, ale neměří pořádně chování aplikačních komponent (requesty, chyby, cache miss, časy zpracování různých volání, délku fronty)

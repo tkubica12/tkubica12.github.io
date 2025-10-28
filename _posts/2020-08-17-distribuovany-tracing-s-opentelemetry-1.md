@@ -4,7 +4,7 @@ published: true
 title: "Distribuovaný tracing s OpenTelemetry, Python a Azure Monitor (1): z ničeho až po monitoring mikroslužeb v Kubernetes"
 tags:
 - Monitoring
-- OpenTelmetry
+- OpenTelemetry
 ---
 Dnes si zcela prakticky vyzkoušíme přidat instrumentaci do Python aplikace a napojit Azure Monitor backend pro zpracování trasování. Budeme si přidávat vlastní atributy a nakonec rozjedeme mikroslužby v Kubernetes, kde si přes Downwards API obohatíme naše trasování o provozní informace z clusteru jako je jméno Podu, Nodu, limitu na CPU a paměť nebo výčet labels. Čeká nás toho hodně, takže u Kubernetes se pro dnešek zastavíme a příště si zkusíme instrumentovat další situace (například databáze) a ponoříme se do dat trochu hlouběji s vlastními query.
 

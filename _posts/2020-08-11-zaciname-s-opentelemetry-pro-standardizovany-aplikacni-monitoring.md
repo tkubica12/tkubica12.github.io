@@ -4,7 +4,7 @@ published: true
 title: Začínáme s OpenTelemetry pro standardizovaný aplikační monitoring
 tags:
 - Monitoring
-- OpenTelmetry
+- OpenTelemetry
 ---
 Minule jsem se věnoval ucelenému pohledu na aplikační monitoring a dnes bych rád začal s OpenTelemetry - standardizovaným open source řešením jak z hlediska specifikace API, tak samotné implementace v podobě SDK. Na backendu můžete mít Azure Monitor, New Relic, Datadog, Dynatrace, X-Ray, Jaeger a spoustu dalších řešení.
 
