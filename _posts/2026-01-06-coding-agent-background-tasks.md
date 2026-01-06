@@ -9,7 +9,7 @@ S tím jak rostou schopnosti AI modelů kódovat a pracovat víc samostatně se 
 
 Jsou situace, kdy chci s agentem fungovat interaktivně - sledovat co dělá, abych se jednak učil já od něj, ale současně abych zasáhl pokud se vydá špatným směrem nebo mi začne hrabat do architektury a dělat různé workaroundy místo toho, aby přišel jak správně na to. Ale jindy tohle nepotřebuji - jsou to úlohy, kde mám jasnou specifikaci nebo dostatečné zadání a stačí mi se podívat až na výsledek - třeba nějaká investigace (návrhy co zlepšit, například se často ptám jestli nemám udělat refaktoring, lépe modularizovat, abstrahovat apod.), aktualizace dokumentace, deployment skripty a předpisy (třeba manifesty do Helm chartu - u toho nemusím být, stačí mi překontrolovat výsledek), drobné úpravy, dodělání Dockerfile a ozkoušení že fungují (vyrobit image, lokálně spustit jestli se rozjedou - přes MCP nástroje nebo CLI například). 
 
-V okamžiku, kdy v hlavním okně dělám něco interaktivně jsem to řešil tak, že otevřu ještě další okno GitHub Copilotu a v něm zadám něco dalšího. Jenže všichni agenti pak běží a sahají na stejné soubory, což nemusí dopadnou dobře. Proto jsem zatím tohle omezoval na investigační věci (povídání, analýza) nebo situace, kdy se jedná o úplně jiné části projektu (například adresář /src s kódem vs. třeba /specs). Čas od času použiji cloud agenta v GitHub, který jede zcela v cloudu a vytvoří Pull Request, ale pro rychlé obrátky kdy jsem na to jen já sám mi to přijde zbytečně robustní a trochu mě to zdržuje. Raději bych běžel víc agentů lokálně a na origin pushnul až výsledek svých úloh pro různé agenty. Jak na to?
+V okamžiku, kdy v hlavním okně dělám něco interaktivně jsem to řešil tak, že otevřu ještě další okno GitHub Copilotu a v něm zadám něco dalšího. Jenže všichni agenti pak běží a sahají na stejné soubory, což nemusí dopadnout dobře. Proto jsem zatím tohle omezoval na investigační věci (povídání, analýza) nebo situace, kdy se jedná o úplně jiné části projektu (například adresář /src s kódem vs. třeba /specs). Čas od času použiji cloud agenta v GitHub, který jede zcela v cloudu a vytvoří Pull Request, ale pro rychlé obrátky kdy jsem na to jen já sám mi to přijde zbytečně robustní a trochu mě to zdržuje. Raději bych běžel víc agentů lokálně a na origin pushnul až výsledek svých úloh pro různé agenty. Jak na to?
 
 # GitHub Copilot CLI - agent bez IDE běžící prakticky kdekoli
 V poslední době se dost mluví o AI coding agentech, kteří neběží v rámci IDE, ale jsou ve formě nějakého CLI. Je zajímavé, jak se principy interface z počítačů před šedesáti lety stále v jisté pozměněné formě drží. Já budu používat [GitHub Copilot CLI](https://github.com/features/copilot/cli/), ale podobně bude fungovat třeba open source projekt [OpenCode](https://opencode.ai/), který na backendu může mít různé lokální i cloudové modely, takže si ho můžete napojit na vaše Microsoft Foundry v Azure a využít třeba modely GPT-5.1-codex-max nebo Claude Sonnet 4.5, nebo [OpenAI CODEX CLI](https://developers.openai.com/codex/cli) či proprietární [Claude Code](https://claude.com/product/claude-code).
@@ -44,7 +44,7 @@ GitHub Copilot CLI má i hezké ASCII UI.
  Ctrl+c Exit · Ctrl+r Expand recent
 ```
 
-Použití interaktivního režimu mi přijde zajímavé zejména v situaci, kdy jsem na nějakém vzdáleném systému a potřebuji tam pomoci řešit nějaké úlohy. Tak například na mém domácím Orange Pi (čínský "klon" Raspberry), což je malá pasivně chlazená krabička s ARM procesorem, na které běžím Docker s pár kontejnery, můžu GitHub Copilot CLI používat.
+Použití interaktivního režimu mi přijde zajímavé zejména v situaci, kdy jsem na nějakém vzdáleném systému a potřebuji tam pomoci řešit nějaké úlohy. Tak například na mém domácím Orange Pi (čínský "klon" Raspberry), což je malá pasivně chlazená krabička s ARM procesorem, na které mi běží Docker s pár kontejnery, můžu GitHub Copilot CLI používat.
 
 ```
  Welcome to GitHub Copilot CLI
@@ -67,7 +67,7 @@ Použití interaktivního režimu mi přijde zajímavé zejména v situaci, kdy 
 
 
 
- ● Dobře, provedú komplexní analýzu Docker kontejnerů běžících na tomto systému.
+ ● Dobře, provedu komplexní analýzu Docker kontejnerů běžících na tomto systému.
    Začnu zjištěním, jaké kontejnery běží, a pak provedu detailní analýzu.
 
  ○ Zobrazit běžící Docker kontejnery
@@ -153,6 +153,8 @@ Přímo ve Visual Studio Code můžu kromě interaktivní práce s agentem zvoli
 
 GitHub Copilot mi přímo nabízí izolaci přes worktree - tedy to co jsme dělali ručně pro mě zautomatizuje.
 
+Poznámka: background agent ve VS Code je v praxi session Copilot CLI. To znamená, že má k dispozici nástroje a MCP servery dostupné/konfigurované pro CLI (typicky jiný seznam než MCP servery, které máte v samotném VS Code) a současně nemá přístup k VS Code extension toolům.
+
 [![](/images/2026/2026-01-06-07-41-05.png){:class="img-fluid"}](/images/2026/2026-01-06-07-41-05.png)
 
 ```bash
@@ -165,7 +167,7 @@ Práci jednotlivých běžících agentů pak můžu sledovat a různě mezi nim
 
 [![](/images/2026/2026-01-06-07-42-19.png){:class="img-fluid"}](/images/2026/2026-01-06-07-42-19.png)
 
-Skvělé je, že můžeme provádět handoff, tedy předávat práci mezi agenty. Tak například můžu mít interaktivní diskusi jak něco implementovat nebo vylepšit a v okamžiku, kdy už z mé strany necítím potřebu u toho dál být, předám to do bacground agenta. 
+Skvělé je, že můžeme provádět handoff, tedy předávat práci mezi agenty. Tak například můžu mít interaktivní diskusi jak něco implementovat nebo vylepšit a v okamžiku, kdy už z mé strany necítím potřebu u toho dál být, předám to do background agenta. 
 
 [![](/images/2026/2026-01-06-07-47-54.png){:class="img-fluid"}](/images/2026/2026-01-06-07-47-54.png)
 
@@ -175,7 +177,7 @@ Zavolat background agenta lze taky přímo z promptu přes zavináč.
 @cli I have k6 perftest, but no README for it. Create README.md file explaining how to run the perftest, what scenarios it covers, and how to interpret results.
 ```
 
-Stav každého agenta si můžu snadno zobrazit a vidět co dělá, co píše a jaké změny navrhuje. Jednoduše můžu rozhodnout jaké změny přijmu - tedy mám UI pro automatizace mergování do větve, ve které je můj VS Code workspace. Mám tedy klasické tlačítko Keep/Undu (v rámci session mi jen ukazuje co se v interakci změnilo v souborech a já můžu snadno udělat undu aniž bych musel řešit nějaké commity a jejich reverty) a také tlačítko "Aplikovat do hlavního workspace".
+Stav každého agenta si můžu snadno zobrazit a vidět co dělá, co píše a jaké změny navrhuje. Jednoduše můžu rozhodnout jaké změny přijmu - tedy mám UI pro automatizaci mergování do větve, ve které je můj VS Code workspace. Mám tedy klasické tlačítko Keep/Undo (v rámci session mi jen ukazuje co se v interakci změnilo v souborech a já můžu snadno udělat undo aniž bych musel řešit nějaké commity a jejich reverty) a také tlačítko "Aplikovat do hlavního workspace".
 
 [![](/images/2026/2026-01-06-07-55-57.png){:class="img-fluid"}](/images/2026/2026-01-06-07-55-57.png)
 
@@ -198,8 +200,8 @@ Kdy co používám?
 
 **Background agent ve VS Code**
 - Už vím co chci, mám specifikaci nebo dobrý prompt a věřím, že tenhle úkol model dobře zvládne (už jsme to dělali, vím, že tohle dopadá dobře).
-- Potřebuji vyzkoušet různé varianty řešení nebo vyzkoušet různé modely, nepostupuji lineárně - například mě napadají 3 způsoby jak to řešit a nevím jestli bude lepší to udělat v GPT 5.2 nebo Sonnetu 4.5, není problém to pozadávat background agentům a až to budou mít hotové vybrat co vedlo na nejlepší výsledek.
-- Zásadní pro tento scénář je, že úlohy jsou všechny moje a sám si je vyhodnotím a pro "projekt", tedy ostatní členy týmu, je předložím až najednou. Beru to tedy jako jakésy rychlo-obrátkové řešení pro mě a teprve jeho kompilací vznikne ten Pull Request, který si projede plným schvalovacím a testovacím kolečkem.
+- Potřebuji vyzkoušet různé varianty řešení nebo vyzkoušet různé modely, nepostupuji lineárně - například mě napadají 3 způsoby jak to řešit a nevím jestli bude lepší to udělat v GPT-5.2 nebo Sonnetu 4.5, není problém to pozadávat background agentům a až to budou mít hotové vybrat co vedlo na nejlepší výsledek.
+- Zásadní pro tento scénář je, že úlohy jsou všechny moje a sám si je vyhodnotím a pro "projekt", tedy ostatní členy týmu, je předložím až najednou. Beru to tedy jako jakési rychloobrátkové řešení pro mě a teprve jeho kompilací vznikne ten Pull Request, který si projede plným schvalovacím a testovacím kolečkem.
 
 **Cloud agent v GitHub.com**
 - Pro mě hlavně pro situace, kdy potřebuji nemít spuštěný počítač - chci to odstartovat třeba z mobilu a podívám se na výsledky později, zejména, pokud už je k tomu založeno Issue. 
