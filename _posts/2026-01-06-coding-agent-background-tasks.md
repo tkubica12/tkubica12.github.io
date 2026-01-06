@@ -1,6 +1,6 @@
 ---
 layout: post
-publish: Coding agenti - paralelní práce agentů na vašich úkolech
+title: Coding agenti - paralelní práce agentů na vašich úkolech
 tags:
 - AI
 - GitHub
