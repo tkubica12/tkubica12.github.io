@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Nový standard Agent Skills pro vaše kódovací pracnaty v GitHub Copilot
+title: Nový standard Agent Skills pro vaše kódovací pracanty v GitHub Copilot
 tags:
 - AI
 - GitHub
@@ -8,13 +8,15 @@ tags:
 Jak pracovat s kontextem v AI coding nástrojích nebo naučit agenta používat vámi předem připravené skripty? Jde to vyřešit promptováním v [AGENTS.md](https://agents.md/), ale to není standardizovaný postup a ne vždy se to podaří - chování bude hodně závislé na použitém modelu a hůře předvídatelné. Pro lepší výsledky lze použít [Model Context Protocol](https://modelcontextprotocol.io/), ale to už znamená napsat nějaký kus software a je to celkově robustnější a pro některé situace zbytečně složité. Proto se dnes zaměříme na variantu někde mezi tím - [Agent Skills](https://agentskills.io/).
 
 # O co jde a v čem je to jiné než AGENTS.MD nebo MCP
-**AGENTS.MD** je soubor, který váš kódovací agent jako je GitHub Copilot vždy nahraje celý do kontextu. Obvykle by tak měl obsahovat vaše hlavní instrukce pro agenta - jak se má chovat, jaké standardy má dodržovat, případně mu pomoci se orientovat ve vašem repozitáři typu kde najde specifikace, kde kódovací standardy, kde jsou zdrojové soubory s kódem a jak jsou členěné a tak podobně. Můžete mít i takový soubor v podadresáři a agent se pokusí inteligentně kroumě souboru z rootu nahrát i případné další `AGENTS.md` pokud pracujete na souborech v tom podadresáři. Podstatné je, že se tyto soubory nahrávají do kontextu **celé**.
+**AGENTS.MD** je soubor s instrukcemi pro agenta. Ve VS Code ho GitHub Copilot umí (dle nastavení) automaticky přidávat do chat kontextu, typicky jako „projektové instrukce“ - jak se má chovat, jaké standardy má dodržovat, případně mu pomoci se orientovat ve vašem repozitáři (kde najde specifikace, kódovací standardy, jak je členěný zdroják atd.). VS Code také umí (experimentálně) pracovat s `AGENTS.md` v podadresářích - pak agent volí relevantní instrukce podle toho, ve které části repozitáře zrovna pracuje.
 
-**MCP** je definice nástrojů, kdy agent má k dispozici seznam dostupných nástrojů s krátkým popisem k čemu jsou dobré a jaké argumenty očekávají. Takhle se řeší základní věci editoru typu VS Code (prohledání kódové báze, čtení a úpravy souborů, spouštění lokálních příklazů a skriptů, vytváření todo, stahování stránek z webu), ale i celá plejáda dalších nástrojů jako je přístup do Azure, Githubu, Kubernetes, PostgreSQL, Jira, ale i do vašich proprietárních API a služeb. MCP je nejen pro kódovací agenty, ale i pro různé konverzační a byznysové agenty a kromě toho, že umí běžet lokálně, tak hlavně je to ucelený protokol pro discovery operací, zabezpečení a velmi robustní a univerzální řešení.
+**MCP** je definice nástrojů, kdy agent má k dispozici seznam dostupných nástrojů s krátkým popisem k čemu jsou dobré a jaké argumenty očekávají. Takhle se řeší základní věci editoru typu VS Code (prohledání kódové báze, čtení a úpravy souborů, spouštění lokálních příkazů a skriptů, vytváření todo, stahování stránek z webu), ale i celá plejáda dalších nástrojů jako je přístup do Azure, GitHubu, Kubernetes, PostgreSQL, Jira, ale i do vašich proprietárních API a služeb. MCP je nejen pro kódovací agenty, ale i pro různé konverzační a byznysové agenty a kromě toho, že umí běžet lokálně, tak hlavně je to ucelený protokol pro discovery operací, zabezpečení a velmi robustní a univerzální řešení.
 
-**Skills** jsou něco mezi tím. Podobně jako `AGENTS.md` to jsou prostě jen lokální soubory (typicky v konkrétním adresáži v repo, v případě GitHubu je to `.github/skills/jmenoskillu` nebo `.claude/skills/jmenoskillu`), ale finta je v tom, že se nenačítají celé do kontextu. Podobně jako u MCP se do kontextu umístí pouze jejich seznam a popis, ale ne nic dalšího. Agent tak ví co v nich najde, ale nemá jejich detailním obsahem zaplněn kontext. To je dobré, protože to snižuje latenci, někdy náklady (u Github Copilot platíte ve formě Premium Requests, takže to tolik řešit nemusíte, ale jinde to hraje velkou roli), ale hlavně zjednoduše to agentovi život. Příliš mnoho informací, které nejsou relevantní k aktuálně řešené úloze, často snižuje celkovou kvalitu jeho práce. Zkrátka je toho na něj moc, ztrácí se v tom.
+**Skills** jsou něco mezi tím. Podobně jako `AGENTS.md` to jsou prostě jen lokální soubory (typicky v konkrétním adresáři v repo, v případě GitHubu je to `.github/skills/jmenoskillu` nebo `.claude/skills/jmenoskillu`), ale finta je v tom, že se nenačítají celé do kontextu. Podobně jako u MCP se do kontextu umístí pouze jejich seznam a popis, ale ne nic dalšího. Agent tak ví co v nich najde, ale nemá jejich detailním obsahem zaplněn kontext. To je dobré, protože to snižuje latenci, někdy náklady (u GitHub Copilot platíte ve formě Premium Requests, takže to tolik řešit nemusíte, ale jinde to hraje velkou roli), ale hlavně zjednoduší to agentovi život. Příliš mnoho informací, které nejsou relevantní k aktuálně řešené úloze, často snižuje celkovou kvalitu jeho práce. Zkrátka je toho na něj moc, ztrácí se v tom.
 
-Struktura adresáře je předepsaná. Musí tam být soubor `SKILL.md`, který má YAML hlavičku s názvem a popisem a dále tělo, kde mohou být jakékoli instrukce a podrobnosti. Kdomě toho v tomto adresáři můžete mít další soubory a popsat jejich roli v rámci textu ve `SKILL.md`, tedy typicky jednotlivé skripty a utilitky, k čemu jsou a jak se používají, tedy jaké mají argumenty a tak podobně.
+Poznámka: v době psaní jsou Agent Skills ve VS Code dostupné od verze 1.108 (už uvolněná verze) jako experimentální/preview funkce a je potřeba je explicitně zapnout nastavením `chat.useAgentSkills`.
+
+Struktura adresáře je předepsaná. Musí tam být soubor `SKILL.md`, který má YAML hlavičku s názvem a popisem a dále tělo, kde mohou být jakékoli instrukce a podrobnosti. Kromě toho v tomto adresáři můžete mít další soubory a popsat jejich roli v rámci textu ve `SKILL.md`, tedy typicky jednotlivé skripty a utilitky, k čemu jsou a jak se používají, tedy jaké mají argumenty a tak podobně.
 
 # Použití Skills pro dynamické načítání kontextu
 Jak to funguje si vyzkoušejme na jednoduchém příkladu - tedy je můj `SKILL.md`:
@@ -30,7 +32,7 @@ Here are information about this project:
 - Inventary number: 54321
 ```
 
-Využijeme toho, že GitHub Copilot ve VS Code je open source a umožňuje nám zobrazit naprosto přesně co je součástí kontextu a jak to celé funguje pod kapotou. Nejdřív do chatu napíšu jednoduše `Ping`a podívám se co se do modelu poslalo.
+Využijeme toho, že ve VS Code umíme přesně zobrazit, co je součástí kontextu a jak to celé funguje pod kapotou (Chat Debug view / log requestů do modelu). Nejdřív do chatu napíšu jednoduše `Ping` a podívám se co se do modelu poslalo.
 
 [![](/images/2026/2026-01-06-14-01-15.png){:class="img-fluid"}](/images/2026/2026-01-06-14-01-15.png)
 
@@ -143,7 +145,7 @@ Planning steps are called "steps" in the tool, but really they're more like task
 It may be the case that you complete all steps in your plan after a single pass of implementation. If this is the case, you can simply mark all the planned steps as completed. The content of your plan should not involve doing anything that you aren't capable of doing (i.e. don't try to test things that you can't test). Do not use plans for simple or single-step queries that you can just do or answer immediately.
 ```
 
-Je tam toho ještě hromada! Nicméně pak přijde `<attachment>` ve kterém je obsah mého `AGENTS.md`! Ten se tedy skutečně pokaždé posílá celý. No a pak už je sekce skills:
+Je tam toho ještě hromada! Nicméně pak přijde `<attachment>` ve kterém vidím obsah mého `AGENTS.md` (tedy instrukce připojené do kontextu podle nastavení). No a pak už je sekce skills:
 
 ```xml
 <skills>
@@ -471,7 +473,7 @@ if __name__ == '__main__':
     sys.exit(main())
 ```
 
-Trento skill teď můžeme jednoduše použít. Vzal jsem JSON soubor, přihodil do v chatu do kontextu a řekl `convert this to xml`. Agent správně vyhodnotil, že bude dobré použít na to tento skill, načetl si z něj instrukce a spustil skript. Výborný výsledek!
+Tento skill teď můžeme jednoduše použít. Vzal jsem JSON soubor, přihodil do v chatu do kontextu a řekl `convert this to xml`. Agent správně vyhodnotil, že bude dobré použít na to tento skill, načetl si z něj instrukce a spustil skript. Výborný výsledek!
 
 [![](/images/2026/2026-01-06-14-37-04.png){:class="img-fluid"}](/images/2026/2026-01-06-14-37-04.png)
 
@@ -481,7 +483,9 @@ Tady pohled na debug log.
 
 Pár dalších příkladů najdete na [GitHubu Anthropicu](https://github.com/anthropics/skills/tree/main/skills)
 
+Pozor při stahování skills z internetu: často obsahují skripty a ty se pak spouští lokálně pod právy vašeho uživatele - vždycky je před použitím projděte a neschvalujte spouštění naslepo.
 
-Za mě **Agent Skills** nejsou nic šokujícím způsobem nového a podobného výsledku šlo dosáhnout i s běžným `AGENTS.md`, ale museli byste v něm sami vést seznam skillů a ty mít někde uložené a je to práce navíc a hlavně hrozící nekonzistence a obtížná přenositelnost mezi projekty. Skills tohle standardizují a předpokládám, že se to stane běžné součástí tuningu jednotlivých modelů - předpokládám, že protože to Anthropic vymyslel, tak už v Claude modelech bude přitrénované a u OpenAI CODEX a Google se to dá rozhodně očekávat taky. Nejen tedy, že to bude standardizované, ale LLM na to bude specificky připraveno a bude to tak fungovat i mnohem spolehlivěji.
+
+Za mě **Agent Skills** nejsou nic šokujícím způsobem nového a podobného výsledku šlo dosáhnout i s běžným `AGENTS.md`, ale museli byste v něm sami vést seznam skillů a ty mít někde uložené a je to práce navíc a hlavně hrozící nekonzistence a obtížná přenositelnost mezi projekty. Skills tohle standardizují a předpokládám, že se to stane běžnou součástí tuningu jednotlivých modelů - předpokládám, že protože to Anthropic vymyslel, tak už v Claude modelech bude přitrénované a u OpenAI CODEX a Google se to dá rozhodně očekávat taky. Nejen tedy, že to bude standardizované, ale LLM na to bude specificky připraveno a bude to tak fungovat i mnohem spolehlivěji.
 
 Skills řeší dvě věci - elegantní načítání kontextu až když je to opravdu potřeba a možnost vytvářet odlehčené nástroje ve formě skriptů bez celé vrstvy MCP a s tím spojených věcí k řešení (kde to poběží, jak se to zabezpečí, kde bude katalog). Pro pomocníky v rámci projektu výborná varianta.
