@@ -10,7 +10,7 @@ Má článek dobré flow a strukturu?
 Pokud ano, řekni ano. Pokud ne, vysvětli proč si to myslíš a navrhni, jak to udělat lépe.
 
 Je článek v mém stylu?
-Prohlédni si pár mých předchozích článků z tohoto roku (nejmladší články), ať máš o mém stylu představu. Pokud to sedí, řekni ano. Pokud ne, v čem se odchyluji a je to ku prospěchu nebo se vytrácí osobitost.
+Prohlédni si pár mých předchozích článků z tohoto roku a minulého (nejmladší články), ať máš o mém stylu představu. Pokud to sedí, řekni ano. Pokud ne, v čem se odchyluji a je to ku prospěchu nebo se vytrácí osobitost.
 
 Fungují v článku všechny odkazy?
 Pokud ano, jen řekni ano. Zkontroluj, že linky vedou na existující stránky a že obsahově odpovídají tomu, o čem se v článku mluví.
