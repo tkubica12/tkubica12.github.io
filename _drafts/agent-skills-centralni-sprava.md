@@ -4,6 +4,7 @@ published: true
 title: Jak centrálně spravovat a řídit skills pro agenty a zejména jejich samostatné zlepšování
 tags:
 - AI
+- GitHub
 ---
 Skills pro agenty excelují hlavně jednoduchostí a jedna z mých nejoblíbenějších variant je skill přinášející vlastní CLI. Beru to tak, že agentovi lze dát přístup k nějakému API. To je ale potřeba mu vysvětlit (co to API dělá, ale i pár tipů kdy jak API použít, tedy dodat mu nějaký byznys kontext - když potřebujeme tohle, tak je dobré zavolat tohleto a pak tamto) a aby naše vysvětlení nesedělo v kontextu pokaždé, tak ho přeneseme do skillu a agent si ho přečte až když bude mít pocit, že to je potřeba. Jenže při používání toho API ale agent často udělá chybu - například si pro to montuje curl a escapování JSON requestů často pomotá a musí se opravovat. Nebo jsou třeba API, kde při změně objektu (PUT operace) nestačí dát jen nějaký merge formát, ale celý objekt, takže bych měl nejdřív udělat GET, výsledný JSON si upravit a poslat ho jako PUT a to jsou tři volání nástroje, tři přemýšlení, tokeny, latence, potenciál pro chybu.
 
