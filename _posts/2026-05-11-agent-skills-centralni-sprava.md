@@ -134,34 +134,34 @@ Založené Issue je automaticky prozkoumáno agentem v pipeline, což je díky *
 
 Podívejte jak pěkné a komplexní Issue to je a agent nám jeho schválení doporučuje.
 
-[![](images/2026-05-02-12-13-01.png){:class="img-fluid"}](images/2026-05-02-12-13-01.png)
+[![](/images/2026/2026-05-02-12-13-01.png){:class="img-fluid"}](/images/2026/2026-05-02-12-13-01.png)
 
 No a k němu máme komentář našeho triage agenta.
 
-[![](images/2026-05-02-12-13-48.png){:class="img-fluid"}](images/2026-05-02-12-13-48.png)
+[![](/images/2026/2026-05-02-12-13-48.png){:class="img-fluid"}](/images/2026/2026-05-02-12-13-48.png)
 
 To zní skvěle, beru! Mám to nastavené tak, že tohle je lidský krok - co se mi líbí tak přijmu tím, že u Issue přiřadím label **accepted**.
 
-[![](images/2026-05-02-12-22-20.png){:class="img-fluid"}](images/2026-05-02-12-22-20.png)
+[![](/images/2026/2026-05-02-12-22-20.png){:class="img-fluid"}](/images/2026/2026-05-02-12-22-20.png)
 
 # Agentické nakódování, agentické testování
 Mám připravené workflow tak, že jakmile se objeví na Issue label **accepted**, tak je toto přiřazeno Copilotovi v cloudu, který na tom začne makat.
 
-[![](images/2026-05-02-12-23-31.png){:class="img-fluid"}](images/2026-05-02-12-23-31.png)
+[![](/images/2026/2026-05-02-12-23-31.png){:class="img-fluid"}](/images/2026/2026-05-02-12-23-31.png)
 
-[![](images/2026-05-02-12-23-52.png){:class="img-fluid"}](images/2026-05-02-12-23-52.png)
+[![](/images/2026/2026-05-02-12-23-52.png){:class="img-fluid"}](/images/2026/2026-05-02-12-23-52.png)
 
 Mohl bych to sledovat a steerovat ho v průběhu, ale to já nechci - ať to celé připraví. Výsledkem by mělo být, že vznikne kompletní Pull Request s návrhem změny a to se po chvilce skutečně stalo.
 
-[![](images/2026-05-02-14-31-15.png){:class="img-fluid"}](images/2026-05-02-14-31-15.png)
+[![](/images/2026/2026-05-02-14-31-15.png){:class="img-fluid"}](/images/2026/2026-05-02-14-31-15.png)
 
-[![](images/2026-05-02-14-31-55.png){:class="img-fluid"}](images/2026-05-02-14-31-55.png)
+[![](/images/2026/2026-05-02-14-31-55.png){:class="img-fluid"}](/images/2026/2026-05-02-14-31-55.png)
 
 Jenže já chci jít dál - chci, aby se skutečně prokázalo, že to vylepšení dává smysl a dobrý způsob jak to zjistit je vědět **o kolik tokenů** méně spotřebuje kódovací agent když má novou verzi skillu a také **o kolik mu to jde rychleji**. Udělal jsem to tak, že v pipeline je automatický check - říkám tomu **agent-benchmark** a je tady: [ci-benchmark.yml](https://github.com/tkubica12/skills-demo-catalog/blob/main/.github/workflows/ci-benchmark.yml). Je to skript, který vezme příklad použití nové funkce skillu ve formě promptu (to má od kódovacího kolegy) a přes GitHub Copilot SDK nastartuje agentický běh. Jednou z předchozí verzí skillu z mainu a jednou s novou verzí, která je v Pull Requestu. Identická verze GitHub Copilot SDK i promptu, rozdíl je jen ve skillu a změříme výsledek v počtu tokenů a času. Tenhle se zapíše jako komentář do Pull Requestu, takže při schvalování je to další informace pro člověka, který se rozhoduje zda to přijmout.
 
-[![](images/2026-05-02-14-32-31.png){:class="img-fluid"}](images/2026-05-02-14-32-31.png)
+[![](/images/2026/2026-05-02-14-32-31.png){:class="img-fluid"}](/images/2026/2026-05-02-14-32-31.png)
 
-[![](images/2026-05-02-14-33-02.png){:class="img-fluid"}](images/2026-05-02-14-33-02.png)
+[![](/images/2026/2026-05-02-14-33-02.png){:class="img-fluid"}](/images/2026/2026-05-02-14-33-02.png)
 
 # Shrnutí a co si vyzkoušet
 - Používejte **gh skills** pro správu skillů a jejich verzování v centrálním repozitáři
