@@ -105,6 +105,30 @@ Dark mode must be visible:
 - Expanded card bodies are indented under the card number/title row.
 - Summary may use two columns on desktop and one column on mobile.
 
+## `/new/` landing page
+
+The `/new/` index uses the same theme script, variable block, shared CSS, shared JS, typography, surfaces, borders, and restrained blue accent as article pages. It should not introduce a separate visual brand.
+
+Index pages may use:
+
+- Recent article cards in `.ia-index-grid`.
+- Expandable theme cards using the standard `.ia-card` behavior.
+- A compact chronological list grouped by year.
+- A static search input that lazy-loads compact metadata from `search.json`; do not load full article bodies on first paint.
+- A visible link to the classic blog.
+
+Keep theme/category count small, typically 3-5. Theme text, summaries, labels, and featured article order come from `interactive\article-index.json`, which agents maintain as a compact semantic cache.
+
+## Article navigation and recommendations
+
+Every generated article page should have a consistent navigation/footer layer:
+
+- A visible link back to `/new/`.
+- Existing `source.md` and `caveman.md` links.
+- One `Doporučeno dál` related-article block generated from compact metadata.
+
+Recommendations are deterministic at build time: use shared themes, labels, summary/title overlap, and recency as a tiebreaker. Do not hard-code a forever recommendation into article prose.
+
 ## Components
 
 Cards:
@@ -152,6 +176,18 @@ Figures:
 - Put screenshot-heavy evidence inside reveal panels so the main article stays readable.
 - For local `_site\new\YYYY\slug\index.html` preview, convert root `/images/...` paths in HTML to a relative path from the rendered file, while leaving `source.md` unchanged.
 - The shared JavaScript opens image links in an in-page lightbox when the link target is an image file. The lightbox includes shared zoom controls, keyboard zoom (`+`/`-`), mouse/finger panning when zoomed, wheel zoom, and pinch zoom. Do not replace this with browser navigation or per-page scripts.
+
+`/new/` landing page:
+
+- Lead with newest articles first; search should be compact and collapsed by default so it does not push recent content down.
+- Theme cards are closed by default and limited to a small curated set.
+- Keep article labels in metadata for search and recommendations, but do not render them as passive non-clickable pills.
+- Use relative links from the landing page to article folders and the classic blog so local static preview works.
+- For long archives, keep all links in the HTML for no-JS fallback and progressively reveal older rows in client-side batches.
+
+Article defaults:
+
+- Generated article pages should open only the first main card by default. The rest start collapsed; readers can expand individual cards or use page controls.
 
 Final result and summaries:
 

@@ -430,4 +430,107 @@
       });
     }
   }
+
+  document.querySelectorAll("[data-ia-index-search]").forEach((searchRoot) => {
+    const input = searchRoot.querySelector("[data-search-src]");
+    const results = searchRoot.querySelector("[data-ia-search-results]");
+    const status = searchRoot.querySelector("[data-ia-search-status]");
+    if (!input || !results || !status) {
+      return;
+    }
+
+    const normalize = (value) => value
+      .toLocaleLowerCase("cs-CZ")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    let searchDataPromise = null;
+
+    const loadSearchData = () => {
+      if (!searchDataPromise) {
+        searchDataPromise = fetch(input.dataset.searchSrc)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Search index returned ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((items) => items.map((item) => ({
+            ...item,
+            haystack: normalize([item.title, item.subtitle, item.summary, ...(item.labels || []), ...(item.themes || [])].join(" ")),
+          })));
+      }
+      return searchDataPromise;
+    };
+
+    const render = (items, query) => {
+      results.textContent = "";
+      if (!query) {
+        status.textContent = "Vyhledávací index je připravený.";
+        return;
+      }
+
+      const normalizedQuery = normalize(query);
+      const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+      const matches = items
+        .map((item) => {
+          const score = queryTerms.reduce((total, term) => total + (item.haystack.includes(term) ? 1 : 0), 0);
+          return { item, score };
+        })
+        .filter((match) => match.score > 0)
+        .sort((left, right) => right.score - left.score || right.item.date.localeCompare(left.item.date))
+        .slice(0, 8);
+
+      status.textContent = matches.length ? `${matches.length} nejlepších výsledků` : "Nic jsem nenašel.";
+      matches.forEach(({ item }) => {
+        const result = document.createElement("li");
+        const link = document.createElement("a");
+        const summary = document.createElement("p");
+        link.href = item.url;
+        link.textContent = item.title;
+        summary.textContent = item.summary;
+        result.append(link, summary);
+        results.appendChild(result);
+      });
+    };
+
+    const update = () => {
+      const query = input.value.trim();
+      loadSearchData()
+        .then((items) => render(items, query))
+        .catch(() => {
+          status.textContent = "Vyhledávací index se nepodařilo načíst.";
+        });
+    };
+
+    input.addEventListener("focus", update, { once: true });
+    input.addEventListener("input", update);
+  });
+
+  document.querySelectorAll("[data-ia-archive]").forEach((archiveRoot) => {
+    const items = Array.from(archiveRoot.querySelectorAll("[data-ia-archive-item]"));
+    const moreButton = document.querySelector("[data-ia-archive-more]");
+    const initialVisible = Number.parseInt(archiveRoot.dataset.initialVisible || "24", 10);
+    const batchSize = Number.parseInt(moreButton?.dataset.batchSize || "24", 10);
+
+    if (!moreButton || items.length <= initialVisible) {
+      return;
+    }
+
+    let visibleCount = initialVisible;
+
+    const renderArchive = () => {
+      items.forEach((item, index) => {
+        item.hidden = index >= visibleCount;
+      });
+      moreButton.hidden = visibleCount >= items.length;
+    };
+
+    moreButton.addEventListener("click", () => {
+      visibleCount = Math.min(visibleCount + batchSize, items.length);
+      renderArchive();
+    });
+
+    renderArchive();
+  });
 })();

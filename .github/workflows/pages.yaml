@@ -31,8 +31,16 @@ jobs:
         run: bundle install
       - name: Build
         run: bundle exec jekyll build
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Generate interactive site
+        run: python tools/generate_interactive_site.py
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
 
   deploy:
     environment:

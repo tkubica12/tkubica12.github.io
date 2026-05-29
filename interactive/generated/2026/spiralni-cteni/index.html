@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+  </script>
+  <style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+  </style>
+  <link rel="stylesheet" href="../../assets/interactive-article.css">
+  <title>Spirální čtení, poslech a pokec - moje AI workflow pro nasání knihy do mozku</title>
+</head>
+<body>
+  <div class="ia-page">
+    <header class="ia-header">
+      <p class="ia-eyebrow">Spirální čtení</p>
+      <h1 class="ia-title">Spirální čtení, poslech a pokec - moje AI workflow pro nasání knihy do mozku</h1>
+      <p class="ia-subtitle">Jak si z PDF dělám několik vrstev čtení a poslechu, abych mohl kdykoli skončit, pokračovat hlouběji nebo se doptat AI.</p>
+      <p class="ia-date"><time datetime="2026-03-11">11. 3. 2026</time></p>
+      <nav class="ia-links" aria-label="Agent-friendly soubory">
+        <a href="./source.md">source.md</a>
+        <a href="./caveman.md">caveman.md</a>
+      </nav>
+    </header>
+
+    <nav class="ia-toc" aria-label="Obsah">
+      <p class="ia-toc-title">Obsah</p>
+      <div class="ia-toc-list">
+        <a href="#proc"><span class="ia-toc-num">01</span><span>Proč to řeším</span></a>
+        <a href="#vrstvy"><span class="ia-toc-num">02</span><span>Vrstvy ze stejného zdroje</span></a>
+        <a href="#pipeline"><span class="ia-toc-num">03</span><span>Pipeline a nástroje</span></a>
+        <a href="#workflow"><span class="ia-toc-num">04</span><span>Moje spirála v praxi</span></a>
+        <a href="#zaver"><span class="ia-toc-num">05</span><span>Otázka na vás</span></a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="ia-group" id="proc" aria-labelledby="proc-title">
+        <h2 class="ia-group-title" id="proc-title">Proč to řeším</h2>
+        <div class="ia-card-list">
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-cesta">
+              <span class="ia-card-num">01</span>
+              <span class="ia-card-title">Cesta znalostí z knihy do mozku</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-cesta" data-ia-card-panel>
+              <div class="ia-card-body-clip">
+                <div class="ia-card-content ia-prose">
+                  <p>Chci dnes nasdílet svoje workflow a s ním spojené skripty a zároveň se poptat, jak to řešíte vy. Jaké triky a nápady s AI používáte, aby byla cesta znalostí z knihy do mozku co nejefektivnější?</p>
+                  <p>Řeším to z několika důvodů. Někdy chci číst, spíš krátce, ale intenzivně. Jindy chci poslouchat při procházce nebo v autě. Ne vždy ke knize existuje namluvená verze, ne vždy mi sedí hlas interpreta a často ani nejde o klasickou knihu, ale o delší eseje nebo vědecké práce z ArXivu. Zároveň nechci po několika investovaných hodinách zjistit, že mě to vlastně moc nezajímá.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-les">
+              <span class="ia-card-num">02</span>
+              <span class="ia-card-title">Nechci pro stromy nevidět les</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-les" data-ia-card-panel>
+              <div class="ia-card-body-clip">
+                <div class="ia-card-content ia-prose">
+                  <p>Další problém je, že při čtení detailů člověk snadno ztratí celek. Nechci pro stromy nevidět les. Když už do pětihodinového materiálu investuji neurčený čas, chci, aby informační hodnota s časem rostla. Ne aby prvních třicet minut byl detail, který mi je po přerušení procesu vlastně k ničemu. Chci něco jako princip Matryoshka: začít přehledem a pak se postupně nořit do detailů, ale vždy s vědomím toho, jak to zapadá do celku. Někdy se tomu říká spirální učení, progressive disclosure nebo anytime algoritmus. A do toho všeho chci mít kdykoli možnost přerušit a doptat se AI na cokoli, co mi není jasné.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="ia-group" id="vrstvy" aria-labelledby="vrstvy-title">
+        <h2 class="ia-group-title" id="vrstvy-title">Vrstvy ze stejného zdroje</h2>
+        <div class="ia-card-list">
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-vrstvy">
+              <span class="ia-card-num">03</span>
+              <span class="ia-card-title">Jedno PDF, několik otáček spirály</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-vrstvy" data-ia-card-panel>
+              <div class="ia-card-body-clip">
+                <div class="ia-card-content ia-prose">
+                  <p>Proto mi jako ideální postup vyšlo vzít PDF a nechat z něj automaticky vytvořit několik vrstev obsahu, vždy anglicky i česky. Záleží na tématu, co preferuji, ale hlavně mi to dává možnost kombinace. V některé otáčce spirály si dám jiný jazyk, což je za mě mimochodem výborný trik. Přijde mi, že to aktivuje trochu jiné synapse.</p>
+                  <p>Z jednoho zdroje si nechávám generovat:</p>
+                  <div class="ia-summary-grid">
+                    <div class="ia-summary-item"><strong>2 minuty</strong><p>velmi krátké shrnutí na 2 minuty</p></div>
+                    <div class="ia-summary-item"><strong>5 minut</strong><p>shrnutí na 5 minut</p></div>
+                    <div class="ia-summary-item"><strong>20 minut</strong><p>podrobnější sumář na 20 minut</p></div>
+                    <div class="ia-summary-item"><strong>60 minut</strong><p>hluboký technický podcast jako rozhovor dvou hostitelů na 60 minut</p></div>
+                    <div class="ia-summary-item"><strong>Plný poslech</strong><p>namluvený celý text, ale upravený pro účely poslechu</p></div>
+                    <div class="ia-summary-item"><strong>Markdown</strong><p>extrahovaný text v Markdown podobě jako kvalitní vstup do kontextu LLM</p></div>
+                  </div>
+                  <div class="ia-reveal" data-ia-reveal>
+                    <button class="ia-reveal-button" type="button" data-ia-reveal-button aria-expanded="false" aria-controls="reveal-plna-verze"><span class="ia-reveal-arrow" aria-hidden="true">▶</span><span>Proč plná verze není slepé čtení PDF</span></button>
+                    <div class="ia-reveal-body" id="reveal-plna-verze">
+                      <div class="ia-reveal-body-clip">
+                        <div class="ia-reveal-content">
+                          <p>U té plné verze nejde o slepé čtení dokumentu od začátku do konce. Když je v PDF graf, obrázek nebo tabulka, chci slovní interpretaci, ne mechanické čtení buňky po buňce. Cílem je poslouchat něco, co je použitelné pro člověka, ne jen exportované pro stroj.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="ia-group" id="pipeline" aria-labelledby="pipeline-title">
+        <h2 class="ia-group-title" id="pipeline-title">Pipeline a nástroje</h2>
+        <div class="ia-card-list">
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-davky">
+              <span class="ia-card-num">04</span>
+              <span class="ia-card-title">Velké dávky bez klikání</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-davky" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>Určitě se k něčemu podobnému dá dostat v nástrojích jako Copilot nebo NotebookLM, ale ne úplně v té podobě, kterou chci. Hlavně to chci dělat ve velkém. Naházet tam PDFka, spustit a vrátit se pro hotový výsledek. Nechci nikde klikat a ručně to skládat.</p>
+              </div></div>
+            </div>
+          </article>
+
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-nastroje">
+              <span class="ia-card-num">05</span>
+              <span class="ia-card-title">Co pipeline používá</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-nastroje" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>V dnešní době to ale není zásadní problém. GitHub Copilot CLI mi tohle nakódil překvapivě snadno a velmi dobře. Pro extrakci z PDF používám Azure Content Understanding. Nestačil mi MarkItDown, protože mi nejde jen o text, ale i o rozumné zpracování obrázků, grafů a celkové struktury dokumentu. Potřebuji dostat ven výstup, který je dobře použitelný pro další práci s LLM, ne jen syrový textový výtah. Na zpracování textu používám klasicky LLM a na namluvení Azure Speech text-to-speech, u mě typicky s rychlostí zhruba o 20 procent vyšší, ať to mluví svižněji.</p>
+                <div class="ia-steps" aria-labelledby="steps-pipeline-title">
+                  <p class="ia-steps-title" id="steps-pipeline-title">Hrubý tok zpracování</p>
+                  <ol class="ia-steps-list">
+                    <li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">PDF dovnitř</strong><p>naházím PDFka a spustím pipeline.</p></div></li>
+                    <li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Azure Content Understanding</strong><p>vytáhne text, obrázky, grafy a strukturu dokumentu použitelněji než syrový textový výtah.</p></div></li>
+                    <li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">LLM a Azure Speech</strong><p>LLM připraví vrstvy a Azure Speech z nich udělá poslech, typicky rychlejší zhruba o 20 procent.</p></div></li>
+                    <li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">OneDrive a mobil</strong><p>výstupní adresář mám na OneDrivu a na mobilu do něj kouká aplikace na audioknihy.</p></div></li>
+                  </ol>
+                </div>
+              </div></div>
+            </div>
+          </article>
+
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-slabe-misto">
+              <span class="ia-card-num">06</span>
+              <span class="ia-card-title">Slabé místo: ruční nahrávání do LLM</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-slabe-misto" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>Prakticky to funguje tak, že nahážu PDFka, spustím pipeline a výstupní adresář mám na OneDrivu. Na mobilu do něj kouká aplikace na audioknihy, takže se k tomu dostanu hned. Pak ještě ručně nahrávám knihu do LLM, což je slabé místo celého procesu a budu to chtít dořešit automatizací. Dnes to dávám do Copilot Notebook a Perplexity Spaces, abych se mohl kdykoli doptat na obsah, a to textem i hlasem.</p>
+              </div></div>
+            </div>
+          </article>
+        </div>
+        <aside class="ia-closing ia-prose">
+          <p>Spirální čtení není zkratka kolem knihy. Je to způsob, jak <strong>rychle získat mapu</strong> a pak se nořit přesně tak hluboko, jak téma stojí za to.</p>
+        </aside>
+      </section>
+
+      <section class="ia-group" id="workflow" aria-labelledby="workflow-title">
+        <h2 class="ia-group-title" id="workflow-title">Moje spirála v praxi</h2>
+        <div class="ia-card-list">
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-rozhodovani">
+              <span class="ia-card-num">07</span>
+              <span class="ia-card-title">Typické rozhodování po prvních minutách</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-rozhodovani" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>Moje typické workflow pak vypadá tak, že si nejdřív poslechnu dvouminutovou verzi, potom pětiminutovou. Tím velmi rychle získám mapu terénu. Pak přichází rozhodování: buď dvacetiminutové shrnutí, šedesátiminutový podcast, nebo plný obsah.</p>
+                <div class="ia-sequence" aria-labelledby="sequence-otacky-title">
+                  <p class="ia-sequence-title" id="sequence-otacky-title">Tři rychlé otáčky</p>
+                  <ol class="ia-sequence-list">
+                    <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>2 minuty</strong><p>první orientace, jestli mě téma vůbec zajímá.</p></li>
+                    <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>5 minut</strong><p>rychlá mapa terénu a lepší kontext.</p></li>
+                    <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>20 minut</strong><p>skoro vždy, pokud ta kniha není úplný propadák.</p></li>
+                  </ol>
+                </div>
+                <p>Někdy jedu v tomto pořadí, někdy si dvacet nebo šedesát minut přepnu do češtiny, abych změnil režim vnímání, někdy mě dvacet minut zaujme natolik, že jdu rovnou na plnou verzi. A někdy naopak usoudím, že dvacetiminutové summary úplně stačilo.</p>
+              </div></div>
+            </div>
+          </article>
+
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-hloubka">
+              <span class="ia-card-num">08</span>
+              <span class="ia-card-title">Kdy pokračuji hlouběji</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-hloubka" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>V každém případě, pokud ta kniha není úplný propadák, tak si téměř vždy dám tři otáčky spirály: 2, 5 a 20 minut. U věcí, které jsou pro mě důležité, pokračuji dál. Tohle mi zatím vychází jako nejlepší kompromis mezi rychlostí, hloubkou a možností kdykoli změnit směr nebo se doptat na kontext.</p>
+                <aside class="ia-callout" aria-label="Repo">
+                  <span class="ia-callout-title">Repo</span>
+                  <p>Repo je <a href="https://github.com/tkubica12/book-processing">tady</a>.</p>
+                </aside>
+              </div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="ia-group" id="zaver" aria-labelledby="zaver-title">
+        <h2 class="ia-group-title" id="zaver-title">Otázka na vás</h2>
+        <div class="ia-card-list">
+          <article class="ia-card is-open" data-ia-card>
+            <button class="ia-card-head" type="button" data-ia-card-button aria-expanded="true" aria-controls="card-otazka">
+              <span class="ia-card-num">09</span>
+              <span class="ia-card-title">Jak to máte vy?</span>
+              <span class="ia-card-toggle" aria-hidden="true">▾</span>
+            </button>
+            <div class="ia-card-body" id="card-otazka" data-ia-card-panel>
+              <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+                <p>A zajímá mě, jak to máte vy. Máte nějaké vlastní workflow na spirální čtení, poslech nebo práci s delšími texty přes AI?</p>
+                <div class="ia-arrow-list">
+                  <p class="ia-arrow-list-title">Co mě zajímá</p>
+                  <ul>
+                    <li>Jaké triky a nápady s AI používáte pro delší texty?</li>
+                    <li>Kdy vám stačí summary a kdy jdete do plného obsahu?</li>
+                    <li>Jak řešíte možnost se kdykoli doptat textem nebo hlasem?</li>
+                  </ul>
+                </div>
+              </div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <div class="ia-controls" aria-label="Ovládání článku">
+      <button class="ia-control" type="button" data-expand-all>Rozbalit</button>
+      <button class="ia-control" type="button" data-collapse-all>Sbalit</button>
+      <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+    </div>
+
+    <footer class="ia-footer">
+      <p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+    </footer>
+  </div>
+  <script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Je předplatné vhodný obchodní model pro AI produkt?</title>
+<meta name="description" content="Flat subskripce je skvělá pro adopci, ale agenti rozbíjejí přirozené limity spotřeby.">
+<link rel="canonical" href="/new/2026/subskripce-ve-svete-ai/">
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">Subskripce, tokeny a agenti</p>
+    <h1 class="ia-title">Je předplatné vhodný obchodní model pro AI produkt? Zdražuje AI? Zdražují tokeny? Nebo se jen najíždí na férový model?</h1>
+    <p class="ia-subtitle">Flat subskripce je skvělá pro adopci, ale agenti rozbíjejí přirozené limity spotřeby. Budoucnost vidím spíš v licenci jako vstupence, poolované předplacené spotřebě a férových dokupovaných jednotkách.</p>
+    <p class="ia-date"><time datetime="2026-04-27">27. 4. 2026</time></p>
+    <nav class="ia-links" aria-label="Zdrojové soubory">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <main>
+    <nav class="ia-toc" aria-labelledby="toc-title">
+      <p class="ia-toc-title" id="toc-title">Obsah</p>
+      <div class="ia-toc-list">
+        <a href="#predplatne"><span class="ia-toc-num">01</span><span>Proč klasické předplatné fungovalo</span></a>
+        <a href="#naklady"><span class="ia-toc-num">02</span><span>Dva zdroje nákladů</span></a>
+        <a href="#cloud-model"><span class="ia-toc-num">03</span><span>Model pro cloud</span></a>
+        <a href="#zbytek-ai"><span class="ia-toc-num">04</span><span>Za kódováním</span></a>
+      </div>
+    </nav>
+
+    <section class="ia-group" id="uvod" aria-label="Úvod">
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-uvod-head" type="button" aria-expanded="true" aria-controls="card-uvod" data-ia-card-button>
+            <span class="ia-card-title">Proč o tom mluvím právě teď</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-uvod" role="region" aria-labelledby="card-uvod-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>V poslední době dochází k mnoha změnám v obchodních modelech některých AI produktů a to zejména těch kolem kódování. Myslím, že je to předzvěst změn i v dalších oblastech - jakmile uvidíme stejný fázový přechod co jsme zažili v prosinci 2025 v kódování (kdy to prostě začalo krásně spolehlivě fungovat), vznikne podobný tlak na ostatní produkty i pro ne-vývojáře. A agenti typu OpenClaw nebo Cowork tipuji na tu další službu, která půjde tímto trendem.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="predplatne" aria-labelledby="predplatne-title">
+      <h2 class="ia-group-title" id="predplatne-title">Proč klasické předplatné fungovalo</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-klasicke-predplatne-head" type="button" aria-expanded="true" aria-controls="card-klasicke-predplatne" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">Klasické předplatné</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-klasicke-predplatne" role="region" aria-labelledby="card-klasicke-predplatne-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Pokud necháte lidi platit podle toho jak službu využívají tak je známé, že ji pak využívají málo a nedokáží realizovat plnou hodnotu - nikdy se to vlastně nenaučí, protože pořád počítají peníze a bojí se. Tohle v minulosti geniálně vyřešilo předplatné - vtáhne vás do hry, používáte, zvykáte si, nechcete o to přijít. A šíříte to všude okolo, uživatelská základna se zvyšuje. Zkrátka <strong>flat subskripce je ideální pro adopci</strong>.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-spotify-head" type="button" aria-expanded="false" aria-controls="reveal-spotify" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Spotify, posilovna a přirozený limit</button>
+                <div class="ia-reveal-body" id="reveal-spotify" role="region" aria-labelledby="reveal-spotify-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p>Jak na tom poskytovatel služby vydělává? Je jasné, že to má spočítané tak, aby měl dobrou marži na průměrném uživateli. Na těch co to používají málo vydělává ještě mnohem víc, na power userech vydělává naopak málo a u těch několika extrémních může prodělávat. Vezměme třeba Spotify. To má určitě nějaké fixní náklady na uživatele (za servery, vývoj aplikace apod.), ale velmi mnoho jich bude dáno spotřebou - poplatky autorům, poplatky za přenesená data. Průměrný uživatel konzumuje řekněme 50 hodin měsíčně. A co "power user"? Je tady přirozený limit - i pokud by nespal tak to nemůže být víc jak 730 hodin měsíčně, s nějakým spánkem řekněme 10x víc než ten průměrný (podobně přirozené limity má předplatné do posilovny nebo na MHD). Jiný typ byznysu může mít tenhle rozdíl menší (třeba nějaké předplatné elektronického magazínu - jak moc článků si power user přečte je vcelku jedno) nebo větší (třeba úložiště typu Box s neomezeným prostorem mají také neomezené náklady). Tam kde není přirozený limit (počet hodin v měsíci například), tam se poskytovatel často chrání nějakou "hvězdičkou" - je to neomezené, ale detekuje neférové využívání a dává vágní limit.</p>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ai-problem-head" type="button" aria-expanded="true" aria-controls="card-ai-problem" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">Proč je to s AI problematické</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-ai-problem" role="region" aria-labelledby="card-ai-problem-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>U běžného chatu samozřejmě velmi aktivní uživatel spotřebuje daleko víc tokenů a generuje tak náklady ne 10x mezi průměrem a power userem, ale určitě spíše 100x. To ale možná pořád ten obchodní model zvládne, ale můžou se tady využívat nějaká omezení:</p>
+              <ul>
+                <li>Limity v rámci hodiny</li>
+                <li>Dočasné přepnutí na levnější model</li>
+                <li>Zpomalení odpovědi (ne schválně, ale třeba díky nějaké de-prioritizaci někoho kdo přestřeluje)</li>
+              </ul>
+              <p>Jenže to je chat - <strong>agenti všechno mění</strong>. Už tzv. Deep Research byl trochu problém, ale plnokrevný agent je ještě mnohem větší - a v kódování je to to jediné co dnes dává smysl. Agent může hodiny pracovat na zadané úloze, načítat si kód, dokumentaci (čili mít enormní kontext v tokenech), provolávat nástroje ve stovkách interakcí, vytvářet si kolegy subagenty a paralelně je nechat na částech problému pracovat. No a pokud váš agent pracuje na něčem hodinu, budete na něj koukat nebo otevřete jiné okno a nahodíte dalšího, který řeší něco jiného? Jasně, že to uděláte, takže těch žravých agentů a subagentů nakonec běží de facto neomezené množství. Váš poměr mezi průměrným uživatelem a Power Userem se dostává klidně do 4 řádů rozdílu a prakticky může totálně ustřelit - a vůbec ne schválně, uživatel prostě agenty naplno využil a spánek není přirozený limit.</p>
+              <div class="ia-sequence" aria-label="Cesta od chatu k agentům">
+                <h3 class="ia-sequence-title">Cesta od chatu k agentům</h3>
+                <ol class="ia-sequence-list">
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Chat</strong><p>Rozdíl mezi průměrem a power userem může být spíše 100x.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Deep Research</strong><p>Už je trochu problém, protože běží déle a spotřebuje víc kontextu.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Plnokrevný agent</strong><p>Hodiny práce, stovky tool callů, subagenti a paralelní okna mohou vystřelit spotřebu o celé řády.</p></li>
+                </ol>
+              </div>
+              <aside class="ia-callout verdict">
+                <span class="ia-callout-title">Pointa</span>
+                <p>Co s tím? <strong>Flat subscription to být nemůže</strong> - a proto tolik změn na trhu a přechod k placení podle férového využívání. Podívejme se nejdřív za co se vlastně bude platit a pak jak to může vypadat.</p>
+              </aside>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="naklady" aria-labelledby="naklady-title">
+      <h2 class="ia-group-title" id="naklady-title">Dva zdroje nákladů</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-naklady-head" type="button" aria-expanded="true" aria-controls="card-naklady" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title">Tokeny a compute jsou měřitelné</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-naklady" role="region" aria-labelledby="card-naklady-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Řešení typicky musí zahrnovat platbu za to že existuje - někdo to vytvořil, řeší jeho bezpečnost, architekturu, compliance a také má nějaké náklady na základní provoz. To nás ale teď nezajímá - my se chceme zaměřit na dva zdroje nákladů, které jsou přímo měřitelné a přímo závislé na uživateli (bez něj nevznikají).</p>
+              <div class="ia-summary-grid">
+                <div class="ia-summary-item"><strong>Tokeny</strong><p>Vstupní, cachované vstupní a výstupní tokeny jsou přímý náklad modelu.</p></div>
+                <div class="ia-summary-item"><strong>Compute</strong><p>Cloudový agent potřebuje CPU, RAM a izolované prostředí; u agenta je to druhá klíčová složka.</p></div>
+              </div>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-tokeny-head" type="button" aria-expanded="false" aria-controls="reveal-tokeny" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Tokeny</button>
+                <div class="ia-reveal-body" id="reveal-tokeny" role="region" aria-labelledby="reveal-tokeny-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p><strong>Tokeny</strong> jsou reálné náklady daného řešení. Říká se, že Anthropic má marži na tokenech 40%-50% (což zahrnuje IP modelu a inferencing, tedy GPU) a můžeme tak předpokládat že jinde to bude podobné. I když si poskytovatel model hostuje sám nebo má nějakou slevu, náklady na tokeny jsou stále velmi reálné - tohle není nějaká licence nebo něco podobného, ale skutečné elektrony přeměněné v inteligenci. Vstupní, vstupní cachované a výstupní tokeny jsou přímý náklad. Samozřejmě různé modely mají různé ceny (jsou různě velké co do náročnosti na hardware) a to musí být zahrnuto, takže se obvykle použije nějaký přepočet ve formě "AI jednotky" - střední model 1x, velký 3x a tak podobně. Někde se počítají přímo peníze, ale u služeb podporujích různé modely (například GitHub Copilot s podporou OpenAI, Anthropic i Google) je přepočet přes virtuální měnu častější.</p>
+                </div></div></div>
+              </div>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-compute-head" type="button" aria-expanded="false" aria-controls="reveal-compute" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Compute</button>
+                <div class="ia-reveal-body" id="reveal-compute" role="region" aria-labelledby="reveal-compute-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p><strong>Compute</strong> začne být druhou klíčovou složkou, protože pro chatbota je spotřebovaný compute relativně malý, ale pro agenta je situace jiná. Ano, agent může běžet lokálně na notebooku uživatele (viz třeba GitHub Copilot CLI), ale z bezpečnostních a praktických důvodů to bude stále častěji stroj v cloudu. Agent potřebuje počítač a dát mu ho v cloudu bude dávat obrovský smysl. Pak je to ale půjčený compute - skutečné náklady za elektrony proudící v CPU a RAM. Infra cloud má nějakou marži (počítejme 30%-40%), takže zase platí, že i když má pro provoz slevu nebo si to hostuje sám, tak i tam většina ceny zůstane jako náklad.</p>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="cloud-model" aria-labelledby="cloud-model-title">
+      <h2 class="ia-group-title" id="cloud-model-title">Model pro cloud</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-cloud-model-head" type="button" aria-expanded="true" aria-controls="card-cloud-model" data-ia-card-button>
+            <span class="ia-card-num">04</span><span class="ia-card-title">Subskripce jako vstupenka, balíček spotřeby a dokupy</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-cloud-model" role="region" aria-labelledby="card-cloud-model-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Myslím, že tohle je model budoucnosti - subskripce, která vám odemyká vlastnosti a typicky obsahuje i nějakou <strong>předplacenou spotřebu</strong>, ideálně poolovanou. Pojďme si vysvětlit.</p>
+              <p>GitHub Copilot (oznámeno a v efektu od června) nebo Cursor fungují na principu, že máte předplatné, které vám umožňuje jeho funkce používat a současně obsahuje nějaké množství spotřeby. Ta může být klidně i naprosto nulová (seat-only, takhle to má Anthropic Claude Enterprise, v ceně není nic), nebo menší (za 20 USD licenci máte 10 USD v ceně), ale standard je obvykle od 1:1 nahoru (Cursor má 1:1 u 20 USD licence, ale 60 USD má v ceně 70 USD spotřeby, GitHub Copilot používá 1:1 takže v 19 USD licenci je 19 USD spotřeby).</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Modely spotřeby">
+                  <button class="ia-tab" id="tab-seat-only" type="button" role="tab" aria-selected="true" aria-controls="panel-seat-only">Seat-only</button>
+                  <button class="ia-tab" id="tab-included" type="button" role="tab" aria-selected="false" aria-controls="panel-included" tabindex="-1">Spotřeba v ceně</button>
+                  <button class="ia-tab" id="tab-pool" type="button" role="tab" aria-selected="false" aria-controls="panel-pool" tabindex="-1">Pool</button>
+                  <button class="ia-tab" id="tab-dokupy" type="button" role="tab" aria-selected="false" aria-controls="panel-dokupy" tabindex="-1">Dokupy a limity</button>
+                </div>
+                <div class="ia-tab-panel" id="panel-seat-only" role="tabpanel" aria-labelledby="tab-seat-only"><p>Licence odemyká produkt, ale v ceně není žádná spotřeba. Takhle to má Anthropic Claude Enterprise: v licenci nemáte zhola nic, dokupujete všechno.</p></div>
+                <div class="ia-tab-panel" id="panel-included" role="tabpanel" aria-labelledby="tab-included" hidden><p>Za licenci dostanete i nějaký balík spotřeby. Může být menší než cena licence, 1:1, nebo i vyšší - například Cursor má u 60 USD licence v ceně 70 USD spotřeby.</p></div>
+                <div class="ia-tab-panel" id="panel-pool" role="tabpanel" aria-labelledby="tab-pool" hidden><p>Všechny nakoupené licence dávají pool peněz pro celou firmu, takže uživatel, který to používá málo neznamená, že jeho spotřeba je tím ztracena - využije ji někdo jiný.</p></div>
+                <div class="ia-tab-panel" id="panel-dokupy" role="tabpanel" aria-labelledby="tab-dokupy" hidden><p>Enterprise potřebuje řídit per-user limity a politiku dokupů podle firmy nebo organizací. To podle mě nahrazuje éru vágních limitů typu týden, hodina, výjimky a nejasné změny.</p></div>
+              </div>
+              <p>Co mi přijde velmi férové, a má to pokud vím jen GitHub Copilot a Cursor, je <strong>pool</strong>. Všechny nakoupené licence dávají pool peněz pro celou firmu, takže uživatel, který to používá málo neznamená, že jeho spotřeba je tím ztracena - využije ji někdo jiný. Ideální pro AI infusing do organizace - mají to mít všichni! Tohle je dobrá incentiva, nikdo není "neperspektivní" a proto bez AI, mají všichni a pokud někdo nevyužije naplno, spotřebuje někdo jiný. Je samozřejmě důležité pak mít dobré možnosti řízení případných per-user limitů a politiku dokupů podle firmy nebo jejích organizací - tohle má GitHub Copilot výborně zpracované.</p>
+              <p>Claude Code je velmi čitelný v Enterprise verzi - <strong>v licenci nemáte zhola nic, dokupujete všechno</strong>. Myslím, že éra vágních limitů (týden, hodina, nikdy neřekneme přesně, řekneme ale pak to pořád měníme a dáváme výjimky) skončí a to zejména pro enterprise, protože takové mlžení pro firmy není dobré. OpenAI Codex ale v tomhle aktuálně ještě jede.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="zbytek-ai" aria-labelledby="zbytek-ai-title">
+      <h2 class="ia-group-title" id="zbytek-ai-title">Za kódováním</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-zbytek-ai-head" type="button" aria-expanded="true" aria-controls="card-zbytek-ai" data-ia-card-button>
+            <span class="ia-card-num">05</span><span class="ia-card-title">To je kódování, co zbytek?</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-zbytek-ai" role="region" aria-labelledby="card-zbytek-ai-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Aktuálně se tohle všechno týká kódovacích agentů, ale ostatní AI služby jako je M365 Copilot, Gemini, OpenAI, Claude, stále typicky běží na klasičtější subskripci s podivnými limity. Výjimkou je ale Claude Enterprise - ani pro běžné povídání není v ceně nic, je to seat only. Tipuji, že je to předzvěst toho, že i ostatní služby pro enterprise se jednoho dne dostanou do jiného modelu a tipuji nějaký model dost podobný kódovacím agentům - poplatek za hodinu propůjčeného počítače (například pro Cowork), poplatek za tokeny.</p>
+              <p>A co vy? Preferujete svět flat subscription s podivnými a nejasnými limity, nenápadným snižováním kvality (viz některé Claude aféry z posledních pár dní), ale potenciálně lepší cenovou předvídatelností a možnost z toho dostat o několik řádů víc, pokud jste power user? Nebo se vám líbí víc model podle skutečné spotřeby s odděleným poplatkem za vstupenku? Já osobně, protože jsem odchován Azure a platbu dle skutečného použití považuji za nejpřirozenější a férovou, mám rád ten model co teď má GitHub Copilot - subskripce něco stojí, ale její hodnotu dostáváte zpět v tokenech a to poolovaně, takže se nemusíte bát dát subskripci i těm, co ještě neumí tolik využívat.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-zdrazuje-ai-head" type="button" aria-expanded="true" aria-controls="card-zdrazuje-ai" data-ia-card-button>
+            <span class="ia-card-num">06</span><span class="ia-card-title">Zdražuje AI?</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-zdrazuje-ai" role="region" aria-labelledby="card-zdrazuje-ai-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Takže zdražuje AI? Nemyslím - tokeny jsou na celém trhu naceněny velmi férově s rozumnou marží a nikdy se nezdražují pro konkrétní generaci/kvalitu. Spíše přichází nové modely a reálně dnešní mini model v cloudu vám udělá za 5x nižší cenu podobnou službu jako high-end model před rokem, poplatek za jednotku inteligence se tedy naprosto dramaticky snižuje a to víc než u jakékoli jiné IT technologie za posledních 50 let. Jenže - dnes vám kódovací agent za hodinu napíše celou aplikaci, před rokem vám AI asistent navrhl novou třídu a když jste ji spustili, tak jste řešili, že nefunguje a vraceli jste mu to. Jestli vám stačí žít v minulosti, použijte 5x levnější model a užijte si, že šetříte - AI se brutálně zlevnilo. Já raději pojedu na jiné vlně - za velmi podobné peníze jako před rokem či dvěma dnes mám řešení podstatně kvalitnější a užitečnější. Preferuju inteligenci a růst před úsporami. Ale každý to může mít jinak a je to v pořádku - <strong>ale AI se nezdražilo</strong>. Nicméně narazilo se na limit obchodního modelu, který je v této éře neudržitelný. Podle mě potřebujeme model kdy za předvídatelné náklady zavedeme AI všem a díky poolu nepřijdeme o nevyužité tokeny a budeme si řídit rozumně limity dokupování třeba podle organizací nebo individuálně.</p>
+              <div class="ia-summary-grid">
+                <div class="ia-summary-item"><strong>Adopce</strong><p>Flat subskripce lidi vtáhne do používání.</p></div>
+                <div class="ia-summary-item"><strong>Limit</strong><p>Agenti nemají přirozený strop spotřeby jako hodiny poslechu nebo návštěvy posilovny.</p></div>
+                <div class="ia-summary-item"><strong>Náklady</strong><p>Tokeny a cloud compute jsou skutečné a měřitelné náklady.</p></div>
+                <div class="ia-summary-item"><strong>Férovost</strong><p>Ideální je předvídatelná licence, poolovaná spotřeba a řízené dokupy.</p></div>
+              </div>
+              <p>Mám připravené a otestované tipy jak na tokenech šetřit - na to se podíváme v příštím článku!</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-closing" aria-label="Závěr">
+      <p class="ia-quote">AI se nezdražilo. <strong>Narazili jsme na limit obchodního modelu</strong>, který agenti v téhle éře rozbili.</p>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+  </footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

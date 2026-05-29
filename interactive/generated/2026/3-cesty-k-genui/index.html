@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tři cesty k GenUI a jejich výhody a nevýhody</title>
+<meta name="description" content="Statický artefakt, deklarativní specifikace, nebo plně generovaný interaktivní kód? Tři praktické cesty k vizuálnímu GenUI a jejich kompromisy.">
+<link rel="canonical" href="/new/2026/3-cesty-k-genui/">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<script defer src="../../assets/interactive-article.js"></script>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">GenUI a AI-first rozhraní</p>
+    <h1 class="ia-title">Tři cesty k GenUI a jejich výhody a nevýhody</h1>
+    <p class="ia-subtitle">Statický artefakt, deklarativní specifikace, nebo plně generovaný interaktivní kód? Tři praktické cesty k vizuálnímu GenUI a jejich kompromisy.</p>
+    <p class="ia-date"><time datetime="2026-01-27">27. 1. 2026</time></p>
+    <nav class="ia-links" aria-label="Zdrojové soubory">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <nav class="ia-toc" aria-label="Obsah">
+    <p class="ia-toc-title">Obsah</p>
+    <div class="ia-toc-list">
+      <a href="#ai-ui"><span class="ia-toc-num">01</span><span>Univerzální UI pro AI vs. AI-first UI</span></a>
+      <a href="#tri-cesty"><span class="ia-toc-num">02</span><span>Tři cesty k vytvoření vizuálního GenUI</span></a>
+      <a href="#shrnuti"><span class="ia-toc-num">03</span><span>Shrnutí</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="ia-group" id="uvod" aria-labelledby="uvod-title">
+      <h2 class="ia-group-title" id="uvod-title">Úvod</h2>
+      <article class="ia-card is-open" data-ia-card>
+        <button class="ia-card-head" id="card-uvod-head" type="button" aria-expanded="true" aria-controls="card-uvod" data-ia-card-button>
+          <span class="ia-card-title">Proč mě GenUI fascinuje</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+        </button>
+        <div class="ia-card-body" id="card-uvod" role="region" aria-labelledby="card-uvod-head" data-ia-card-panel>
+          <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+            <p>Oblast ad-hoc automaticky generovaného UI mě fascinuje a považuji ji za klíčovou pro moderní aplikace zrozené v AI světě. Nepochybně uvidíme aplikace využívající jiné než vizuální modality, například hlas (spekuluje se, že první consumer AI zařízení z rýsovacího prkna tvůrce iPhonu pracujícího v OpenAI Jony Ive bude právě chytrý repráček), nicméně obrazovka s námi nějaký čas zůstane a v nějaké formě bude součástí uživatelského rozhraní dokud nepřejdeme plně na brain-computer rozhraní typu Neuralink. Ale aby bylo UI naprogramované a univerzální v nějaké aplikaci nemyslím, že bude pravděpodobné.</p>
+          </div></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="ia-group" id="ai-ui" aria-labelledby="ai-ui-title">
+      <h2 class="ia-group-title" id="ai-ui-title">Univerzální UI pro AI vs. AI-first UI</h2>
+      <p class="ia-section-intro">Očekávám dva přístupy:</p>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ui-schranka-head" type="button" aria-expanded="true" aria-controls="card-ui-schranka" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">UI schránka pro AI</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-ui-schranka" role="region" aria-labelledby="card-ui-schranka-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>To bude například <strong>Copilot</strong> nebo <strong>Excel</strong>. Univerzální způsob interakce s AI a moje specifické aplikace budou žít uvnitř. Tak například pokud jsem banka, tak moje poradenství, přehledy, aktuální události, to budu chtít přístupné ve své "chat" aplikaci, například Copilotovi. Nicméně pokud jde o nějaké finanční plánování, rozpočty a tak podobně, chat není vhodný formát a Excel je na to výborný. Banka by tedy měla mít podporu v mém Excelu - musí být schopna mi tam natáhnout výdaje, pomoci s finančním zdravím, nabídnout konsolidaci úvěrů nebo různé optimalizace.</p>
+            </div></div>
+          </div>
+        </article>
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ai-first-head" type="button" aria-expanded="true" aria-controls="card-ai-first" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">AI-first UI</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-ai-first" role="region" aria-labelledby="card-ai-first-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Některé aplikace budou natolik jiné a složité, že jejich odběr z univerzálního UI typu Copilot nebo PowerPoint nebude vhodný. Tak například AI-first řešení pro muzikanty, kde budete schopni broukat jednotlivé melodie, harmonické postupy, rytmy a AI vám bude pomáhat je přetvářet v party, přehrávat jak to zní a společně budete váš výtvor aranžovat. Nemyslím, že tohle je na chat nebo Word, co myslíte?</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="tri-cesty" aria-labelledby="tri-cesty-title">
+      <h2 class="ia-group-title" id="tri-cesty-title">Tři cesty k vytvoření vizuálního GenUI a jejich porovnání</h2>
+      <article class="ia-card is-open" data-ia-card>
+        <button class="ia-card-head" id="card-cesty-head" type="button" aria-expanded="true" aria-controls="card-cesty" data-ia-card-button>
+          <span class="ia-card-title">Mapa možností</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+        </button>
+        <div class="ia-card-body" id="card-cesty" role="region" aria-labelledby="card-cesty-head" data-ia-card-panel>
+          <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+            <p>Objevují se tři cesty k vytváření generovaného vizuálního uživatelského rozhraní (GenUI):</p>
+            <div class="ia-sequence" aria-label="Tři cesty">
+              <h3 class="ia-sequence-title">Tři cesty</h3>
+              <ol class="ia-sequence-list">
+                <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Statické artefakty generované ad-hoc</strong><p>Výstupem je obrázek nebo podobný artefakt.</p></li>
+                <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Deklarativní UI specifikace generované ad-hoc</strong><p>AI skládá předem dané komponenty.</p></li>
+                <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Plně generované interaktivní UI generováním imperativního kódu ad-hoc</strong><p>AI vytvoří mini-aplikaci na míru.</p></li>
+              </ol>
+            </div>
+            <p>Podívejme se na ně blíže a porovnejme jejich výhody a nevýhody.</p>
+          </div></div>
+        </div>
+      </article>
+
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-staticke-head" type="button" aria-expanded="true" aria-controls="card-staticke" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">Statické artefakty generované ad-hoc</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-staticke" role="region" aria-labelledby="card-staticke-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Tohle se rozmohlo už v roce 2023, pár měsíců po spuštění ChatGPT a později přibylo přímo do API. Používá se to typicky pro generování grafů a diagramů z nějakých tabulkových dat. Přidáte Code Interpreter jako nástroj a pokud model vidí, že jsou na vstupu tabulková data a je dobré udělat graf, napíše kód v Pythonu s využitím knihovny Matplotlib nebo Seaborn a tím vznikne obrázek s výstupem. Ten si vytáhne ze sandboxu a zobrazí uživateli.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Výhody a nevýhody statických artefaktů">
+                  <button class="ia-tab" id="tab-staticke-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-staticke-vyhody">Výhody</button>
+                  <button class="ia-tab" id="tab-staticke-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-staticke-nevyhody">Nevýhody</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-staticke-vyhody" role="tabpanel" aria-labelledby="tab-staticke-vyhody">
+                  <ul>
+                    <li>Velmi bezpečné - sandbox typicky nemůže na internet (takže data nemůžou odejít pryč) a k uživateli se dostává pouze JPEG/PNG obrázek, nic se nikde nespouští</li>
+                    <li>Snadno lze uložit v historii a vyvolat zpět, stačí soubor držet v nějakém blobu s GUID a RBAC pro uživatele a do historie k němu dát odkaz</li>
+                  </ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-staticke-nevyhody" role="tabpanel" aria-labelledby="tab-staticke-nevyhody" hidden>
+                  <ul>
+                    <li>Nulová interaktivita - s grafem nelze nijak manipulovat, filtrovat, zoomovat</li>
+                    <li>Grafická omezení a horší přizpůsobitelnost hlavnímu designu aplikace</li>
+                  </ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-deklarativni-head" type="button" aria-expanded="true" aria-controls="card-deklarativni" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">Deklarativní UI specifikace generované ad-hoc</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-deklarativni" role="region" aria-labelledby="card-deklarativni-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Druhá varianta spočívá v rozdělení kódu pro zobrazení od toho, jak říct, co se má zobrazit. Myšlenka je, že vytvoříte deklarativní jazyk - seznam možných komponent a nějaké jejich atributy, například tlačítko, obrázek, seznam a tak podobně a AI bude mít možnost generovat pouze v mantinelech toho deklarativního jazyka. Nedělá žádný imperativní kód typu JavaScript, pouze vybírá z nějakého pole možností, co tam chce a jak to chce poskládat. Typickým příkladem jsou <a href="https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/design-effective-cards?tabs=design">Adaptive Cards</a> od Microsoftu pro Teams, které jsou odladěné a používané už před příchodem AI. Další zajímavou možností je <a href="https://a2ui-composer.ag-ui.com/gallery">A2UI</a> primárně od Google, které jsou více zaměřené na web a Android a tím, že jsou novější, mají i některé optimalizace pro GenUI (například to, že Adaptive Cards jsou JSON, takže AI vygeneruje celé a může začít Teams zobrazovat, zatímco A2UI jsou JSONL, kdy každý element je vlastní JSON řádek, a lze tak použít streaming a postupné vykreslování).</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Výhody a nevýhody deklarativního UI">
+                  <button class="ia-tab" id="tab-deklarativni-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-deklarativni-vyhody">Výhody</button>
+                  <button class="ia-tab" id="tab-deklarativni-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-deklarativni-nevyhody">Nevýhody</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-deklarativni-vyhody" role="tabpanel" aria-labelledby="tab-deklarativni-vyhody">
+                  <ul>
+                    <li>Bezpečné - AI nemůže generovat libovolný kód, pouze předem dané komponenty</li>
+                    <li>Interaktivní - uživatel má typicky možnost na některé věci klikat</li>
+                    <li>Design má pod kontrolou klient - rendering je na klientovi, například Teams, takže grafické provedení je plně v jeho moci</li>
+                  </ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-deklarativni-nevyhody" role="tabpanel" aria-labelledby="tab-deklarativni-nevyhody" hidden>
+                  <ul>
+                    <li>Omezené možnosti - pokud AI potřebuje něco, co není v sadě komponent, nemůže to udělat</li>
+                    <li>Náročnější na implementaci - je potřeba vytvořit a udržovat sadu komponent a jejich rendering</li>
+                  </ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-imperativni-head" type="button" aria-expanded="true" aria-controls="card-imperativni" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title">Plně generované interaktivní UI generováním imperativního kódu ad-hoc</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-imperativni" role="region" aria-labelledby="card-imperativni-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Co dát AI volnou ruku generovat si jakýkoli kód a ten uživateli v iframe zobrazit? Tato maximální flexibilita umožňuje vytvářet doslova mini-aplikace na míru, ad-hoc a je to velmi dobrá varianta. Už jsem si s tím hrál, v květnu jsem tady <a href="https://tomaskubica.cz/post/2025/genui/">psal</a> o využití HTMX standardu pro server-side rendering s AI. Tím, jak se možnosti AI v kódování stále zlepšují, to dnes lze posunout ještě mnohem dál. Novinkou je, že se objevil nový standard (extenze MCP), jak předávat vygenerovaný kód zpět do agenta - <a href="https://mcpui.dev/">MCP-Apps</a>. Novinkou je, že MCP-Apps je ode dneška podporován ve <a href="https://code.visualstudio.com/blogs/2026/01/26/mcp-apps-support">VS Code Insiders</a>.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Výhody a nevýhody imperativního generování">
+                  <button class="ia-tab" id="tab-imperativni-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-imperativni-vyhody">Výhody</button>
+                  <button class="ia-tab" id="tab-imperativni-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-imperativni-nevyhody">Nevýhody</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-imperativni-vyhody" role="tabpanel" aria-labelledby="tab-imperativni-vyhody">
+                  <ul>
+                    <li>Maximální flexibilita - AI může vytvořit cokoliv, co je možné v daném jazyce a frameworku</li>
+                    <li>Plná interaktivita - uživatel může s UI plně interagovat, jde doslova o mini-aplikace</li>
+                  </ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-imperativni-nevyhody" role="tabpanel" aria-labelledby="tab-imperativni-nevyhody" hidden>
+                  <ul>
+                    <li>Bezpečnostní rizika - spouštění generovaného kódu může představovat bezpečnostní hrozby, je potřeba mít sandboxing a další opatření</li>
+                    <li>Design může být nekonzistentní - pokud AI nemá dostatečné pokyny, může generovat UI, které neodpovídá celkovému designu aplikace</li>
+                  </ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="shrnuti" aria-labelledby="shrnuti-title">
+      <h2 class="ia-group-title" id="shrnuti-title">Shrnutí</h2>
+      <div class="ia-summary-grid">
+        <div class="ia-summary-item"><strong>Statické artefakty</strong><p>Bezpečné a snadno uložené, ale bez interaktivity.</p></div>
+        <div class="ia-summary-item"><strong>Deklarativní specifikace</strong><p>Bezpečnější a interaktivní, ale omezené sadou komponent.</p></div>
+        <div class="ia-summary-item"><strong>Imperativní kód</strong><p>Maximální flexibilita a mini-aplikace, ale s bezpečnostními a designovými riziky.</p></div>
+      </div>
+      <div class="ia-callout verdict">
+        <span class="ia-callout-title">Otázka na závěr</span>
+        <p>Tak co, už mají vaše aplikace #GenUI schopnosti? Kterou z cest plánujete využít?</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <nav class="ia-links" aria-label="Zdrojové soubory ve footeru">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </footer>
+</div>
+</body>
+</html>

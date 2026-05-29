@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jak centrálně spravovat a řídit skills pro agenty</title>
+<link rel="canonical" href="/new/2026/agent-skills-centralni-sprava/">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<script defer src="../../assets/interactive-article.js"></script>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">Skills jako týmová schopnost</p>
+    <h1 class="ia-title">Jak centrálně spravovat a řídit skills pro agenty</h1>
+    <p class="ia-subtitle">Stáhnout centrální skill, při potřebě zlepšení udělat lokální PoC, poslat návrh do GitHubu, nechat agenty triážovat i připravit PR po lidském schválení a vylepšený skill distribuovat všem.</p>
+    <p class="ia-date"><time datetime="2026-05-11">11. 5. 2026</time></p>
+    <nav class="ia-links" aria-label="Zdrojové soubory">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <nav class="ia-toc" aria-label="Obsah">
+    <p class="ia-toc-title">Obsah</p>
+    <div class="ia-toc-list">
+      <a href="#idea"><span class="ia-toc-num">01</span><span>Idea</span></a>
+      <a href="#lokalni-zkusenost"><span class="ia-toc-num">02</span><span>Lokální zkušenost</span></a>
+      <a href="#centralni-governance"><span class="ia-toc-num">03</span><span>Centrální governance</span></a>
+      <a href="#agenticke-doruceni"><span class="ia-toc-num">04</span><span>Agentické doručení</span></a>
+      <a href="#shrnuti"><span class="ia-toc-num">05</span><span>Shrnutí a co si vyzkoušet</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="ia-callout verdict">
+      <span class="ia-callout-title">Pointa</span>
+      Skill je skvělý pro znalost, instrukce a governance. CLI nebo jiný nástroj je skvělý pro opakovanou, vícekrokovou a měřitelnou práci. GitHub je přirozené místo, kde se z lokální zkušenosti stane týmově řízená schopnost.
+    </div>
+
+    <section class="ia-group" id="idea">
+      <h2 class="ia-group-title">Idea</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-task-api-head" aria-expanded="true" aria-controls="card-task-api" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">Task API jako bezpečný demo problém</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-task-api" aria-labelledby="card-task-api-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Pro účely dema jsem si vyrobil vlastní API pro správu tasků. Není to GitHub API a nejde o skutečné firemní systémy. Je to simulovaný, kontrolovaný problém: tasky, komentáře, stav <code>waiting-for-response</code>, občasné <code>429</code> a workflow, které je dost reálné na to, aby agent narazil na stejné potíže jako v praxi. Celý demo katalog je veřejně v repozitáři <a href="https://github.com/tkubica12/skills-demo-catalog">tkubica12/skills-demo-catalog</a>.</p>
+              <p>V katalogu je skill <code>task-api-helper</code>, který obsahuje:</p>
+              <ul>
+                <li><code>SKILL.md</code> s instrukcemi a popisem schopnosti.</li>
+                <li><code>scripts/task_cli.py</code> jako CLI wrapper nad Task API.</li>
+                <li><code>references/API.md</code> pro pochopení podkladového API, když CLI nestačí.</li>
+                <li><code>references/IMPROVEMENT-PROCESS.md</code> s pravidly, jak skill vylepšovat přes centrální proces.</li>
+              </ul>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-evolution-head" aria-expanded="true" aria-controls="card-evolution" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">Evoluce: kontext -> CLI -> vyšší operace</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-evolution" aria-labelledby="card-evolution-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Typická evoluce skillu nad API je podle mě tahle:</p>
+              <div class="ia-sequence" aria-label="Cesta od znalosti ke sdílené schopnosti">
+                <h3 class="ia-sequence-title">Cesta od znalosti ke sdílené schopnosti</h3>
+                <ol class="ia-sequence-list">
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Skill jako kontext</strong><p>Markdown vysvětlí API, business kontext a dobrý postup použití.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Přidání CLI</strong><p>Agent používá stabilní příkazy místo skládání <code>curl</code>, JSON escapingu a ručních retry.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Vyšší operace v CLI</strong><p>Opakované vícekrokové workflow se přesune do kódu, aby ho agent nemusel pokaždé znovu skládat.</p></li>
+                </ol>
+              </div>
+              <p>Tady se objevila zásadní otázka: pokud takové skilly začnou vznikat lokálně, jak je spravovat centrálně pro tým? Nechci, aby každý kopíroval soubory ručně. Chci governance, návrhy změn, schválení, benchmarky a jasnou distribuci.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="lokalni-zkusenost">
+      <h2 class="ia-group-title">Lokální zkušenost</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-install-head" aria-expanded="true" aria-controls="card-install" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title">Nainstalujeme skill z katalogu</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-install" aria-labelledby="card-install-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>V novém, úplně obyčejném repozitáři nainstaluji skill z centrálního katalogu pomocí <code>gh skill</code>:</p>
+              <div class="ia-code has-label"><span class="ia-code-label">Instalace z centrálního katalogu</span><pre><code>gh skill install tkubica12/skills-demo-catalog task-api-helper --scope project --agent github-copilot</code></pre></div>
+              <p>Pak v nainstalovaném skillu nastavím <code>.env</code>, aby CLI vědělo, kde běží demo Task API:</p>
+              <div class="ia-code has-label"><span class="ia-code-label">.agents/skills/task-api-helper/.env</span><pre><code>TASK_API_URL=https://task-api-demo.example.azurecontainerapps.io</code></pre></div>
+              <p>Konzumentský repozitář je pořád čistý. Schopnost přišla z katalogu, ne z lokálního copy-paste promptu.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-first-use-head" aria-expanded="true" aria-controls="card-first-use" data-ia-card-button>
+            <span class="ia-card-num">04</span><span class="ia-card-title">První použití: funguje, ale bolí</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-first-use" aria-labelledby="card-first-use-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Agent umí Task API použít. Umí vypsat tasky čekající na odpověď, otevřít konkrétní task a přidat komentář. Problém začne ve chvíli, kdy chci stejný komentář přidat ke všem taskům ve stavu <code>waiting-for-response</code>.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-transcript-head" aria-expanded="false" aria-controls="reveal-transcript" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Transcript z použití Task API</button>
+                <div class="ia-reveal-body" id="reveal-transcript" aria-labelledby="reveal-transcript-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <div class="ia-code"><pre><code>&gt; List tasks waiting for response and summarize what needs attention.
+
+The Task API is responding, but the first request hit a rate limit. I’m checking the response shape and then retrying with a short pause so I can give you the actual waiting items instead of a guess.
+
+5 tasks are waiting for response. The ones needing the most attention are the two high-priority items stalled on external confirmation or approval.
+
+  ┌──────────────────────────────────────────────────────────────────┬──────────┬───────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Task                                                             │ Priority │ Assignee          │ Needs attention                                                                                                        │
+  ├──────────────────────────────────────────────────────────────────┼──────────┼───────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ task-1 — Waiting on customer confirmation — order #8821          │ High     │ alice@example.com │ Customer still has not confirmed after the initial outreach and a 48-hour follow-up.                                   │
+  │ task-3 — Awaiting legal sign-off on NDA amendment                │ High     │ carol@example.com │ Legal review is pending after the NDA draft was forwarded.                                                             │
+  │ task-2 — Pending vendor reply for Q3 renewal                     │ Medium   │ bob@example.com   │ Vendor has not replied since the renewal quote was sent.                                                               │
+  │ task-5 — Infrastructure cost review — ops team response needed   │ Medium   │ eve@example.com   │ Ops response is pending, and there is no comment history, so this likely needs owner context or a first follow-up.     │
+  │ task-4 — Customer reported login failure — needs repro steps     │ Low      │ dave@example.com  │ Blocked waiting for the customer to provide reproduction steps.                                                        │
+  └──────────────────────────────────────────────────────────────────┴──────────┴───────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+&gt; Open task-1 and add this comment: "Following up - please provide an update."
+
+Added the comment to task-1. The API accepted it as comment c-c0d260d5.
+
+&gt; Add the same comment to every task waiting for response.
+
+The bulk run hit rate limits mid-stream. I’m reading the exact output and then I’ll finish only the tasks that didn’t get updated.
+task-5 was the only one not updated. I’m retrying that single task with a slower cadence to get it through cleanly.
+Done. The comment was added to all other tasks currently in waiting-for-response, and task-1 was skipped because it already had the same comment.</code></pre></div>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-improvement-head" aria-expanded="false" aria-controls="card-improvement" data-ia-card-button>
+            <span class="ia-card-num">05</span><span class="ia-card-title">Agent sám navrhne zlepšení</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-improvement" aria-labelledby="card-improvement-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Přesně v tomhle momentu dává smysl zeptat se agenta, co by šlo udělat lépe. Ne proto, aby rovnou změnil centrální katalog, ale aby nejdřív popsal opakovanou bolest a navrhl ověřitelný lokální experiment.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-improvement-head" aria-expanded="false" aria-controls="reveal-improvement" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Návrh zlepšení</button>
+                <div class="ia-reveal-body" id="reveal-improvement" aria-labelledby="reveal-improvement-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <div class="ia-code"><pre><code>Best improvement: add a first-class bulk command to the shared CLI, for example:
+
+python task_cli.py bulk-add-comment --status waiting-for-response --text "Following up - please provide an update." --skip-existing
+
+That would help because this workflow currently requires list -&gt; get each task -&gt; detect duplicates -&gt; post comment, which is slow and exposed to 429 rate limits. A bulk command could make it both faster and more reliable by handling:
+
+- built-in retry/backoff for rate limits
+- duplicate-comment detection (--skip-existing)
+- a single summary of which tasks were updated or skipped
+
+Per the skill’s process, the right next step would be a local proof of concept that captures before/after evidence: fewer API calls, fewer retries, and cleaner operator output.</code></pre></div>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-poc-head" aria-expanded="true" aria-controls="card-poc" data-ia-card-button>
+            <span class="ia-card-num">06</span><span class="ia-card-title">Lokální PoC: issue, benchmark a důkaz</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-poc" aria-labelledby="card-poc-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Tady je důležitý governance detail: konzumentský agent si může udělat <strong>dočasný lokální PoC</strong>, aby ověřil hypotézu. Nemá ale trvale forkovat centrální skill. Po ověření má lokální změnu zahodit a otevřít issue v katalogu s důkazy.</p>
+              <p>Výsledek v demu: <a href="https://github.com/tkubica12/skills-demo-catalog/issues/15">skills-demo-catalog issue #15</a>.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="PoC evidence">
+                  <button class="ia-tab" id="tab-baseline-loop" role="tab" aria-selected="true" aria-controls="panel-baseline-loop">Baseline loop</button>
+                  <button class="ia-tab" id="tab-bulk-poc" role="tab" aria-selected="false" aria-controls="panel-bulk-poc">Bulk PoC</button>
+                  <button class="ia-tab" id="tab-repeat-run" role="tab" aria-selected="false" aria-controls="panel-repeat-run">Opakovaný běh</button>
+                </div>
+                <div class="ia-tab-panel" id="panel-baseline-loop" role="tabpanel" aria-labelledby="tab-baseline-loop"><p>Původní postup musel dělat list -> get jednotlivých tasků -> kontrolu duplicit -> komentář po jednom. V PoC měření zvládl <strong>4/5 tasků</strong>, trval asi <strong>29.96s</strong> a narazil na <strong>1 rate-limit failure</strong>.</p></div>
+                <div class="ia-tab-panel" id="panel-bulk-poc" role="tabpanel" aria-labelledby="tab-bulk-poc" hidden><p>Dočasný příkaz <code>bulk-add-comment</code> vyřešil stejný cíl jako jedna vyšší operace. Výsledek: <strong>5/5 tasků</strong>, asi <strong>6.27s</strong>, <strong>0 failures</strong>.</p></div>
+                <div class="ia-tab-panel" id="panel-repeat-run" role="tabpanel" aria-labelledby="tab-repeat-run" hidden><p>Opakovaný běh ověřil <code>--skip-existing</code>: agent neduplikuje komentáře a dostane čistý souhrn, co aktualizoval a co přeskočil.</p></div>
+              </div>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-poc-head" aria-expanded="false" aria-controls="reveal-poc" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Agent zapíše PoC do upstream issue</button>
+                <div class="ia-reveal-body" id="reveal-poc" aria-labelledby="reveal-poc-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <div class="ia-code"><pre><code>&gt; OK, this make sense. Follow improvement guide, test this idea locally as PoC and if it is good, publish this is detailed issue into skills-demo-catalog repository.
+
+I’m setting up a proper local PoC in the installed skill, capturing before/after evidence, and then I’ll revert the local patch before opening the upstream issue if the results hold.
+I’ve got a clean baseline: 11 calls over ~30s, one 429, and only 4 of 5 tasks updated.
+The first PoC run worked cleanly: all 5 tasks updated in about 6 seconds with no failures.
+I’ve got enough evidence now: the PoC fixed the partial-failure case and validated duplicate skipping. I’m writing the findings down, restoring the installed skill to the published baseline, and then I’ll open the upstream issue from that evidence.
+
+https://github.com/tkubica12/skills-demo-catalog/issues/15</code></pre></div>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="centralni-governance">
+      <h2 class="ia-group-title">Centrální governance</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-process-head" aria-expanded="true" aria-controls="card-process" data-ia-card-button>
+            <span class="ia-card-num">07</span><span class="ia-card-title">Repozitář jako katalog a proces</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-process" aria-labelledby="card-process-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Lokální PoC je dobrý pro učení. Pro tým potřebujeme repozitář, který je katalog, audit trail, distribuční mechanismus i místo, kde se rozhoduje o změnách.</p>
+              <div class="ia-steps" aria-label="Životní cyklus zlepšení">
+                <h3 class="ia-steps-title">Životní cyklus zlepšení</h3>
+                <ol class="ia-steps-list">
+                  <li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Local experiment</strong><p>Konzumentský tým zkusí dočasný PoC proti workflow, které ho bolí.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Benchmark</strong><p>Zachytí před/po evidenci: čas, retry, méně ručních kroků, čistší výstup.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Issue with template</strong><p>Lokální změny se zahodí a otevře se issue v katalogu.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Advisory triage</strong><p>Agentická workflow přidá doporučení a případně <code>copilot-recommended</code>.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">Human triage</strong><p>Maintainer rozhodne, jestli změna patří do sdíleného kontraktu.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">6</span><div><strong class="ia-step-title">Copilot implementation</strong><p>Po <code>accepted</code> implementuje změnu cloud agent.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">7</span><div><strong class="ia-step-title">Pull request</strong><p>PR mění CLI, dokumentaci, testy a benchmark spec.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">8</span><div><strong class="ia-step-title">Catalog release</strong><p>Po merge se katalog taguje a vydává.</p></div></li>
+                  <li class="ia-step"><span class="ia-step-num">9</span><div><strong class="ia-step-title">Consumer update</strong><p>Konzumenti aktualizují skill a zahodí lokální workaround.</p></div></li>
+                </ol>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-triage-head" aria-expanded="true" aria-controls="card-triage" data-ia-card-button>
+            <span class="ia-card-num">08</span><span class="ia-card-title">Agentická triáž v GitHub Actions</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-triage" aria-labelledby="card-triage-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Pro triáž jsem použil GitHub Agentic Workflows v GitHub Actions. Workflow si přečte issue, ověří, jestli má lokální PoC důkazy, a přidá stručné doporučení pro maintainera. Důležité: agent nepřidává <code>accepted</code> a nenahrazuje lidské rozhodnutí.</p>
+              <ul>
+                <li>Workflow předpis: <a href="https://github.com/tkubica12/skills-demo-catalog/blob/main/.github/workflows/task-api-enhancement-triage.md"><code>task-api-enhancement-triage.md</code></a></li>
+                <li>Issue: <a href="https://github.com/tkubica12/skills-demo-catalog/issues/15">#15 Bulk add comment command</a></li>
+                <li>Advisory label: <code>copilot-recommended</code></li>
+                <li>Human gate: <code>accepted</code></li>
+              </ul>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-triage-head" aria-expanded="false" aria-controls="reveal-triage" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshots triáže a labelu</button>
+                <div class="ia-reveal-body" id="reveal-triage" aria-labelledby="reveal-triage-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-12-13-01.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-12-13-01.png" alt="Issue s PoC evidence" loading="lazy"></a><figcaption>Issue s PoC evidence.</figcaption></figure>
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-12-13-48.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-12-13-48.png" alt="Agentic triage workflow run" loading="lazy"></a><figcaption>Agentic triage workflow run.</figcaption></figure>
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-12-22-20.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-12-22-20.png" alt="Accepted label jako signál pro další krok" loading="lazy"></a><figcaption>Accepted label jako signál pro další krok.</figcaption></figure>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="agenticke-doruceni">
+      <h2 class="ia-group-title">Agentické doručení</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-cloud-head" aria-expanded="true" aria-controls="card-cloud" data-ia-card-button>
+            <span class="ia-card-num">09</span><span class="ia-card-title">Accepted label spouští cloud agenta</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-cloud" aria-labelledby="card-cloud-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Další krok je záměrně jednoduchý: po přidání labelu <code>accepted</code> se issue přiřadí Copilotovi v cloudu. Ten má z issue a katalogu dost kontextu, aby připravil změnu jako pull request. Člověk pořád rozhoduje, ale repetitivní implementační práce jde na agenta.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-cloud-head" aria-expanded="false" aria-controls="reveal-cloud" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Cloud agent workflow a běh</button>
+                <div class="ia-reveal-body" id="reveal-cloud" aria-labelledby="reveal-cloud-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-12-23-31.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-12-23-31.png" alt="Workflow pro spuštění cloud agenta" loading="lazy"></a><figcaption>Workflow pro spuštění cloud agenta.</figcaption></figure>
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-12-23-52.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-12-23-52.png" alt="Cloud agent začíná pracovat" loading="lazy"></a><figcaption>Cloud agent začíná pracovat.</figcaption></figure>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-pr-head" aria-expanded="true" aria-controls="card-pr" data-ia-card-button>
+            <span class="ia-card-num">10</span><span class="ia-card-title">Pull request bez průběžného steerování</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-pr" aria-labelledby="card-pr-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>V tomhle pokusu jsem do agenta nijak dále nezasahoval. Výsledek nebyl dokonalý, ale byl dost dobrý na review: přidal vyšší CLI operaci, aktualizoval skill instrukce, doplnil testy a připravil benchmark spec. Přesně tak má podle mě vypadat první agentické doručení.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-pr-head" aria-expanded="false" aria-controls="reveal-pr" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Pull request a změny</button>
+                <div class="ia-reveal-body" id="reveal-pr" aria-labelledby="reveal-pr-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-14-31-15.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-14-31-15.png" alt="Pull request od agenta" loading="lazy"></a><figcaption>Pull request od agenta.</figcaption></figure>
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-14-31-55.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-14-31-55.png" alt="Detail změn v PR" loading="lazy"></a><figcaption>Detail změn v PR.</figcaption></figure>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-benchmark-head" aria-expanded="true" aria-controls="card-benchmark" data-ia-card-button>
+            <span class="ia-card-num">11</span><span class="ia-card-title">Benchmark jako důkaz, ne pocit</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-benchmark" aria-labelledby="card-benchmark-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Benchmark je důležitý, protože jinak by šlo jen o dojem. V lokálním PoC už máme důkaz, že vyšší operace pomohla:</p>
+              <div class="ia-table-wrap"><table><thead><tr><th>Varianta</th><th class="align-right">Úspěšnost</th><th class="align-right">Čas</th><th class="align-right">Rate-limit failure</th></tr></thead><tbody><tr><td>Baseline loop</td><td class="align-right">4/5</td><td class="align-right">29.96s</td><td class="align-right">1</td></tr><tr><td>Bulk PoC</td><td class="align-right">5/5</td><td class="align-right">6.27s</td><td class="align-right">0</td></tr></tbody></table></div>
+              <p>V PR jde demo ještě dál: workflow <code>ci-benchmark.yml</code> spustí agentický benchmark přes GitHub Copilot SDK a porovná stejný cílový úkol se skillem z <code>main</code> a se skillem z PR. Měří úspěch, počet aktualizovaných tasků, čas, input/output tokeny, LLM calls, Task API requests a <code>429</code>.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-benchmark-head" aria-expanded="false" aria-controls="reveal-benchmark" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Benchmark workflow a výstup</button>
+                <div class="ia-reveal-body" id="reveal-benchmark" aria-labelledby="reveal-benchmark-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-14-32-31.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-14-32-31.png" alt="Benchmark workflow" loading="lazy"></a><figcaption>Benchmark workflow.</figcaption></figure>
+                  <figure class="ia-figure"><a href="../../../../images/2026/2026-05-02-14-33-02.png"><img class="ia-image" src="../../../../images/2026/2026-05-02-14-33-02.png" alt="Benchmark summary" loading="lazy"></a><figcaption>Benchmark summary.</figcaption></figure>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="shrnuti">
+      <h2 class="ia-group-title">Shrnutí a co si vyzkoušet</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-result-head" aria-expanded="true" aria-controls="card-result" data-ia-card-button>
+            <span class="ia-card-num">12</span><span class="ia-card-title">Finální výsledek</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-result" aria-labelledby="card-result-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Pointa není v jednom hezčím promptu. Pointa je v tom, že lokální zjištění nezůstane lokálním hackem, ale projde přes důkaz, issue, lidské rozhodnutí, agentickou implementaci a měřené vydání zpět do sdíleného katalogu.</p>
+              <div class="ia-summary-grid">
+                <div class="ia-summary-item"><strong>Katalog</strong><p><code>skills-demo-catalog</code> drží zdroj pravdy pro skill, CLI, API reference a improvement proces.</p></div>
+                <div class="ia-summary-item"><strong>Governance</strong><p>Lokální PoC vede do issue, triáže, lidského <code>accepted</code> a PR.</p></div>
+                <div class="ia-summary-item"><strong>Měření</strong><p>Benchmarky ukazují čas, tokeny, LLM calls, API requests a <code>429</code>.</p></div>
+                <div class="ia-summary-item"><strong>Distribuce</strong><p>Konzumenti aktualizují centrální skill přes <code>gh skill</code>, místo aby udržovali lokální fork.</p></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-checklist-head" aria-expanded="true" aria-controls="card-checklist" data-ia-card-button>
+            <span class="ia-card-num">13</span><span class="ia-card-title">Praktický checklist</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-checklist" aria-labelledby="card-checklist-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <div class="ia-arrow-list">
+                <h3 class="ia-arrow-list-title">Checklist pro vlastní katalog</h3>
+                <ul>
+                  <li>Používejte <code>gh skill</code> pro správu skillů a jejich verzování v centrálním repozitáři.</li>
+                  <li>Přidejte ke skillu jasný improvement process: PoC, evidence, issue template.</li>
+                  <li>Nechte agenta nejdřív zkusit lokální disposable PoC, ale nenechte ho tajně forkovat centrální skill.</li>
+                  <li>Použijte GitHub Actions a labely jako explicitní governance signály.</li>
+                  <li>Vyzkoušejte GitHub Agentic Workflows pro triáž, dokumentaci nebo agentické testování.</li>
+                  <li>Používejte GitHub Copilot cloud agenta pro přetavení issue na kód a pull request.</li>
+                  <li>Měřte kvalitu skillu přes Copilot CLI nebo SDK přímo v pipeline.</li>
+                  <li>Prohlédněte si celé demo: <a href="https://github.com/tkubica12/skills-demo-catalog">tkubica12/skills-demo-catalog</a>.</li>
+                </ul>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-closing" aria-label="Závěr">
+      <p class="ia-quote">Lokální skill je začátek. <strong>Centrálně řízený proces</strong> je to, co z něj udělá týmovou schopnost.</p>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Šetříme tokeny v GitHub Copilot</title>
+<meta name="description" content="Od snadných výher po pokročilý context engineering. Cílem není utratit nejméně tokenů, ale získat z každého maximální hodnotu.">
+<link rel="canonical" href="/new/2026/token-saving-cz/">
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+<button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+<button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+<button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">Jak snížit náklady v 15 minutách</p>
+<h1 class="ia-title">Šetříme tokeny v GitHub Copilot</h1>
+<p class="ia-subtitle">Od snadných výher po pokročilý context engineering. Cílem není utratit nejméně tokenů, ale získat z každého maximální hodnotu.</p>
+<p class="ia-date"><time datetime="2026-05-29">29. 5. 2026</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main>
+<nav class="ia-toc" aria-labelledby="toc-title">
+<p class="ia-toc-title" id="toc-title">Obsah</p>
+<div class="ia-toc-list">
+<a href="#intro"><span class="ia-toc-num">01</span><span>Mentální model</span></a>
+<a href="#easy"><span class="ia-toc-num">02</span><span>Snadné výhry pro každého</span></a>
+<a href="#advanced"><span class="ia-toc-num">03</span><span>Pokročilé techniky</span></a>
+<a href="#summary"><span class="ia-toc-num">04</span><span>Shrnutí</span></a>
+</div>
+</nav>
+<section class="ia-group" id="intro" aria-labelledby="intro-title">
+<h2 class="ia-group-title" id="intro-title">Mentální model</h2>
+<div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card>
+<button class="ia-card-head" id="card-00-co-vsechno-zere-tokeny-button" type="button" aria-expanded="true" aria-controls="card-00-co-vsechno-zere-tokeny-panel" data-ia-card-button>
+<span class="ia-card-num">01</span>
+<span class="ia-card-title">Co všechno žere tokeny</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-00-co-vsechno-zere-tokeny-panel" role="region" aria-labelledby="card-00-co-vsechno-zere-tokeny-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Náklad neplyne jen z toho, co napíšete do chatu. Sčítá se z mnoha vrstev:</p>
+<ul>
+<li><strong>Vždy-zapnuté instrukce</strong> — <code>AGENTS.md</code>, custom instructions, hooky</li>
+<li><strong>Vybrané a otevřené soubory</strong> v kontextu</li>
+<li><strong>Historie chatu</strong> a shrnutí mezi tahy</li>
+<li><strong>Definice MCP nástrojů</strong> a jejich JSON schémata — i ty, které nepoužijete</li>
+<li><strong>Výsledky tool callů</strong> zopakované jako input v dalším kroku</li>
+<li><strong>Výstup modelu</strong> (output tokeny jsou nejdražší)</li>
+<li><strong>Retries, subagents, smyčky</strong> v agent módu</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Cíl je <strong>scoped sufficiency</strong> — dostatek kontextu, aby Copilot úkol vyřešil správně, ale ani slovo navíc.</p>
+</aside>
+<p><strong>Tři typy tokenů — proč na nich záleží:</strong></p>
+<ul>
+<li><strong>Input</strong> — vše, co posíláte modelu poprvé (prompt, kontext, tool results)</li>
+<li><strong>Cached input</strong> — opakovaný prefix, který model už viděl v předchozím tahu téže session. <strong>~10× levnější</strong> než fresh input.</li>
+<li><strong>Output</strong> — to, co model vygeneruje. <strong>~6× dražší</strong> než fresh input, <strong>~60× dražší</strong> než cached input.</li>
+</ul>
+<p><strong>Příklad z reálného aktuálního ceníku (USD za 1M tokenů):</strong></p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Model</th>
+<th class="align-right">Krátký cache</th>
+<th class="align-right">Krátký input</th>
+<th class="align-right">Krátký output</th>
+<th class="align-right">Dlouhý cache</th>
+<th class="align-right">Dlouhý input</th>
+<th class="align-right">Dlouhý output</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>gpt-5.5</strong></td>
+<td class="align-right">$0,50</td>
+<td class="align-right">$5,00</td>
+<td class="align-right">$30,00</td>
+<td class="align-right">$1,00</td>
+<td class="align-right">$10,00</td>
+<td class="align-right">$45,00</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4</strong></td>
+<td class="align-right">$0,25</td>
+<td class="align-right">$2,50</td>
+<td class="align-right">$15,00</td>
+<td class="align-right">$0,50</td>
+<td class="align-right">$5,00</td>
+<td class="align-right">$22,50</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4-mini</strong></td>
+<td class="align-right">$0,075</td>
+<td class="align-right">$0,75</td>
+<td class="align-right">$4,50</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4-nano</strong></td>
+<td class="align-right">$0,02</td>
+<td class="align-right">$0,20</td>
+<td class="align-right">$1,25</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+</tr>
+</tbody></table></div>
+<p>Mini a nano dlouhý kontext nemají.</p>
+<p><strong>Ballpark pravidla:</strong></p>
+<ul>
+<li><strong>Cache : Input : Output ≈ 1 : 10 : 60</strong></li>
+<li><strong>Každý tier dolů je ~3–4× levnější</strong></li>
+<li><strong>Dlouhý kontext zdraží ~2× input/cache a ~1,5× output</strong></li>
+<li><strong>Cache je důvod, proč <code>/compact</code> není zadarmo</strong></li>
+</ul>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="easy" aria-labelledby="easy-title">
+<h2 class="ia-group-title" id="easy-title">Snadné výhry pro každého</h2>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-01-pouzijte-auto-model-jako-default-button" type="button" aria-expanded="false" aria-controls="card-01-pouzijte-auto-model-jako-default-panel" data-ia-card-button>
+<span class="ia-card-num">02</span>
+<span class="ia-card-title">Použijte Auto model jako default</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-01-pouzijte-auto-model-jako-default-panel" role="region" aria-labelledby="card-01-pouzijte-auto-model-jako-default-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pokud si nejste jistí, proč potřebujete premium reasoning model, začněte s <strong>Auto</strong>.</p>
+<ul>
+<li>Routuje podle složitosti úkolu, dostupnosti a zdraví systému</li>
+<li>Nezůstane vám pinnutý drahý model na rutinu</li>
+<li><strong>10% sleva na multiplier</strong> u placených plánů</li>
+<li>Manuální override pro architekturu nebo těžký debug zůstává</li>
+</ul>
+<p>V praxi to znamená, že pro běžnou práci ušetříte 10 % oproti pinnutí konkrétního modelu — a navíc často dostanete levnější model, který úkol zvládne.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-02-explicitni-kontext-misto-sirokych-promptu-button" type="button" aria-expanded="false" aria-controls="card-02-explicitni-kontext-misto-sirokych-promptu-panel" data-ia-card-button>
+<span class="ia-card-num">03</span>
+<span class="ia-card-title">Explicitní kontext místo širokých promptů</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-02-explicitni-kontext-misto-sirokych-promptu-panel" role="region" aria-labelledby="card-02-explicitni-kontext-misto-sirokych-promptu-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<div class="ia-code has-label bad">
+<span class="ia-code-label bad">Drahé</span>
+<pre><code class="language-text">Pochop tento repozitář a oprav problém s loginem.</code></pre>
+</div>
+<div class="ia-code has-label good">
+<span class="ia-code-label good">Levné</span>
+<pre><code class="language-text">Soustřeď se na src\auth\login.ts a tests\auth\login.test.ts.
+Bug: validateEmail odmítá user+tag@example.com.
+Přidej test a oprav jen tohle chování.</code></pre>
+</div>
+<p><strong>Pravidlo:</strong> konkrétní cesty k souborům jsou levnější než průzkum celého repozitáře.</p>
+<p><strong>Bonus: batchujte související úkoly do jednoho promptu.</strong></p>
+<div class="ia-code good">
+<pre><code class="language-text">V src\auth\login.ts:
+1. validateEmail — povol user+tag@example.com
+2. přidej test do tests\auth\login.test.ts
+3. doplň docstring k funkci
+4. zapiš změnu do CHANGELOG.md</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Kam až jít?</span>
+<p>Praktický limit je <strong>3–5 souvisejících úkolů</strong> ve stejné oblasti kódu. Nad to agent ztrácí fokus, dělá víc chyb, retries to celé sežerou.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-button" type="button" aria-expanded="false" aria-controls="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-panel" data-ia-card-button>
+<span class="ia-card-num">04</span>
+<span class="ia-card-title">Nalezení souborů jako první krok před implementací</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-panel" role="region" aria-labelledby="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Místo „rozumíš tomu celému?&quot; se zeptejte:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Najdi nejmenší množinu souborů, kterou potřebuju pro pochopení event-driven flow.
+Vypiš jen cesty a jednu větu proč. Nedělej shrnutí celého repa.</code></pre>
+</div>
+<p>Pak teprve zadejte úkol — s vědomím, co je relevantní.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-button" type="button" aria-expanded="false" aria-controls="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-panel" data-ia-card-button>
+<span class="ia-card-num">05</span>
+<span class="ia-card-title">Omezte délku výstupu (output tokeny jsou nejdražší)</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-panel" role="region" aria-labelledby="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<div class="ia-code has-label bad">
+<span class="ia-code-label bad">Drahé</span>
+<pre><code class="language-text">Vysvětli detailně všechno, co jsi změnil.</code></pre>
+</div>
+<div class="ia-code has-label good">
+<span class="ia-code-label good">Levné</span>
+<pre><code class="language-text">Vypiš: změněné soubory, proč, testy. Max 5 odrážek.</code></pre>
+</div>
+<p>„Caveman&quot; styl výstupu pro reporty:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Hotovo. Vypiš: soubory, proč, validace, rizika. Bez úvodu. ≤5 odrážek.</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Pozor</span>
+<p>Nezkracujte bezpečnostní, destruktivní nebo compliance instrukce. Nejednoznačnost stojí víc než ušetřené tokeny.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-button" type="button" aria-expanded="false" aria-controls="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-panel" data-ia-card-button>
+<span class="ia-card-num">★</span>
+<span class="ia-card-title">Ukázka — vzkaz pro dítě ve třech verzích</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-panel" role="region" aria-labelledby="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Stejná informace ve třech verzích. Ukazuje, kde je „sweet spot&quot; mezi srozumitelností a úsporností.</p>
+<div class="ia-tabs" data-ia-tabs>
+<div class="ia-tab-list" role="tablist" aria-label="kid-message">
+<button class="ia-tab" id="kid-message-v1-tab" type="button" role="tab" aria-selected="true" aria-controls="kid-message-v1-panel" tabindex="0">1 · Pečlivá máma</button>
+<button class="ia-tab" id="kid-message-v2-tab" type="button" role="tab" aria-selected="false" aria-controls="kid-message-v2-panel" tabindex="-1">2 · Úsporně (caveman)</button>
+<button class="ia-tab" id="kid-message-v3-tab" type="button" role="tab" aria-selected="false" aria-controls="kid-message-v3-panel" tabindex="-1">3 · Extrémně (agent → agent)</button>
+</div>
+<div class="ia-tab-panel ia-prose" id="kid-message-v1-panel" role="tabpanel" aria-labelledby="kid-message-v1-tab">
+<p class="ia-handwritten-note">Ahoj zlatíčko, mamka přijde domů kolem šesté hodiny večerní. Prosím tě, udělej si nejdřív domácí úkoly z matematiky a češtiny, ano? Až je budeš mít hotové, můžeš si hodinu hrát na tabletu. V lednici je rajská polévka, kterou si ohřej v mikrovlnce na tři minuty na nejvyšší výkon. Nezapomeň prosím vyvenčit Bertíka kolem páté hodiny a dej mu pak granule do misky. Mám tě moc ráda, mamka 💕</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metrika</th>
+<th class="align-right">Hodnota</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Znaky</td>
+<td class="align-right">388</td>
+</tr>
+<tr>
+<td>Tokeny (GPT-5)</td>
+<td class="align-right">140</td>
+</tr>
+<tr>
+<td>Čitelnost</td>
+<td class="align-right">vysoká</td>
+</tr>
+<tr>
+<td>Pro koho</td>
+<td class="align-right">lidi s časem</td>
+</tr>
+</tbody></table></div>
+</div>
+<div class="ia-tab-panel ia-prose" id="kid-message-v2-panel" role="tabpanel" aria-labelledby="kid-message-v2-tab" hidden>
+<p class="ia-handwritten-note">Doma v 18:00. Úkoly: M + Č → pak tablet 1h. Polévka v lednici → mikro 3 min. Pes ven 17:00 + granule. Mamka 💕</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metrika</th>
+<th class="align-right">Hodnota</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Znaky</td>
+<td class="align-right">110 −72 %</td>
+</tr>
+<tr>
+<td>Tokeny (GPT-5)</td>
+<td class="align-right">48 −66 %</td>
+</tr>
+<tr>
+<td>Čitelnost</td>
+<td class="align-right">stále dobrá</td>
+</tr>
+<tr>
+<td>Pro koho</td>
+<td class="align-right">člověk co rozumí</td>
+</tr>
+</tbody></table></div>
+</div>
+<div class="ia-tab-panel ia-prose" id="kid-message-v3-panel" role="tabpanel" aria-labelledby="kid-message-v3-tab" hidden>
+<p class="ia-handwritten-note">18→mom. úkoly→tablet1h. polévka:mikro3m. pes:17→ven+jíst.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metrika</th>
+<th class="align-right">Hodnota</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Znaky</td>
+<td class="align-right">57 −85 %</td>
+</tr>
+<tr>
+<td>Tokeny (GPT-5)</td>
+<td class="align-right">29 −79 %</td>
+</tr>
+<tr>
+<td>Čitelnost</td>
+<td class="align-right">špatná</td>
+</tr>
+<tr>
+<td>Pro koho</td>
+<td class="align-right">agent → agent</td>
+</tr>
+</tbody></table></div>
+</div>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Pointa</span>
+<p>Caveman styl je sweet spot pro reporty, které ještě čte člověk. Extrémní styl má smysl jen pro agent-to-agent handoff nebo durable context.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-button" type="button" aria-expanded="false" aria-controls="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-panel" data-ia-card-button>
+<span class="ia-card-num">06</span>
+<span class="ia-card-title">Vkládejte výňatky, ne celé logy — a u UI raději Playwright</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-panel" role="region" aria-labelledby="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>U terminálových výstupů je screenshot antipattern. Místo 5 000 řádků CI logu pošlete jen relevantní výňatek:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Command: npm test
+Exit code: 1
+Relevantní chyba:
+  TypeError: Cannot read property &#x27;id&#x27; of undefined
+  at UserService.findById (src/services/user.ts:42)
+
+Posledních 30 řádků:
+  ...</code></pre>
+</div>
+<p>U vizuálních otázek je efektivnější použít <strong>Playwright MCP nebo browser canvas</strong>.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Pravidlo: text pro text, řízený browser pro vizuál. Statický screenshot až jako poslední možnost.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" type="button" aria-expanded="false" aria-controls="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" data-ia-card-button>
+<span class="ia-card-num">07</span>
+<span class="ia-card-title">Jazyk a struktura promptu — proč angličtina není dogma</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" role="region" aria-labelledby="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tokenizer je trénovaný hlavně na anglickém textu, ale není to dogma:</p>
+<ol>
+<li><strong>Strukturovaný formát smaže většinu rozdílu</strong></li>
+<li><strong>Kvalita má přednost před úsporou</strong></li>
+<li><strong>Cena za chybu &gt; cena za tokeny</strong></li>
+</ol>
+<div class="ia-reveal" data-ia-reveal>
+<button class="ia-reveal-button" type="button" data-ia-reveal-button aria-expanded="false" aria-controls="reveal-1-normalni-prompt">
+<span class="ia-reveal-arrow" aria-hidden="true">▶</span>
+<span>Normální prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-1-normalni-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">Vytvoř POST endpoint /api/users, který validuje povinné pole name a email,
+při chybě vrátí 400 a při úspěchu 201 s vytvořeným uživatelem.</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Jazyk</th>
+<th class="align-right">Znaky</th>
+<th class="align-right">Tokeny</th>
+<th class="align-right">vs EN</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Angličtina</td>
+<td class="align-right">148</td>
+<td class="align-right"><strong>31</strong></td>
+<td class="align-right">1.00×</td>
+</tr>
+<tr>
+<td>Čeština</td>
+<td class="align-right">148</td>
+<td class="align-right"><strong>50</strong></td>
+<td class="align-right">1.61×</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<div class="ia-reveal" data-ia-reveal>
+<button class="ia-reveal-button" type="button" data-ia-reveal-button aria-expanded="false" aria-controls="reveal-2-strukturovany-prompt">
+<span class="ia-reveal-arrow" aria-hidden="true">▶</span>
+<span>Strukturovaný prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-2-strukturovany-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">POST /api/users
+Validuj: name pov, email pov+platny
+400 chyby
+201 user</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Jazyk</th>
+<th class="align-right">Znaky</th>
+<th class="align-right">Tokeny</th>
+<th class="align-right">vs EN</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Angličtina</td>
+<td class="align-right">71</td>
+<td class="align-right"><strong>20</strong></td>
+<td class="align-right">1.00×</td>
+</tr>
+<tr>
+<td>Čeština</td>
+<td class="align-right">70</td>
+<td class="align-right"><strong>23</strong></td>
+<td class="align-right">1.15×</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<div class="ia-reveal" data-ia-reveal>
+<button class="ia-reveal-button" type="button" data-ia-reveal-button aria-expanded="false" aria-controls="reveal-3-verbose-prompt">
+<span class="ia-reveal-arrow" aria-hidden="true">▶</span>
+<span>Verbose prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-3-verbose-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">Prosím tě, mohl bys mi vytvořit nový HTTP endpoint typu POST
+na cestě /api/users, který přijme JSON s polem name a email,
+validuje, že jsou obě hodnoty přítomné a email je ve správném formátu,
+a v případě úspěchu vrátí 201 Created s vytvořeným objektem uživatele,
+zatímco při validační chybě vrátí 400 Bad Request s detaily chyb?</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Verze</th>
+<th class="align-right">Tokeny</th>
+<th class="align-right">vs strukturovaný</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Verbose CZ</td>
+<td class="align-right"><strong>~95</strong></td>
+<td class="align-right">+313 %</td>
+</tr>
+<tr>
+<td>Normální CZ</td>
+<td class="align-right">50</td>
+<td class="align-right">+117 %</td>
+</tr>
+<tr>
+<td>Strukturovaný CZ</td>
+<td class="align-right">23</td>
+<td class="align-right">baseline</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Závěr</span>
+<p>Používejte rodný jazyk, když jde o kvalitu a vyjadřujete nuance. Pro opakované operační prompty vítězí úsporná angličtina nebo strukturované klíče.</p>
+</aside>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="advanced" aria-labelledby="advanced-title">
+<h2 class="ia-group-title" id="advanced-title">Pokročilé techniky</h2>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-button" type="button" aria-expanded="false" aria-controls="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-panel" data-ia-card-button>
+<span class="ia-card-num">08</span>
+<span class="ia-card-title">Hierarchický kontext — skills místo obřího AGENTS.md</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-panel" role="region" aria-labelledby="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Always-on instrukce jsou <strong>opakovaná daň</strong> — platíte je v každém tahu.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Typ kontextu</th>
+<th>Kam patří</th>
+<th>Pravidlo</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Always-on (drobné)</td>
+<td><code>AGENTS.md</code></td>
+<td>jen fakta, která agent nemůže odvodit</td>
+</tr>
+<tr>
+<td>Path-specific</td>
+<td><code>.github\instructions\*.instructions.md</code></td>
+<td>načítá se jen u relevantních souborů</td>
+</tr>
+<tr>
+<td>Workflow-specific</td>
+<td>prompt files</td>
+<td>spouští se na vyžádání</td>
+</tr>
+<tr>
+<td>Detailní capability</td>
+<td><code>.github\skills\</code></td>
+<td>progressive reveal — jen když je téma</td>
+</tr>
+<tr>
+<td>Live data</td>
+<td>MCP server</td>
+<td>fetch on demand</td>
+</tr>
+</tbody></table></div>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Velký AGENTS.md vs. malý AGENTS.md + jedna relevantní skill → <strong>68,8 % úspora ve weighted units</strong>.</p>
+</aside>
+<p><strong>Nechte agenta psát kontext pro budoucnost.</strong></p>
+<div class="ia-code good">
+<pre><code class="language-text">Napiš do .github\skills\auth-flow\SKILL.md
+stručný (≤60 řádků) popis auth flow tak, jak jsme ho právě
+pochopili. Zaměř se na: vstupní body, klíčové soubory, pasti,
+co dělat při změně. Žádná próza, jen seznamy a odkazy.</code></pre>
+</div>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Pokud jste se v sessioně něco složitě dozvěděli, je to <strong>kandidát na trvalý kontext</strong>.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-08-mcp-progressivne-search-select-fetch-button" type="button" aria-expanded="false" aria-controls="card-08-mcp-progressivne-search-select-fetch-panel" data-ia-card-button>
+<span class="ia-card-num">09</span>
+<span class="ia-card-title">MCP progressivně — search → select → fetch</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-08-mcp-progressivne-search-select-fetch-panel" role="region" aria-labelledby="card-08-mcp-progressivne-search-select-fetch-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>MCP má tři skryté nákladové vrstvy:</strong></p>
+<ol>
+<li>Tool definice a JSON schémata načtená do kontextu</li>
+<li>Argumenty tool callu jako output tokeny</li>
+<li>Výsledky toolu replayované jako input v dalším kroku</li>
+</ol>
+<div class="ia-code good">
+<pre><code class="language-text">1. search nebo list kandidáty
+2. vyberte jednoho
+3. fetch jen detail, co potřebujete pro rozhodnutí
+4. shrňte výsledek, než pokračujete</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Pozor</span>
+<p>Nepoužívané globální MCP servery stojí tokeny dřív, než je vůbec zavoláte. Držte MCP per-workspace.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-button" type="button" aria-expanded="false" aria-controls="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-panel" data-ia-card-button>
+<span class="ia-card-num">10</span>
+<span class="ia-card-title">Deterministické nástroje místo reasoningu přes mnoho tahů</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-panel" role="region" aria-labelledby="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pokud existuje algoritmus, který úkol vyřeší <strong>přesně</strong>, nenuťme model dělat to přes několik tahů.</p>
+<p>Typičtí kandidáti:</p>
+<ul>
+<li>JSON → XML / CSV konverze</li>
+<li>Token counting, log slicing, schema validace</li>
+<li>Extrakce dependency grafu</li>
+<li>Sort, filter, deduplikace velkých dat</li>
+<li>Generátory ID, šablony s parametry</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Skill se script-backed toolem dělá 1 tool call s deterministickým výstupem místo 5 tahů s pravděpodobností chyby.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-button" type="button" aria-expanded="false" aria-controls="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-panel" data-ia-card-button>
+<span class="ia-card-num">11</span>
+<span class="ia-card-title">Session management — /ask, /undo, /fork, /resume, /new, /clear, /compact, /share, /chronicle</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-panel" role="region" aria-labelledby="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Ekonomika je vždy stejná: stará cache je nejlevnější, fresh input ~10×, output ~60×.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Situace</th>
+<th>Příkaz</th>
+<th>Co se stane</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Krátký dotaz mimo téma</td>
+<td><code>/ask</code> (<code>/btw</code>)</td>
+<td>cache zůstává, odpověď neroste do historie</td>
+</tr>
+<tr>
+<td>Špatný poslední tah</td>
+<td><code>/undo</code> (<code>/rewind</code>)</td>
+<td>odstraní změny i kontext posledního tahu</td>
+</tr>
+<tr>
+<td>Sidequest na stejném základě</td>
+<td><code>/fork</code></td>
+<td>větve sdílejí cached prefix</td>
+</tr>
+<tr>
+<td>Návrat po pauze</td>
+<td><code>/resume</code></td>
+<td>často cache hit, později input</td>
+</tr>
+<tr>
+<td>Nové téma</td>
+<td><code>/new</code></td>
+<td>stará session uložena, nová bez cache</td>
+</tr>
+<tr>
+<td>Trvale ukončit</td>
+<td><code>/clear</code></td>
+<td>session zahozena, změny v souborech ne</td>
+</tr>
+<tr>
+<td>Context narostl</td>
+<td><code>/compact</code></td>
+<td>drahá operace, output bolus + invalidace cache</td>
+</tr>
+<tr>
+<td>Export sezení</td>
+<td><code>/share</code></td>
+<td>vstup pro analýzu a zlepšování</td>
+</tr>
+</tbody></table></div>
+<p><code>/chronicle tips</code>, <code>/chronicle cost-tips</code> a <code>/chronicle improve</code> slouží jako pravidelná self-reflection.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-11-subagents-izolace-ne-magicka-uspora-button" type="button" aria-expanded="false" aria-controls="card-11-subagents-izolace-ne-magicka-uspora-panel" data-ia-card-button>
+<span class="ia-card-num">12</span>
+<span class="ia-card-title">Subagents — izolace, ne magická úspora</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-11-subagents-izolace-ne-magicka-uspora-panel" role="region" aria-labelledby="card-11-subagents-izolace-ne-magicka-uspora-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Paralelní agenti mohou ušetřit wall-clock, ale <strong>znásobit input tokeny</strong>, pokud čtou stejné soubory.</p>
+<p>Použijte subagenta když:</p>
+<ul>
+<li>Práce je opravdu nezávislá</li>
+<li>Kontext jde shardovat podle service / file area</li>
+<li>Stačí levnější model</li>
+<li>Výsledek lze vrátit jako krátké shrnutí</li>
+</ul>
+<p>Nepoužívejte když:</p>
+<ul>
+<li>Všichni agenti potřebují stejný kontext</li>
+<li>Úkol je sekvenční</li>
+<li>Coordination overhead dominuje</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" id="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-button" type="button" aria-expanded="false" aria-controls="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-panel" data-ia-card-button>
+<span class="ia-card-num">13</span>
+<span class="ia-card-title">Měření jako součást vývoje skills — CI/CD + self-improvement</span>
+<span class="ia-card-toggle" aria-hidden="true">⌄</span>
+</button>
+<div class="ia-card-body" id="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-panel" role="region" aria-labelledby="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-button" data-ia-card-panel>
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Token efficiency není jednorázový audit — je to <strong>engineering discipline s feedback loopem</strong>.</p>
+<p>Měřte:</p>
+<ul>
+<li>input, output, cached tokens</li>
+<li>počet tahů</li>
+<li>tool calls</li>
+<li>latency</li>
+<li>retry rate</li>
+<li>kvalitu výsledku</li>
+</ul>
+<div class="ia-code">
+<pre><code class="language-yaml">on: pull_request
+  paths: [&#x27;.github/skills/**&#x27;, &#x27;AGENTS.md&#x27;, &#x27;.github/prompts/**&#x27;]
+
+steps:
+  - run: copilot-token-lab run --scenarios skills-regression --iterations 3
+  - run: copilot-token-lab compare --baseline main --head HEAD
+  - fail-if: weighted_units_delta &gt; +10% AND quality_score &lt; baseline
+  - comment-pr: report.md</code></pre>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Verdikt</span>
+<p>Jediná univerzální rada: <strong>změřte svůj workload</strong>. Cheaper model není automaticky cheaper outcome.</p>
+</aside>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="summary" aria-labelledby="summary-title">
+<h2 class="ia-group-title" id="summary-title">Shrnutí</h2>
+<div class="ia-summary-grid">
+<div class="ia-summary-card">
+<h3>Snadné</h3>
+<ul>
+<li>Auto model jako default</li>
+<li>Pojmenujte přesné soubory a done criteria</li>
+<li>Nalezení souborů jako první krok</li>
+<li>Omezte výstup</li>
+<li>Výňatky z logů, ne dumpy</li>
+<li>Strukturovaný formát smaže rozdíl jazyka</li>
+</ul></div>
+<div class="ia-summary-card">
+<h3>Pokročilé</h3>
+<ul>
+<li>Drobný <code>AGENTS.md</code> + skills + path instructions</li>
+<li>MCP jako search → select → fetch</li>
+<li>Deterministické toolery</li>
+<li><code>/ask</code>, <code>/fork</code>, <code>/resume</code> vědomě, <code>/compact</code> opatrně</li>
+<li>Subagents jen na nezávislou práci</li>
+<li>Měřte v CI a ptejte se agenta na sebezlepšení</li>
+</ul></div>
+</div>
+<div class="ia-closing"><p class="ia-quote">Tokeny nejsou náklad ke škrcení. Jsou <strong>investicí</strong>. Řešte návratnost, ne spotřebu.</p></div>
+</section>
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>
