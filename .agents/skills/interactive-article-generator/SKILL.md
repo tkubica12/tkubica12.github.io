@@ -1,3 +1,8 @@
+---
+name: interactive-article-generator
+description: Generate public /new/ interactive HTML, source.md, caveman.md, and shared assets from Tomas Kubica .article.md sources using the repo-local design contract.
+---
+
 # Interactive article generator
 
 Use this skill when generating public `/new/` HTML from an `.article.md` source.
@@ -36,13 +41,14 @@ Copy public assets from this skill folder:
 
 ## HTML requirements
 
-- Put the Clawpilot theme detection script as the first `<script>` in `<head>`.
-- Include the exact Clawpilot CSS variable block in a small inline `<style>`.
+- Put the article theme detection script as the first `<script>` in `<head>`.
+- Include the exact interactive article CSS variable block from `references\design-contract.md` in a small inline `<style>`.
 - Link shared CSS with `../../assets/interactive-article.css`.
 - Load shared JS with `../../assets/interactive-article.js`.
-- Do not add per-article palettes, gradients, or extra component CSS.
+- Do not add per-article palettes, gradients, or extra component CSS. The visual baseline is the token-saving article: cold GitHub-like dark mode, white/light gray light mode, restrained blue links/accent, thin borders, no warm brown or pink page palette.
 - Use semantic HTML: `header`, `main`, `section`, `article`, `footer`, tables, lists, code.
 - Preserve Czech prose and technical terms from the source unless the source asks for adaptation.
+- Render the front matter `date` visibly in the article header as `<p class="ia-date"><time datetime="YYYY-MM-DD">D. M. YYYY</time></p>`.
 - Include visible top links to `./source.md` and `./caveman.md`.
 - Include the same links in the footer.
 - Exclude `presenter-note` and `agent-note` content from public HTML.
@@ -54,10 +60,28 @@ Copy public assets from this skill folder:
 - `card` title -> real `<button class="ia-card-head" data-ia-card-button>`
 - `reveal` -> nested reveal using `data-ia-reveal`
 - `tabs`/`tab` -> ARIA tablist and panels
+- `sequence` -> `.ia-sequence` for 3-5 ordered evolution/path items that should read left-to-right on desktop
+- `steps` -> `.ia-steps` for lifecycle/process content where every step needs a short title and explanation
 - `callout` -> `.ia-callout` with a short visible label
+- screenshots and diagrams -> `<figure class="ia-figure">` with linked `<img class="ia-image">` and short caption
 - code blocks -> `.ia-code`, optional label, and `good`/`bad` tone classes
+- transcript and code fences must preserve monospace layout with horizontal scrolling when needed; do not wrap text fences or apply inline-code background styling inside `<pre><code>`
 - summary or checklist sections -> `.ia-summary-grid` when useful
+- `detail-grid`/`detail-card` -> `.ia-detail-grid` with clickable tiles for 2x2 conclusion/comparison details; keep detail content inline for no-JS fallback and let shared JS open a native dialog
+- `arrow-list` -> `.ia-arrow-list` for final checklists or action lists that should read like summary arrows, not ordinary bullets
+- `closing` -> `.ia-closing` for the final strong one-sentence article takeaway; every generated article should try to include one
 - short standalone human notes, messages, or memo examples -> `.ia-handwritten-note` when the source context clearly presents them as a handwritten/personal note rather than normal prose; when tabs compare multiple versions of the same message, apply the treatment consistently to every comparable version
+- header eyebrow -> source `eyebrow` when present; do not replace it with generated metadata text
+- source/caveman header links -> only `source.md` and `caveman.md` unless the source explicitly asks for more
+- group headings -> source group title only; numbering belongs in the card number and optional table of contents, not duplicated in the visible group title
+- tab panel body content must be visually boxed using `.ia-tab-panel`; do not render changing tab content as plain prose.
+- reveal body content must stay readable at normal article size; do not shrink transcript or screenshot evidence text just because it is optional.
+- reveal buttons and figure captions must use normal article-reading size; do not make evidence labels look like footnotes.
+- when generating local preview HTML under `_site\new\YYYY\slug\`, make `/images/...` references locally reviewable by using a relative path such as `../../../../images/...` in `src`/`href`; keep Markdown source paths unchanged.
+- final result or conclusion sections should get a distinct summary treatment, typically `.ia-summary-grid`, rather than another plain checklist.
+- visible source-numbered cards must start at `01`, not `00`; generated introductory helper cards should be unnumbered.
+- adjacent cards must never visually touch. Use `.ia-card-list` where appropriate; the shared stylesheet also provides fallback spacing for adjacent cards.
+- linked screenshots/images should rely on the shared in-page lightbox behavior, including built-in zoom controls, mouse/finger panning, wheel zoom, keyboard zoom, and pinch zoom; do not navigate the browser directly to the image.
 
 IDs may be chosen by the generator, but must be stable, readable, and unique.
 

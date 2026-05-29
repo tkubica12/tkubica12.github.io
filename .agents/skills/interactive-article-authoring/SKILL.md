@@ -1,3 +1,8 @@
+---
+name: interactive-article-authoring
+description: Plan, draft, research, restructure, and review Tomas Kubica interactive article sources in interactive/source/**/*.article.md while preserving his Czech writing voice.
+---
+
 # Interactive article authoring
 
 Use this skill when planning, drafting, restructuring, or researching an interactive article source in `interactive\source\**\*.article.md`.
@@ -18,6 +23,8 @@ This skill is self-contained:
 - `references\writing-style.md` captures Tomas's blog voice.
 - `references\quality-review.md` folds in the previous review and spell prompt workflows.
 
+Keep this skill separate from `interactive-article-generator`: authoring is for story, research, source structure, and Tomas's voice; generation is for rendered HTML, CSS, JS, caveman output, and accessibility details. The authoring skill must still know the source syntax well enough to produce implementation-ready `.article.md`. Invoke the generator skill only when rendering, validating renderability, or changing shared visual/component behavior.
+
 ## Working style
 
 1. Discuss the thesis and reader journey before reorganizing text.
@@ -35,6 +42,7 @@ This skill is self-contained:
 - A table or code sample that benefits from commentary.
 - A warning, rule, or personal verdict.
 - A story with stages: problem, mental model, examples, tactics, conclusion.
+- A process that deserves `sequence` or `steps`, an evidence transcript that deserves a labeled or wrapped text block, or a final action list that deserves an arrow-style summary.
 
 ## Avoid
 

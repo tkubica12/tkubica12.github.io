@@ -18,7 +18,7 @@ design:
 
 ::: group id="intro" title="Mentální model"
 
-::: card number="00" title="Co všechno žere tokeny" default="open"
+::: card number="01" title="Co všechno žere tokeny" default="open"
 
 Náklad neplyne jen z toho, co napíšete do chatu. Sčítá se z mnoha vrstev:
 
@@ -64,7 +64,7 @@ Mini a nano dlouhý kontext nemají.
 
 ::: group id="easy" title="Snadné výhry pro každého"
 
-::: card number="01" title="Použijte Auto model jako default"
+::: card number="02" title="Použijte Auto model jako default"
 
 Pokud si nejste jistí, proč potřebujete premium reasoning model, začněte s **Auto**.
 
@@ -77,7 +77,7 @@ V praxi to znamená, že pro běžnou práci ušetříte 10 % oproti pinnutí ko
 
 :::
 
-::: card number="02" title="Explicitní kontext místo širokých promptů"
+::: card number="03" title="Explicitní kontext místo širokých promptů"
 
 ```text label="Drahé" tone="bad"
 Pochop tento repozitář a oprav problém s loginem.
@@ -107,7 +107,7 @@ Praktický limit je **3–5 souvisejících úkolů** ve stejné oblasti kódu. 
 
 :::
 
-::: card number="03" title="Nalezení souborů jako první krok před implementací"
+::: card number="04" title="Nalezení souborů jako první krok před implementací"
 
 Místo „rozumíš tomu celému?" se zeptejte:
 
@@ -120,7 +120,7 @@ Pak teprve zadejte úkol — s vědomím, co je relevantní.
 
 :::
 
-::: card number="04" title="Omezte délku výstupu (output tokeny jsou nejdražší)"
+::: card number="05" title="Omezte délku výstupu (output tokeny jsou nejdražší)"
 
 ```text label="Drahé" tone="bad"
 Vysvětli detailně všechno, co jsi změnil.
@@ -197,7 +197,7 @@ Caveman styl je sweet spot pro reporty, které ještě čte člověk. Extrémní
 
 :::
 
-::: card number="05" title="Vkládejte výňatky, ne celé logy — a u UI raději Playwright"
+::: card number="06" title="Vkládejte výňatky, ne celé logy — a u UI raději Playwright"
 
 U terminálových výstupů je screenshot antipattern. Místo 5 000 řádků CI logu pošlete jen relevantní výňatek:
 
@@ -220,7 +220,7 @@ Pravidlo: text pro text, řízený browser pro vizuál. Statický screenshot až
 
 :::
 
-::: card number="06" title="Jazyk a struktura promptu — proč angličtina není dogma"
+::: card number="07" title="Jazyk a struktura promptu — proč angličtina není dogma"
 
 Tokenizer je trénovaný hlavně na anglickém textu, ale není to dogma:
 
@@ -286,7 +286,7 @@ Používejte rodný jazyk, když jde o kvalitu a vyjadřujete nuance. Pro opakov
 
 ::: group id="advanced" title="Pokročilé techniky"
 
-::: card number="07" title="Hierarchický kontext — skills místo obřího AGENTS.md"
+::: card number="08" title="Hierarchický kontext — skills místo obřího AGENTS.md"
 
 Always-on instrukce jsou **opakovaná daň** — platíte je v každém tahu.
 
@@ -317,7 +317,7 @@ Pokud jste se v sessioně něco složitě dozvěděli, je to **kandidát na trva
 
 :::
 
-::: card number="08" title="MCP progressivně — search → select → fetch"
+::: card number="09" title="MCP progressivně — search → select → fetch"
 
 **MCP má tři skryté nákladové vrstvy:**
 
@@ -338,7 +338,7 @@ Nepoužívané globální MCP servery stojí tokeny dřív, než je vůbec zavol
 
 :::
 
-::: card number="09" title="Deterministické nástroje místo reasoningu přes mnoho tahů"
+::: card number="10" title="Deterministické nástroje místo reasoningu přes mnoho tahů"
 
 Pokud existuje algoritmus, který úkol vyřeší **přesně**, nenuťme model dělat to přes několik tahů.
 
@@ -356,7 +356,7 @@ Skill se script-backed toolem dělá 1 tool call s deterministickým výstupem m
 
 :::
 
-::: card number="10" title="Session management — /ask, /undo, /fork, /resume, /new, /clear, /compact, /share, /chronicle"
+::: card number="11" title="Session management — /ask, /undo, /fork, /resume, /new, /clear, /compact, /share, /chronicle"
 
 Ekonomika je vždy stejná: stará cache je nejlevnější, fresh input ~10×, output ~60×.
 
@@ -375,7 +375,7 @@ Ekonomika je vždy stejná: stará cache je nejlevnější, fresh input ~10×, o
 
 :::
 
-::: card number="11" title="Subagents — izolace, ne magická úspora"
+::: card number="12" title="Subagents — izolace, ne magická úspora"
 
 Paralelní agenti mohou ušetřit wall-clock, ale **znásobit input tokeny**, pokud čtou stejné soubory.
 
@@ -398,7 +398,7 @@ Handoff small: objective, known facts, exact files, constraints, acceptance crit
 
 :::
 
-::: card number="12" title="Měření jako součást vývoje skills — CI/CD + self-improvement"
+::: card number="13" title="Měření jako součást vývoje skills — CI/CD + self-improvement"
 
 Token efficiency není jednorázový audit — je to **engineering discipline s feedback loopem**.
 

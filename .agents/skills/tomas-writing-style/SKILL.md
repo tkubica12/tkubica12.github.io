@@ -1,3 +1,8 @@
+---
+name: tomas-writing-style
+description: Edit, author, and convert Tomas Kubica Czech technical blog posts while preserving his conversational, practical, first-person expert voice.
+---
+
 # Tomas writing style
 
 Use this skill when editing, authoring, or converting Tomas Kubica's Czech technical blog posts.

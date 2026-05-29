@@ -1,3 +1,8 @@
+---
+name: caveman-compressor
+description: Generate compact agent-friendly caveman.md summaries from interactive article sources while preserving key facts, caveats, commands, URLs, and structure.
+---
+
 # Caveman compressor
 
 Use this skill to generate agent-friendly compressed Markdown from an article source.
