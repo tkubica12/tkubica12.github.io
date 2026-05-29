@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the static /new/ interactive article index and navigation layer."""
+"""Generate the static interactive article index and navigation layer."""
 
 from __future__ import annotations
 
@@ -22,7 +22,9 @@ SOURCE_ROOT = ROOT / "interactive" / "source"
 GENERATED_ROOT = ROOT / "interactive" / "generated"
 INDEX_PATH = ROOT / "interactive" / "article-index.json"
 SKILL_ASSET_ROOT = ROOT / ".agents" / "skills" / "interactive-article-generator" / "assets"
-SITE_NEW_ROOT = ROOT / "_site" / "new"
+SITE_ROOT = ROOT / "_site"
+DEFAULT_PUBLIC_BASE = "/"
+DEFAULT_CLASSIC_BASE = "/classic/"
 RECENT_CARD_COUNT = 6
 ARCHIVE_INITIAL_VISIBLE = 24
 ARCHIVE_BATCH_SIZE = 24
@@ -184,7 +186,26 @@ def source_articles() -> dict[str, dict[str, str]]:
     return items
 
 
-def validate(articles: list[Article], themes: list[Theme]) -> None:
+def normalize_url_base(value: str) -> str:
+    if not value:
+        return "/"
+    normalized = "/" + value.strip("/") + "/"
+    return "/" if normalized == "//" else normalized
+
+
+def join_url(base: str, *parts: object) -> str:
+    normalized = normalize_url_base(base)
+    suffix = "/".join(str(part).strip("/") for part in parts if str(part).strip("/"))
+    if not suffix:
+        return normalized
+    return f"{normalized}{suffix}/"
+
+
+def root_relative_url(path: str) -> str:
+    return path.lstrip("/")
+
+
+def validate(articles: list[Article], themes: list[Theme], public_base: str) -> None:
     errors: list[str] = []
     source_by_slug = source_articles()
     article_by_slug = {article.slug: article for article in articles}
@@ -210,8 +231,9 @@ def validate(articles: list[Article], themes: list[Theme]) -> None:
                     errors.append(f"{article.slug}: cache {key} does not match source front matter")
         if article.year != int(article.date[:4]):
             errors.append(f"{article.slug}: year must match date year")
-        if article.url != f"/new/{article.year}/{article.slug}/":
-            errors.append(f"{article.slug}: url must be /new/{article.year}/{article.slug}/")
+        expected_url = join_url(public_base, article.year, article.slug)
+        if article.url != expected_url:
+            errors.append(f"{article.slug}: url must be {expected_url}")
         for theme_id in article.themes:
             if theme_id not in theme_ids:
                 errors.append(f"{article.slug}: unknown theme {theme_id}")
@@ -229,14 +251,26 @@ def validate(articles: list[Article], themes: list[Theme]) -> None:
         raise ValueError("\n".join(errors))
 
 
-def copy_public_files() -> None:
-    SITE_NEW_ROOT.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(GENERATED_ROOT, SITE_NEW_ROOT, dirs_exist_ok=True)
+def copy_public_files(output_root: Path, articles: list[Article], public_base: str) -> None:
+    output_root.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(GENERATED_ROOT, output_root, dirs_exist_ok=True)
 
-    asset_target = SITE_NEW_ROOT / "assets"
+    asset_target = output_root / "assets"
     asset_target.mkdir(parents=True, exist_ok=True)
     for filename in ("interactive-article.css", "interactive-article.js"):
         shutil.copy2(SKILL_ASSET_ROOT / filename, asset_target / filename)
+
+    for article in articles:
+        article_dir = output_root / str(article.year) / article.slug
+        public_url = join_url(public_base, article.year, article.slug)
+        legacy_url = f"/new/{article.year}/{article.slug}/"
+        for filename in ("index.html", "source.md", "caveman.md"):
+            path = article_dir / filename
+            if path.is_file():
+                text = path.read_text(encoding="utf-8").replace(legacy_url, public_url)
+                if filename == "index.html":
+                    text = text.replace("../../../../images/", "../../images/")
+                path.write_text(text, encoding="utf-8")
 
 
 def theme_lookup(themes: list[Theme]) -> dict[str, Theme]:
@@ -353,7 +387,7 @@ def search_payload_json(articles: list[Article], themes: list[Theme]) -> str:
     return json.dumps(build_search_payload(articles, themes), ensure_ascii=False, separators=(",", ":"))
 
 
-def generate_index(articles: list[Article], themes: list[Theme]) -> None:
+def generate_index(articles: list[Article], themes: list[Theme], output_root: Path, public_base: str, classic_base: str) -> None:
     recent = sorted(articles, key=lambda article: article.date, reverse=True)
     all_by_year: dict[int, list[Article]] = defaultdict(list)
     for article in recent:
@@ -384,6 +418,8 @@ def generate_index(articles: list[Article], themes: list[Theme]) -> None:
 </section>""".strip()
         )
     archive = "\n".join(archive_sections)
+    classic_link = root_relative_url(classic_base)
+    classic_feed_link = f"{classic_link}feed.xml"
     html_text = f"""<!doctype html>
 <html lang="cs-CZ">
 <head>
@@ -396,7 +432,7 @@ def generate_index(articles: list[Article], themes: list[Theme]) -> None:
 <link rel="stylesheet" href="assets/interactive-article.css">
 <title>AI, vývoj a cloud | Tomáš Kubica</title>
 <meta name="description" content="Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.">
-<link rel="canonical" href="/new/">
+<link rel="canonical" href="{e(normalize_url_base(public_base))}">
 </head>
 <body>
 <div class="ia-controls" aria-label="Ovládání stránky">
@@ -408,8 +444,8 @@ def generate_index(articles: list[Article], themes: list[Theme]) -> None:
   <h1 class="ia-title">Tomáš Kubica</h1>
   <p class="ia-subtitle">Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.</p>
   <nav class="ia-links" aria-label="Navigace">
-    <a href="../">Starší články najdete na mém klasickém blogu</a>
-    <a href="../feed.xml">RSS</a>
+    <a href="{e(classic_link)}">Starší články najdete na mém klasickém blogu</a>
+    <a href="{e(classic_feed_link)}">RSS</a>
   </nav>
 </header>
 <main>
@@ -449,18 +485,18 @@ def generate_index(articles: list[Article], themes: list[Theme]) -> None:
   </section>
 </main>
 <footer class="ia-footer">
-  <p>Starší články najdete na <a href="../">mém klasickém blogu</a> · <a href="../feed.xml">RSS</a></p>
+  <p>Starší články najdete na <a href="{e(classic_link)}">mém klasickém blogu</a> · <a href="{e(classic_feed_link)}">RSS</a></p>
 </footer>
 </div>
 <script src="assets/interactive-article.js"></script>
 </body>
 </html>
 """
-    (SITE_NEW_ROOT / "index.html").write_text(html_text, encoding="utf-8")
+    (output_root / "index.html").write_text(html_text, encoding="utf-8")
 
 
-def generate_search_json(articles: list[Article], themes: list[Theme]) -> None:
-    (SITE_NEW_ROOT / "search.json").write_text(search_payload_json(articles, themes), encoding="utf-8")
+def generate_search_json(articles: list[Article], themes: list[Theme], output_root: Path) -> None:
+    (output_root / "search.json").write_text(search_payload_json(articles, themes), encoding="utf-8")
 
 
 def relative_article_url(from_article: Article, to_article: Article) -> str:
@@ -518,10 +554,10 @@ def normalize_article_card_defaults(text: str) -> str:
     )
 
 
-def patch_article_pages(articles: list[Article], themes: list[Theme]) -> None:
+def patch_article_pages(articles: list[Article], themes: list[Theme], output_root: Path) -> None:
     recommendations = related_articles(articles, themes)
     for article in articles:
-        path = SITE_NEW_ROOT / str(article.year) / article.slug / "index.html"
+        path = output_root / str(article.year) / article.slug / "index.html"
         text = path.read_text(encoding="utf-8")
         text = patch_article_nav(text, article)
         text = normalize_article_card_defaults(text)
@@ -539,23 +575,25 @@ def patch_article_pages(articles: list[Article], themes: list[Theme]) -> None:
         path.write_text(text, encoding="utf-8")
 
 
-def run(output_root: Path) -> None:
-    global SITE_NEW_ROOT
-    SITE_NEW_ROOT = output_root
+def run(output_root: Path, public_base: str = DEFAULT_PUBLIC_BASE, classic_base: str = DEFAULT_CLASSIC_BASE) -> None:
+    public_base = normalize_url_base(public_base)
+    classic_base = normalize_url_base(classic_base)
     articles, themes = read_cache()
-    validate(articles, themes)
-    copy_public_files()
-    generate_index(articles, themes)
-    generate_search_json(articles, themes)
-    patch_article_pages(articles, themes)
+    validate(articles, themes, public_base)
+    copy_public_files(output_root, articles, public_base)
+    generate_index(articles, themes, output_root, public_base, classic_base)
+    generate_search_json(articles, themes, output_root)
+    patch_article_pages(articles, themes, output_root)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate the static /new/ interactive site artifacts.")
-    parser.add_argument("--output", type=Path, default=SITE_NEW_ROOT, help="Output directory for /new/ artifacts.")
+    parser = argparse.ArgumentParser(description="Generate the static interactive site artifacts.")
+    parser.add_argument("--output", type=Path, default=SITE_ROOT, help="Output directory for interactive site artifacts.")
+    parser.add_argument("--public-base", default=DEFAULT_PUBLIC_BASE, help="Public URL base for the interactive site.")
+    parser.add_argument("--classic-base", default=DEFAULT_CLASSIC_BASE, help="Public URL base for the classic Jekyll site.")
     args = parser.parse_args()
     try:
-        run(args.output.resolve())
+        run(args.output.resolve(), public_base=args.public_base, classic_base=args.classic_base)
     except Exception as exc:
         print(f"generate_interactive_site.py: {exc}", file=sys.stderr)
         return 1

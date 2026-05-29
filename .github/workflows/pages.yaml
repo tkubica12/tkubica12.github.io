@@ -3,6 +3,8 @@ name: Build and deploy website
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -18,25 +20,53 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.2
-          bundler-cache: true
-      - name: Install Dependencies
-        run: bundle install
-      - name: Build
-        run: bundle exec jekyll build
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Generate interactive site
-        run: python tools/generate_interactive_site.py
+      - name: Restore classic site cache
+        id: classic-cache
+        uses: actions/cache@v4
+        with:
+          path: _site/classic
+          key: classic-site-v1-${{ hashFiles('_config.yml', '_config_classic.yml', 'Gemfile', 'Gemfile.lock', '_posts/**', '_layouts/**', '_includes/**', '_sass/**', '_data/**', '_tabs/**', 'assets/**', 'posts/**', 'search.html', 'tags.html', '404.html', 'index.html') }}
+      - name: Detect classic changes
+        id: classic-changes
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" || true)"
+          if grep -Eq '^(_config(_classic)?\.yml|Gemfile(\.lock)?|_posts/|_layouts/|_includes/|_sass/|_data/|_tabs/|assets/|posts/|search\.html|tags\.html|404\.html|index\.html)' <<< "$changed_files"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Setup Ruby
+        if: steps.classic-cache.outputs.cache-hit != 'true' || steps.classic-changes.outputs.changed == 'true'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+      - name: Build
+        shell: bash
+        run: |
+          if [[ "${{ steps.classic-cache.outputs.cache-hit }}" == "true" && "${{ steps.classic-changes.outputs.changed }}" != "true" ]]; then
+            python tools/build_site.py --skip-classic
+          else
+            python tools/build_site.py
+          fi
+      - name: Validate site
+        run: python tools/validate_site.py
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

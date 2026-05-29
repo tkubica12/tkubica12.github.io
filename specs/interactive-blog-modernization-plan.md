@@ -4,7 +4,7 @@ Status: draft v0.1
 
 ## Goal
 
-Create a parallel article system for interactive, presenter-friendly articles without changing the current Jekyll blog behavior. Existing `_posts\` articles stay canonical for the normal site. New experiments publish under `https://tomaskubica.cz/new/`.
+Create an interactive, presenter-friendly article system as the primary site. Existing `_posts\` articles remain available as the classic Jekyll blog under `https://tomaskubica.cz/classic/`.
 
 The new system has three public artifacts per article:
 
@@ -21,7 +21,7 @@ The new system has three public artifacts per article:
 
 ## Recommended architecture
 
-Use a build-time generator that runs after Jekyll and writes directly into `_site\new\...`.
+Use a build-time generator that assembles one GitHub Pages artifact: Jekyll writes the classic blog to `_site\classic\...`, then the interactive generator writes the new site to `_site\...`.
 
 ```text
 interactive\
@@ -61,23 +61,26 @@ Generated output:
 
 ```text
 _site\
-  new\
-    2026\
-      article-slug\
-        index.html
-        source.md
-        caveman.md
-    assets\
-      interactive-article.css
-      interactive-article.js
+  index.html
+  search.json
+  2026\
+    article-slug\
+      index.html
+      source.md
+      caveman.md
+  assets\
+    interactive-article.css
+    interactive-article.js
+  classic\
+    ...
 ```
 
 Why this shape:
 
 - `interactive\source\...` is canonical and not accidentally rendered by Jekyll as a page.
-- `_site\new\...` is created only during the GitHub Actions build, so the existing site remains untouched.
+- `_site\classic\...` is created only when classic inputs change or the cache is missing, so new interactive changes avoid unnecessary Jekyll work.
 - `source.md` and `caveman.md` are copied next to the HTML article, making the agent-friendly links stable.
-- Shared `new\assets\...` prevents every article from inventing its own JS/CSS.
+- Shared `assets\...` prevents every article from inventing its own JS/CSS.
 
 ## Source of truth rule
 
@@ -85,7 +88,7 @@ Why this shape:
 
 Generated HTML is a build artifact. Do not hand-edit generated HTML. If HTML needs a change, update the source Markdown or the generation skill.
 
-The caveman version is derived from source, but it is committed or generated as a visible artifact only when it is reviewed enough to be useful to agents. For v1, generate it into `_site\new\...\caveman.md`; decide later whether to commit `interactive\caveman\...`.
+The caveman version is derived from source, but it is committed or generated as a visible artifact only when it is reviewed enough to be useful to agents. For v1, generate it into `_site\...\caveman.md`; decide later whether to commit `interactive\caveman\...`.
 
 ## Build and deploy plan
 
@@ -94,20 +97,17 @@ Phase 1 can be documentation-only and manual generation. Phase 2 wires CI.
 Recommended CI evolution:
 
 ```yaml
-- name: Build Jekyll
-  run: bundle exec jekyll build
+- name: Build site
+  run: python tools/build_site.py
 
-- name: Generate interactive articles
-  run: |
-    # future: tool/agent-backed generator
-    # reads interactive/source/**/*.article.md
-    # writes _site/new/**/index.html, source.md, caveman.md
+- name: Validate site
+  run: python tools/validate_site.py
 
 - name: Upload artifact
   uses: actions/upload-pages-artifact@v3
 ```
 
-No `_config.yml` change is needed if generated output is written after Jekyll into `_site`. If generated HTML is ever committed under repository root `new\`, then `_config.yml` must explicitly prevent unwanted Jekyll processing and copy behavior must be tested.
+`_config_classic.yml` sets the Jekyll `baseurl` to `/classic`; `tools\build_site.py` builds or reuses that classic output, generates the root interactive site, copies root compatibility assets, and writes static redirect pages for legacy URLs.
 
 ## Design principles from the reference HTML
 
@@ -191,17 +191,15 @@ Pass/fail criteria:
 
 ## Out of scope for v1
 
-- Replacing the existing Jekyll homepage, RSS, tags, or sitemap.
 - Migrating all old posts.
-- Search across `/new/`.
+- Search across the classic blog.
 - Comments, analytics changes, newsletter integration.
 - A fully deterministic Markdown-to-HTML compiler.
 - Perfect visual byte-for-byte match with the reference HTML.
 
 ## Open decisions
 
-1. Should `interactive\caveman\...` be committed, or should caveman files be generated only into `_site\new\...`?
-2. Should the final public URL be `/new/YYYY/slug/` or `/new/slug/`?
-3. Should generated HTML be fully self-contained per article, or use shared `new\assets\interactive-article.css` and `.js` from day one? Recommendation: shared assets.
+1. Should `interactive\caveman\...` be committed, or should caveman files be generated only into `_site\...`?
+2. Should generated HTML be fully self-contained per article, or use shared `assets\interactive-article.css` and `.js` from day one? Recommendation: shared assets.
 4. Should external fonts be allowed? Recommendation: no external fonts for v1; use system fonts for privacy, speed, and consistency.
 5. Which agent runtime should treat `.agents\skills\...` as executable skills, and which should treat them as reference docs?

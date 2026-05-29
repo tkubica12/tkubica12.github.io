@@ -1,7 +1,7 @@
 # Tři cesty k GenUI a jejich výhody a nevýhody
 
 META
-- url: /new/2026/3-cesty-k-genui/
+- url: /2026/3-cesty-k-genui/
 - date: 2026-01-27
 - lang: cs-CZ
 - source: source.md

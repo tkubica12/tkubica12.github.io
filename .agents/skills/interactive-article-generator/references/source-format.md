@@ -11,9 +11,9 @@ interactive\source\YYYY\slug.article.md
 Generated public files:
 
 ```text
-_site\new\YYYY\slug\index.html
-_site\new\YYYY\slug\source.md
-_site\new\YYYY\slug\caveman.md
+_site\YYYY\slug\index.html
+_site\YYYY\slug\source.md
+_site\YYYY\slug\caveman.md
 ```
 
 ## Front matter
@@ -29,7 +29,7 @@ slug: article-slug
 date: 2026-05-29
 language: cs-CZ
 status: experimental
-canonical_url: "/new/YYYY/article-slug/"
+canonical_url: "/YYYY/article-slug/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"
@@ -40,7 +40,7 @@ The `date` field is public metadata. Generated HTML must show it in the article 
 
 ## Normal Markdown
 
-Use normal Markdown for paragraphs, headings, bold emphasis, links, lists, tables, code fences, blockquotes, and images. Existing image paths under `/images/...` should remain unchanged in source unless the user approves a change. Generated local preview HTML may rewrite those image `src`/`href` values to a relative path so screenshots work from `_site\new\YYYY\slug\index.html`. Render screenshots as linked images so the shared in-page lightbox can open them with zoom, panning, wheel zoom, and pinch zoom.
+Use normal Markdown for paragraphs, headings, bold emphasis, links, lists, tables, code fences, blockquotes, and images. Existing image paths under `/images/...` should remain unchanged in source unless the user approves a change. Generated local preview HTML may rewrite those image `src`/`href` values to a relative path so screenshots work from `_site\YYYY\slug\index.html`. Render screenshots as linked images so the shared in-page lightbox can open them with zoom, panning, wheel zoom, and pinch zoom.
 
 ## Directives
 

@@ -73,5 +73,5 @@ Next workflow improvement:
 
 1. Snapshot the original reference HTML into `interactive\snapshots\`.
 2. Build the first real `.agents\skills\interactive-article-generator\SKILL.md`.
-3. Keep shared assets with the generator skill in `.agents\skills\interactive-article-generator\assets\` and copy them to `_site\new\assets\` during generation.
+3. Keep shared assets with the generator skill in `.agents\skills\interactive-article-generator\assets\` and copy them to `_site\assets\` during generation.
 4. Re-run the test with a DOM-based checklist instead of visual memory and regex counts.

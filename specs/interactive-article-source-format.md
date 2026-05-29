@@ -15,9 +15,9 @@ interactive\source\YYYY\slug.article.md
 Public generated links:
 
 ```text
-https://tomaskubica.cz/new/YYYY/slug/
-https://tomaskubica.cz/new/YYYY/slug/source.md
-https://tomaskubica.cz/new/YYYY/slug/caveman.md
+https://tomaskubica.cz/YYYY/slug/
+https://tomaskubica.cz/YYYY/slug/source.md
+https://tomaskubica.cz/YYYY/slug/caveman.md
 ```
 
 ## Front matter
@@ -35,7 +35,7 @@ tags:
 - AI
 - GitHub
 source_post: "_posts\\2026-05-04-techniky-pro-usporu-tokenu-v-kodovacich-agentech.md"
-canonical_url: "/new/2026/token-saving-cz/"
+canonical_url: "/2026/token-saving-cz/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"

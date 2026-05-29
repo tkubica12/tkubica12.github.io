@@ -19,7 +19,7 @@ slug: slug
 date: 2026-05-29
 language: cs-CZ
 status: experimental
-canonical_url: "/new/YYYY/slug/"
+canonical_url: "/YYYY/slug/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"

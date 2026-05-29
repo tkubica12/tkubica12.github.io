@@ -6,7 +6,7 @@ Purpose: keep generated interactive articles visually consistent without making 
 
 ## Visual direction
 
-The `/new/` article style is an article/presentation hybrid:
+The root interactive article style is an article/presentation hybrid:
 
 - Wide, centered reading canvas for live presenting.
 - Dark and light mode from the first paint.
@@ -21,7 +21,7 @@ Generated HTML must include:
 
 1. The Clawpilot theme detection script as the first `<script>` in `<head>`.
 2. The exact Clawpilot `:root` and `html[data-theme="dark"]` variable block in a small inline `<style>`.
-3. A link to `../../assets/interactive-article.css` from article pages under `/new/YYYY/slug/`.
+3. A link to `../../assets/interactive-article.css` from article pages under `/YYYY/slug/`.
 
 The shared stylesheet must use `var(--cp-*)` color variables only. Per-article HTML must not define its own palette.
 

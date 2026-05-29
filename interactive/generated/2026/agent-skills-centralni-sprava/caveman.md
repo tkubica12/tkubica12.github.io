@@ -4,7 +4,7 @@ slug: agent-skills-centralni-sprava
 date: 2026-05-11
 language: cs-CZ
 status: experimental
-canonical_url: /new/2026/agent-skills-centralni-sprava/
+canonical_url: /2026/agent-skills-centralni-sprava/
 ---
 
 # Centrální správa skills

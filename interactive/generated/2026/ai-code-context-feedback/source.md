@@ -7,7 +7,7 @@ slug: ai-code-context-feedback
 date: 2026-03-30
 language: cs-CZ
 status: experimental
-canonical_url: "/new/2026/ai-code-context-feedback/"
+canonical_url: "/2026/ai-code-context-feedback/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"

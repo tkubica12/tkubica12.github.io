@@ -4,7 +4,7 @@ Keep generated interactive articles visually consistent without making the sourc
 
 ## Visual direction
 
-The `/new/` article style is an article/presentation hybrid:
+The root interactive article style is an article/presentation hybrid:
 
 - Wide centered reading canvas for live presenting.
 - Dark and light mode from first paint.
@@ -105,9 +105,9 @@ Dark mode must be visible:
 - Expanded card bodies are indented under the card number/title row.
 - Summary may use two columns on desktop and one column on mobile.
 
-## `/new/` landing page
+## Root landing page
 
-The `/new/` index uses the same theme script, variable block, shared CSS, shared JS, typography, surfaces, borders, and restrained blue accent as article pages. It should not introduce a separate visual brand.
+The root index uses the same theme script, variable block, shared CSS, shared JS, typography, surfaces, borders, and restrained blue accent as article pages. It should not introduce a separate visual brand.
 
 Index pages may use:
 
@@ -123,7 +123,7 @@ Keep theme/category count small, typically 3-5. Theme text, summaries, labels, a
 
 Every generated article page should have a consistent navigation/footer layer:
 
-- A visible link back to `/new/`.
+- A visible link back to the root interactive index.
 - Existing `source.md` and `caveman.md` links.
 - One `Doporučeno dál` related-article block generated from compact metadata.
 
@@ -174,10 +174,10 @@ Figures:
 - Render screenshots and diagrams as clickable `<figure class="ia-figure">` blocks with linked `<img class="ia-image">` elements.
 - Keep captions short and factual.
 - Put screenshot-heavy evidence inside reveal panels so the main article stays readable.
-- For local `_site\new\YYYY\slug\index.html` preview, convert root `/images/...` paths in HTML to a relative path from the rendered file, while leaving `source.md` unchanged.
+- For local `_site\YYYY\slug\index.html` preview, convert root `/images/...` paths in HTML to a relative path from the rendered file, while leaving `source.md` unchanged.
 - The shared JavaScript opens image links in an in-page lightbox when the link target is an image file. The lightbox includes shared zoom controls, keyboard zoom (`+`/`-`), mouse/finger panning when zoomed, wheel zoom, and pinch zoom. Do not replace this with browser navigation or per-page scripts.
 
-`/new/` landing page:
+Root landing page:
 
 - Lead with newest articles first; search should be compact and collapsed by default so it does not push recent content down.
 - Theme cards are closed by default and limited to a small curated set.

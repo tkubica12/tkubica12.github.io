@@ -1,11 +1,11 @@
 ---
 name: interactive-article-generator
-description: Generate public /new/ interactive HTML, source.md, caveman.md, and shared assets from Tomas Kubica .article.md sources using the repo-local design contract.
+description: Generate public root interactive HTML, source.md, caveman.md, and shared assets from Tomas Kubica .article.md sources using the repo-local design contract.
 ---
 
 # Interactive article generator
 
-Use this skill when generating public `/new/` HTML from an `.article.md` source.
+Use this skill when generating public root interactive HTML from an `.article.md` source.
 
 This skill is a repo-local reference document. Do not assume the runtime auto-loads it; orchestration prompts should explicitly point agents to this file.
 
@@ -29,17 +29,17 @@ For source `interactive\source\YYYY\slug.article.md`, create:
 - `interactive\generated\YYYY\slug\index.html`
 - `interactive\generated\YYYY\slug\source.md`
 - `interactive\generated\YYYY\slug\caveman.md`
-- `_site\new\YYYY\slug\index.html`
-- `_site\new\YYYY\slug\source.md`
-- `_site\new\YYYY\slug\caveman.md`
-- `_site\new\index.html`
-- `_site\new\search.json`
-- `_site\new\assets\interactive-article.css`
-- `_site\new\assets\interactive-article.js`
+- `_site\YYYY\slug\index.html`
+- `_site\YYYY\slug\source.md`
+- `_site\YYYY\slug\caveman.md`
+- `_site\index.html`
+- `_site\search.json`
+- `_site\assets\interactive-article.css`
+- `_site\assets\interactive-article.js`
 
 `source.md` must be a faithful copy of the source article, excluding only internal `agent-note` blocks if the source clearly marks them as non-public.
 
-Update `interactive\article-index.json` whenever an interactive article is added or materially rewritten. Keep entries compact: title, subtitle, date, URL, a short summary, a few labels, and theme IDs. The Python post-Jekyll generator uses this committed cache to render `/new/`, lightweight search data, back-links, and related-article recommendations without LLM calls in CI.
+Update `interactive\article-index.json` whenever an interactive article is added or materially rewritten. Keep entries compact: title, subtitle, date, URL, a short summary, a few labels, and theme IDs. The Python site generator uses this committed cache to render the root interactive site, lightweight search data, back-links, and related-article recommendations without LLM calls in CI.
 
 Copy public assets from this skill folder:
 
@@ -58,9 +58,9 @@ Copy public assets from this skill folder:
 - Render the front matter `date` visibly in the article header as `<p class="ia-date"><time datetime="YYYY-MM-DD">D. M. YYYY</time></p>`.
 - Include visible top links to `./source.md` and `./caveman.md`.
 - Include the same links in the footer.
-- Article pages should also include a generated link back to `/new/` and a generated `Doporučeno dál` related-article block based on `interactive\article-index.json`.
+- Article pages should also include a generated link back to the root interactive index and a generated `Doporučeno dál` related-article block based on `interactive\article-index.json`.
 - Generated article pages should start with only the first main card expanded; later cards should be collapsed for a predictable reading start.
-- The `/new/` landing page should lead with recent articles, keep search collapsed behind a compact search control, keep theme cards collapsed by default, and use relative links for local preview.
+- The root landing page should lead with recent articles, keep search collapsed behind a compact search control, keep theme cards collapsed by default, and use relative links for local preview.
 - Article labels stay in `interactive\article-index.json` for search and recommendations; do not show them as non-clickable pills on index cards.
 - Exclude `presenter-note` and `agent-note` content from public HTML.
 
@@ -88,7 +88,7 @@ Copy public assets from this skill folder:
 - tab panel body content must be visually boxed using `.ia-tab-panel`; do not render changing tab content as plain prose.
 - reveal body content must stay readable at normal article size; do not shrink transcript or screenshot evidence text just because it is optional.
 - reveal buttons and figure captions must use normal article-reading size; do not make evidence labels look like footnotes.
-- when generating local preview HTML under `_site\new\YYYY\slug\`, make `/images/...` references locally reviewable by using a relative path such as `../../../../images/...` in `src`/`href`; keep Markdown source paths unchanged.
+- when generating local preview HTML under `_site\YYYY\slug\`, make `/images/...` references locally reviewable by using a relative path such as `../../images/...` in `src`/`href`; keep Markdown source paths unchanged.
 - final result or conclusion sections should get a distinct summary treatment, typically `.ia-summary-grid`, rather than another plain checklist.
 - visible source-numbered cards must start at `01`, not `00`; generated introductory helper cards should be unnumbered.
 - adjacent cards must never visually touch. Use `.ia-card-list` where appropriate; the shared stylesheet also provides fallback spacing for adjacent cards.
@@ -115,9 +115,9 @@ Before finishing:
 - Output files exist in the expected paths.
 - `interactive\article-index.json` contains the article with compact summary, labels, and theme IDs.
 - `interactive\generated\YYYY\slug\` contains the durable rendered snapshot for CI.
-- `/new/index.html` and `/new/search.json` are regenerated by `tools\generate_interactive_site.py`.
+- `/index.html` and `/search.json` are regenerated by `tools\build_site.py`.
 - HTML links to source and caveman.
-- Article HTML links back to `/new/` and includes one related-article recommendation.
+- Article HTML links back to the root interactive index and includes one related-article recommendation.
 - HTML references the shared CSS and JS.
 - No original reference HTML path or URL appears in generated outputs.
 - No `presenter-note` or `agent-note` content appears in HTML.

@@ -1,7 +1,7 @@
 # Spirální čtení, poslech a pokec - moje AI workflow pro nasání knihy do mozku
 
 META
-- url: /new/2026/spiralni-cteni/
+- url: /2026/spiralni-cteni/
 - source: interactive\source\2026\spiralni-cteni.article.md
 - date: 2026-03-11
 - language: cs-CZ

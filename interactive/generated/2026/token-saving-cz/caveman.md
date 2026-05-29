@@ -1,7 +1,7 @@
 # Šetříme tokeny v GitHub Copilot
 
 META
-- url: /new/2026/token-saving-cz/
+- url: /2026/token-saving-cz/
 - date: 2026-05-29
 - lang: cs-CZ
 - source: source.md

@@ -1,7 +1,7 @@
 # AI kódování - kontext vs. měření, software jako paměť, váš software se učit nebudu, OpenClaw a chytrá domácnost
 
 META
-- url: /new/2026/ai-code-context-feedback/
+- url: /2026/ai-code-context-feedback/
 - source: interactive\source\2026\ai-code-context-feedback.article.md
 - date: 2026-03-30
 - thesis: software/skill/CLI jsou paměť a optimalizace agenta; low-level API je dostatečné připojení ke světu; měření a zpětná vazba rozhodují tam, kde jde smyčku uzavřít; uživatel se nemá učit software, software/agent se má učit uživatele.

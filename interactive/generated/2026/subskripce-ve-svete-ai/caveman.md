@@ -1,7 +1,7 @@
 # Je předplatné vhodný obchodní model pro AI produkt?
 
 META
-- url: /new/2026/subskripce-ve-svete-ai/
+- url: /2026/subskripce-ve-svete-ai/
 - source: interactive\source\2026\subskripce-ve-svete-ai.article.md
 - date: 2026-04-27
 - audience: lidé řešící AI produkty, enterprise AI a agentické náklady

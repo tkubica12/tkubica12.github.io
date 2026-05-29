@@ -7,7 +7,7 @@ slug: subskripce-ve-svete-ai
 date: 2026-04-27
 language: cs-CZ
 status: experimental
-canonical_url: "/new/2026/subskripce-ve-svete-ai/"
+canonical_url: "/2026/subskripce-ve-svete-ai/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"

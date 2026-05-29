@@ -7,7 +7,7 @@ date: 2026-03-11
 language: cs-CZ
 status: experimental
 eyebrow: "Spirální čtení"
-canonical_url: "/new/2026/spiralni-cteni/"
+canonical_url: "/2026/spiralni-cteni/"
 tags:
   - audioknihy
   - AI

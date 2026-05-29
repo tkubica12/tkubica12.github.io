@@ -39,7 +39,7 @@
       "title": "Šetříme tokeny v GitHub Copilot",
       "eyebrow": "Jak snížit náklady v 15 minutách",
       "subtitle": "Od snadných výher po pokročilý context engineering. Cílem není utratit nejméně tokenů, ale získat z každého maximální hodnotu.",
-      "url": "/new/2026/token-saving-cz/",
+      "url": "/2026/token-saving-cz/",
       "summary": "Praktické techniky pro snížení tokenů v agentickém kódování bez ztráty kvality výsledku.",
       "labels": [
         "Copilot",
@@ -60,7 +60,7 @@
       "title": "Jak centrálně spravovat a řídit skills pro agenty",
       "eyebrow": "Skills jako týmová schopnost",
       "subtitle": "Stáhnout centrální skill, při potřebě zlepšení udělat lokální PoC, poslat návrh do GitHubu, nechat agenty triážovat i připravit PR po lidském schválení a vylepšený skill distribuovat všem.",
-      "url": "/new/2026/agent-skills-centralni-sprava/",
+      "url": "/2026/agent-skills-centralni-sprava/",
       "summary": "Návrh workflow pro týmovou správu agent skills přes katalog, lokální PoC, GitHub issue a agentickou triáž.",
       "labels": [
         "skills",
@@ -80,7 +80,7 @@
       "title": "Je předplatné vhodný obchodní model pro AI produkt? Zdražuje AI? Zdražují tokeny? Nebo se jen najíždí na férový model?",
       "eyebrow": "Subskripce, tokeny a agenti",
       "subtitle": "Flat subskripce je skvělá pro adopci, ale agenti rozbíjejí přirozené limity spotřeby. Budoucnost vidím spíš v licenci jako vstupence, poolované předplacené spotřebě a férových dokupovaných jednotkách.",
-      "url": "/new/2026/subskripce-ve-svete-ai/",
+      "url": "/2026/subskripce-ve-svete-ai/",
       "summary": "Úvaha o tom, proč agenti mění ekonomiku AI produktů a proč čistý flat subscription model naráží.",
       "labels": [
         "AI produkt",
@@ -100,7 +100,7 @@
       "title": "AI kódování - kontext vs. měření, software jako paměť, váš software se učit nebudu, OpenClaw a chytrá domácnost",
       "eyebrow": "Domácí experiment s AI agenty",
       "subtitle": "Domácí projekt s Home Assistantem, Copilot CLI a OpenClaw jako praktická laboratoř pro přemýšlení o kontextu, zpětné vazbě, software jako paměti a GenUI.",
-      "url": "/new/2026/ai-code-context-feedback/",
+      "url": "/2026/ai-code-context-feedback/",
       "summary": "Domácí experiment ukazuje, proč je pro AI kódování důležitý kontext, měření, feedback a agentické UX.",
       "labels": [
         "AI kódování",
@@ -121,7 +121,7 @@
       "title": "Spirální čtení, poslech a pokec - moje AI workflow pro nasání knihy do mozku",
       "eyebrow": "Spirální čtení",
       "subtitle": "Jak si z PDF dělám několik vrstev čtení a poslechu, abych mohl kdykoli skončit, pokračovat hlouběji nebo se doptat AI.",
-      "url": "/new/2026/spiralni-cteni/",
+      "url": "/2026/spiralni-cteni/",
       "summary": "Osobní workflow pro vrstvené čtení, poslech a doptávání AI nad knihami, PDF a delšími texty.",
       "labels": [
         "AI",
@@ -141,7 +141,7 @@
       "title": "Tři cesty k GenUI a jejich výhody a nevýhody",
       "eyebrow": "GenUI a AI-first rozhraní",
       "subtitle": "Statický artefakt, deklarativní specifikace, nebo plně generovaný interaktivní kód? Tři praktické cesty k vizuálnímu GenUI a jejich kompromisy.",
-      "url": "/new/2026/3-cesty-k-genui/",
+      "url": "/2026/3-cesty-k-genui/",
       "summary": "Srovnání tří cest ke generovanému UI: statický artefakt, deklarativní specifikace a plně generovaný interaktivní kód.",
       "labels": [
         "GenUI",

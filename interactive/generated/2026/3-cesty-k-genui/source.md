@@ -7,7 +7,7 @@ slug: 3-cesty-k-genui
 date: 2026-01-27
 language: cs-CZ
 status: experimental
-canonical_url: "/new/2026/3-cesty-k-genui/"
+canonical_url: "/2026/3-cesty-k-genui/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"

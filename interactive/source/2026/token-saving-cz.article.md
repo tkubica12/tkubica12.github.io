@@ -7,7 +7,7 @@ slug: token-saving-cz
 language: cs-CZ
 status: experimental
 date: 2026-05-29
-canonical_url: "/new/2026/token-saving-cz/"
+canonical_url: "/2026/token-saving-cz/"
 agent_friendly:
   source: "source.md"
   caveman: "caveman.md"
