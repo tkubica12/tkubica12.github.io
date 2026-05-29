@@ -22,6 +22,9 @@ SOURCE_ROOT = ROOT / "interactive" / "source"
 GENERATED_ROOT = ROOT / "interactive" / "generated"
 INDEX_PATH = ROOT / "interactive" / "article-index.json"
 SKILL_ASSET_ROOT = ROOT / ".agents" / "skills" / "interactive-article-generator" / "assets"
+AVATAR_SOURCE = ROOT / "assets" / "img" / "avatar.png"
+INDEX_AVATAR_SRC = "assets/img/avatar.png"
+ARTICLE_AVATAR_SRC = "../../assets/img/avatar.png"
 SITE_ROOT = ROOT / "_site"
 DEFAULT_PUBLIC_BASE = "/"
 DEFAULT_CLASSIC_BASE = "/classic/"
@@ -259,6 +262,11 @@ def copy_public_files(output_root: Path, articles: list[Article], public_base: s
     asset_target.mkdir(parents=True, exist_ok=True)
     for filename in ("interactive-article.css", "interactive-article.js"):
         shutil.copy2(SKILL_ASSET_ROOT / filename, asset_target / filename)
+    if not AVATAR_SOURCE.is_file():
+        raise FileNotFoundError(f"Author avatar is missing: {AVATAR_SOURCE.relative_to(ROOT)}")
+    avatar_target = asset_target / "img" / "avatar.png"
+    avatar_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(AVATAR_SOURCE, avatar_target)
 
     for article in articles:
         article_dir = output_root / str(article.year) / article.slug
@@ -420,6 +428,10 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
     archive = "\n".join(archive_sections)
     classic_link = root_relative_url(classic_base)
     classic_feed_link = f"{classic_link}feed.xml"
+    hero_avatar = (
+        f'<img class="ia-avatar ia-avatar-hero" src="{e(INDEX_AVATAR_SRC)}" alt="" '
+        'width="112" height="112" aria-hidden="true" decoding="async">'
+    )
     html_text = f"""<!doctype html>
 <html lang="cs-CZ">
 <head>
@@ -440,13 +452,18 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
 </div>
 <div class="ia-page ia-index-page">
 <header class="ia-header ia-index-hero">
-  <p class="ia-eyebrow">AI, vývoj a cloud</p>
-  <h1 class="ia-title">Tomáš Kubica</h1>
-  <p class="ia-subtitle">Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.</p>
-  <nav class="ia-links" aria-label="Navigace">
-    <a href="{e(classic_link)}">Starší články najdete na mém klasickém blogu</a>
-    <a href="{e(classic_feed_link)}">RSS</a>
-  </nav>
+  <div class="ia-author-hero">
+    {hero_avatar}
+    <div class="ia-author-copy">
+      <p class="ia-eyebrow">AI, vývoj a cloud</p>
+      <h1 class="ia-title">Tomáš Kubica</h1>
+      <p class="ia-subtitle">Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.</p>
+      <nav class="ia-links" aria-label="Navigace">
+        <a href="{e(classic_link)}">Starší články najdete na mém klasickém blogu</a>
+        <a href="{e(classic_feed_link)}">RSS</a>
+      </nav>
+    </div>
+  </div>
 </header>
 <main>
   <section class="ia-group" aria-labelledby="recent-title">
@@ -554,11 +571,31 @@ def normalize_article_card_defaults(text: str) -> str:
     )
 
 
+def article_avatar_markup() -> str:
+    return (
+        f'<img class="ia-avatar ia-avatar-small" src="{e(ARTICLE_AVATAR_SRC)}" alt="Tomáš Kubica" '
+        'width="40" height="40" decoding="async">'
+    )
+
+
+def patch_article_avatar(text: str, article: Article) -> str:
+    if 'class="ia-avatar ia-avatar-small"' in text:
+        return text
+
+    match = re.search(r'<p class="ia-eyebrow">.*?</p>', text, flags=re.S)
+    if not match:
+        raise ValueError(f"{article.slug}: could not patch article avatar")
+
+    wrapped = f'<div class="ia-author-row">{article_avatar_markup()}{match.group(0)}</div>'
+    return text[: match.start()] + wrapped + text[match.end() :]
+
+
 def patch_article_pages(articles: list[Article], themes: list[Theme], output_root: Path) -> None:
     recommendations = related_articles(articles, themes)
     for article in articles:
         path = output_root / str(article.year) / article.slug / "index.html"
         text = path.read_text(encoding="utf-8")
+        text = patch_article_avatar(text, article)
         text = patch_article_nav(text, article)
         text = normalize_article_card_defaults(text)
         related, reason = recommendations[article.slug]

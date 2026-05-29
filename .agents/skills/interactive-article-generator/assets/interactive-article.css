@@ -109,6 +109,47 @@ a:hover {
   text-decoration: underline;
 }
 
+.ia-author-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.ia-author-copy {
+  min-width: 0;
+}
+
+.ia-author-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.ia-author-row .ia-eyebrow {
+  margin: 0;
+}
+
+.ia-avatar {
+  display: block;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px var(--cp-border-strong), 0 16px 40px rgba(1, 4, 9, 0.22);
+}
+
+.ia-avatar-hero {
+  width: 112px;
+  height: 112px;
+}
+
+.ia-avatar-small {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 0 0 1px var(--cp-border-strong), 0 8px 20px rgba(1, 4, 9, 0.18);
+}
+
 .ia-toc {
   margin: 0 0 56px;
   padding: 20px 24px;
@@ -1481,6 +1522,16 @@ html:not(.ia-js) .ia-tab-panel[hidden] {
 
   .ia-page {
     padding: 48px 20px 120px;
+  }
+
+  .ia-author-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .ia-avatar-hero {
+    width: 88px;
+    height: 88px;
   }
 
   .ia-card-content {
