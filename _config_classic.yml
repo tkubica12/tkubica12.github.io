@@ -10,6 +10,7 @@ exclude:
   - specs
   - tools
   - README.md
+  - SPEC.md
   - LICENSE
   - purgecss.js
   - rollup.config.js

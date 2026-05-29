@@ -1,0 +1,60 @@
+# Repo spec caveman
+
+META
+- repo: `tkubica12.github.io`
+- site: `https://tomaskubica.cz/`
+- root: new interactive blog
+- classic: old Jekyll blog under `/classic/`
+- source of truth: this file + `.agents\skills\*\SKILL.md` + `tools\build_site.py`
+
+SKILLS
+- `tomas-writing-style`: Czech technical blog voice; first person, practical, opinionated; keep English tech terms.
+- `interactive-article-authoring`: plan/draft/review `interactive\source\**\*.article.md`; story and source syntax; no rendering ownership.
+- `interactive-article-generator`: render root interactive HTML, `source.md`, `caveman.md`, shared assets; owns design contract/accessibility.
+- `caveman-compressor`: compact agent-readable summaries; terse bullets; preserve commands, paths, URLs, caveats.
+
+CONTENT
+- New interactive source: `interactive\source\YYYY\slug.article.md`.
+- Durable generated snapshot: `interactive\generated\YYYY\slug\{index.html,source.md,caveman.md}`.
+- Index metadata: `interactive\article-index.json`; URL must be root style `/YYYY/slug/`.
+- Shared interactive assets: `.agents\skills\interactive-article-generator\assets\interactive-article.{css,js}`.
+- Old Jekyll content stays in `_posts`, `_layouts`, `_includes`, `_sass`, `_tabs`, `assets`, `images`, etc.
+
+BUILD
+- Full local/CI artifact: `python tools\build_site.py`.
+- Reuse cached classic: `python tools\build_site.py --skip-classic`.
+- Validate artifact: `python tools\validate_site.py`.
+- Interactive-only generator: `python tools\generate_interactive_site.py`.
+- Final deploy artifact is `_site`.
+
+OUTPUT
+- `_site\index.html`: new interactive root.
+- `_site\search.json`: interactive search data.
+- `_site\YYYY\slug\index.html`: new article.
+- `_site\YYYY\slug\source.md`: public source.
+- `_site\YYYY\slug\caveman.md`: compact agent summary.
+- `_site\assets\interactive-article.css` and `.js`: shared UI.
+- `_site\classic\...`: old Jekyll site.
+- `_site\feed.xml`: copied legacy feed for old subscribers.
+
+PIPELINE
+- GitHub Actions: `.github\workflows\pages.yaml`.
+- Trigger: push to `main` or manual `workflow_dispatch`.
+- Classic cache: `_site/classic`, keyed by Jekyll inputs.
+- Ruby/Jekyll runs only when classic cache missing or classic inputs changed.
+- New interactive changes should usually skip Jekyll and reuse cached `_site/classic`.
+- Always run `tools\validate_site.py` before upload.
+
+LEGACY LINKS
+- Built from classic HTML paths, not guessed permalink rules.
+- Default old root URL `/post/.../` -> static HTML redirect to `/classic/post/.../`.
+- Redesigned articles override to new root URL via `redirects\legacy-overrides.json`.
+- Redirect page uses meta refresh + JS replace + canonical + visible fallback link.
+- Root `404.html`: points users to `/classic/` for old blog.
+
+RULES
+- Do not reintroduce `/new/` public paths.
+- Do not add per-page visual systems; update shared design/assets instead.
+- Keep source/caveman links visible on interactive articles.
+- Keep article image links root-depth local-preview safe (`../../images/...` from article pages).
+- Keep `SPEC.md`, `.agents`, `interactive`, `redirects`, `tools` out of classic Jekyll output.
