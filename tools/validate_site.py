@@ -70,6 +70,8 @@ def resolve_target(link: str, page: Path) -> Path | None:
 
 def validate_internal_links(errors: list[str]) -> None:
     for page in SITE_ROOT.rglob("*.html"):
+        if not page.is_file():
+            continue
         parser = LinkParser()
         parser.feed(page.read_text(encoding="utf-8", errors="ignore"))
         for attr, link in parser.links:

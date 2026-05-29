@@ -111,7 +111,8 @@ def write_redirect(source_path: str, target_path: str) -> None:
 </body>
 </html>
 """
-    target_file = SITE_ROOT / source_path.strip("/") / "index.html"
+    source = source_path.strip("/")
+    target_file = SITE_ROOT / source if source.endswith(".html") else SITE_ROOT / source / "index.html"
     target_file.parent.mkdir(parents=True, exist_ok=True)
     target_file.write_text(body, encoding="utf-8")
 
