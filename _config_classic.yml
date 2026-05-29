@@ -1,1 +1,16 @@
 baseurl: "/classic"
+
+exclude:
+  - "*.gem"
+  - "*.gemspec"
+  - .agents
+  - docs
+  - interactive
+  - redirects
+  - specs
+  - tools
+  - README.md
+  - LICENSE
+  - purgecss.js
+  - rollup.config.js
+  - "package*.json"

@@ -71,6 +71,8 @@ def copy_compatibility_assets() -> None:
 def normalize_path(value: str) -> str:
     if not value.startswith("/"):
         value = "/" + value
+    if Path(value).suffix:
+        return value
     return value if value.endswith("/") else value + "/"
 
 
