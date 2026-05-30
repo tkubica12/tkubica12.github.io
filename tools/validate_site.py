@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -17,7 +16,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE_ROOT = ROOT / "_site"
 ARTICLE_INDEX = ROOT / "interactive" / "article-index.json"
 ARTICLE_INDEX_EN = ROOT / "interactive" / "article-index.en.json"
-SOURCE_ROOT = ROOT / "interactive" / "source"
 REDIRECT_OVERRIDES = ROOT / "redirects" / "legacy-overrides.json"
 SITE_URL = "https://tomaskubica.cz"
 ATOM_NS = "http://www.w3.org/2005/Atom"
@@ -55,12 +53,6 @@ def optional_article_entries(index_path: Path) -> list[dict[str, object]]:
     if not index_path.is_file():
         return []
     return article_entries(index_path)
-
-
-def source_hash(slug: str) -> str:
-    for candidate in SOURCE_ROOT.glob(f"*/{slug}.article.md"):
-        return hashlib.sha256(candidate.read_bytes()).hexdigest()
-    return ""
 
 
 def redirect_overrides() -> dict[str, str]:
@@ -178,13 +170,6 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
             source_article = cs_by_slug[source_slug]
             source_href = f'../../../{source_article["year"]}/{source_article["slug"]}/'
             require(source_href in html_text, f"{slug}: English article must link to the Czech original.", errors)
-        if source_hash(source_slug) and str(article.get("translated_from_hash", "")) != source_hash(source_slug):
-            require(
-                "Czech original has changed since this translation was generated" in html_text,
-                f"{slug}: stale English translation must show the stale-translation notice.",
-                errors,
-            )
-
     for source_slug, article in en_by_source.items():
         cs_article = cs_by_slug.get(source_slug)
         if not cs_article:

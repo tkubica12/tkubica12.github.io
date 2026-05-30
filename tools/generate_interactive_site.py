@@ -38,10 +38,6 @@ RECENT_CARD_COUNT = 6
 ARCHIVE_INITIAL_VISIBLE = 24
 ARCHIVE_BATCH_SIZE = 24
 TRANSLATION_NOTICE_CURRENT = "Machine translation from Czech"
-TRANSLATION_NOTICE_STALE = (
-    "Machine translation from Czech. The Czech original has changed since this translation was generated "
-    "and is the authoritative version."
-)
 
 THEME_SCRIPT = """<script>
 (() => {
@@ -977,27 +973,24 @@ def patch_head_language_metadata(
     return text
 
 
-def translation_is_stale(article: Article) -> bool:
-    return bool(article.translated_from_hash) and article.translated_from_hash != source_hash(article.source_slug or article.slug)
-
-
 def patch_translation_notice(text: str, article: Article, cs_by_slug: dict[str, Article]) -> str:
-    if 'class="ia-translation-notice"' in text:
-        return text
     source = cs_by_slug.get(article.source_slug or article.slug)
     if not source:
         raise ValueError(f"{article.slug}: translation source article is missing")
     source_url = f"../../../{source.year}/{source.slug}/"
     notice = f'{e(TRANSLATION_NOTICE_CURRENT)} <a href="{e(source_url)}">original</a>.'
-    if translation_is_stale(article):
-        notice = (
-            f"{notice} Czech original has changed since this translation was generated "
-            "and is the authoritative version."
-        )
     block = f"""
 <aside class="ia-callout warning ia-translation-notice">
   <p>{notice}</p>
 </aside>""".rstrip()
+    if 'class="ia-translation-notice"' in text:
+        return re.sub(
+            r'<aside class="ia-callout warning ia-translation-notice">\s*<p>.*?</p>\s*</aside>',
+            block,
+            text,
+            count=1,
+            flags=re.DOTALL,
+        )
     if "</header>" not in text:
         raise ValueError(f"{article.slug}: could not insert translation notice")
     return text.replace("</header>", f"</header>\n{block}", 1)

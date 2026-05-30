@@ -52,7 +52,7 @@ Optional English machine translations are non-default and live under `/en/`. For
 
 Update `interactive\article-index.json` whenever an interactive article is added or materially rewritten. Keep entries compact: title, subtitle, date, URL, a short summary, a few labels, and theme IDs. Update `interactive\article-index.en.json` when adding or refreshing English translations. The Python site generator uses these committed caches to render the root interactive site, English `/en/` layer, lightweight search data, back-links, language links, and related-article recommendations without LLM calls in CI.
 
-After changing Czech source content materially, actively offer to regenerate or refresh the English translation. Do not edit Czech source while translating. English translations must disclose machine translation, set `translated_from_hash` to the current Czech source hash, and remain publishable when stale; stale translations must show the stronger warning that the Czech original changed and remains authoritative.
+After changing Czech source content materially, actively offer to regenerate or refresh the English translation. Do not edit Czech source while translating. English translations must disclose machine translation and set `translated_from_hash` to the current Czech source hash for agent/tool use, but public pages should keep the notice simple and should not show a reader-facing drift warning.
 
 Copy public assets from this skill folder:
 

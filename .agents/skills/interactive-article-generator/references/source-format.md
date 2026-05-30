@@ -58,7 +58,7 @@ translated_from_hash: "<sha256 of Czech source article>"
 translation_status: current
 ```
 
-Czech remains canonical and default. English translations publish only under `/en/`, must visibly disclose machine translation, and may remain published when stale if the page shows that the Czech original changed since the translation was generated.
+Czech remains canonical and default. English translations publish only under `/en/`, must visibly disclose machine translation, and keep `translated_from_hash` as internal provenance for agents/tools. Public pages should keep the notice simple and should not show a reader-facing drift warning.
 
 ## Normal Markdown
 
