@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <script>
-    (function() {
-      try {
-        var theme = localStorage.getItem('ia-theme');
-        if (theme === 'light') {
-          document.documentElement.classList.add('theme-light');
-        }
-      } catch (error) {}
-    })();
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
   </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,81 +19,89 @@
   <link rel="canonical" href="/en/2026/spiralni-cteni/">
   <style>
     :root {
-      color-scheme: dark;
-      --ia-bg: #0d1117;
-      --ia-surface: #161b22;
-      --ia-surface-strong: #1f2937;
-      --ia-text: #f0f6fc;
-      --ia-muted: #8b949e;
-      --ia-border: #30363d;
-      --ia-accent: #58a6ff;
-      --ia-accent-strong: #1f6feb;
-      --ia-good: #3fb950;
-      --ia-warn: #d29922;
-      --ia-danger: #f85149;
-      --ia-radius: 18px;
-      --ia-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-      --ia-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      --ia-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    }
-    :root.theme-light {
+      --cp-bg: #ffffff;
+      --cp-bg-elevated: #f8fafc;
+      --cp-surface: #f6f8fa;
+      --cp-surface-soft: #eef2f6;
+      --cp-panel: #ffffff;
+      --cp-text: #172033;
+      --cp-text-muted: #475569;
+      --cp-text-soft: #64748b;
+      --cp-border: #d8dee9;
+      --cp-border-strong: #b6c2cf;
+      --cp-accent: #0969da;
+      --cp-accent-soft: rgba(9, 105, 218, 0.08);
+      --cp-link: #0969da;
+      --cp-success: #1a7f37;
+      --cp-warning: #9a6700;
+      --cp-danger: #cf222e;
       color-scheme: light;
-      --ia-bg: #f6f8fa;
-      --ia-surface: #ffffff;
-      --ia-surface-strong: #f0f3f6;
-      --ia-text: #24292f;
-      --ia-muted: #57606a;
-      --ia-border: #d0d7de;
-      --ia-accent: #0969da;
-      --ia-accent-strong: #0550ae;
-      --ia-shadow: 0 24px 60px rgba(31, 35, 40, 0.12);
+    }
+    html[data-theme="dark"] {
+      --cp-bg: #0d1117;
+      --cp-bg-elevated: #161b22;
+      --cp-surface: #161b22;
+      --cp-surface-soft: #21262d;
+      --cp-panel: #0d1117;
+      --cp-text: #f0f6fc;
+      --cp-text-muted: #c9d1d9;
+      --cp-text-soft: #8b949e;
+      --cp-border: #30363d;
+      --cp-border-strong: #484f58;
+      --cp-accent: #58a6ff;
+      --cp-accent-soft: rgba(88, 166, 255, 0.13);
+      --cp-link: #58a6ff;
+      --cp-success: #3fb950;
+      --cp-warning: #d29922;
+      --cp-danger: #f85149;
+      color-scheme: dark;
     }
   </style>
   <link rel="stylesheet" href="../../../assets/interactive-article.css">
 </head>
 <body>
   <a class="ia-skip" href="#content">Skip to content</a>
-  <header class="ia-hero">
-    <div class="ia-hero-inner">
+  <div class="ia-controls" aria-label="Article controls"><button class="ia-control" type="button" data-expand-all>Expand all</button><button class="ia-control" type="button" data-collapse-all>Collapse all</button><button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button></div>
+  <div class="ia-page">
+  <header class="ia-header">
       <p class="ia-eyebrow">AI, PDF, and audio</p>
-      <h1>Spiral reading: AI podcast from PDFs without losing context</h1>
+      <h1 class="ia-title">Spiral reading: AI podcast from PDFs without losing context</h1>
       <p class="ia-subtitle">How to build a simple workflow in which AI turns a PDF into an audiobook without losing the document's original structure.</p>
       <p class="ia-date"><time datetime="2026-03-11">11. 3. 2026</time></p>
-      <div class="ia-actions" aria-label="Article links">
-        <a href="./source.md">Source</a>
-        <a href="./caveman.md">Caveman</a>
-      </div>
-    </div>
+      <nav class="ia-links" aria-label="Source files"><a href="./source.md">source.md</a><a href="./caveman.md">caveman.md</a></nav>
   </header>
-  <main id="content" class="ia-main">
+  <main id="content">
     <section class="ia-group" aria-labelledby="group-from-pdf-to-audio">
-      <div class="ia-group-heading">
-        <p class="ia-group-kicker">Group</p>
-        <h2 id="group-from-pdf-to-audio">From PDF to audio</h2>
-      </div>
+      <h2 class="ia-group-title" id="group-from-pdf-to-audio">From PDF to audio</h2>
       <div class="ia-card-list">
         <article class="ia-card is-open" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-1-body" data-ia-card-button>
-            <span class="ia-card-number">01</span>
+            <span class="ia-card-num">01</span>
             <span class="ia-card-title">Why I read in a spiral</span>
-            <span class="ia-card-badge">context</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-1-body">
+          <div class="ia-card-body" id="card-1-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <p>Long PDFs, studies, technical documents, and long manuals have one common problem: I rarely need to read them linearly from page one to the last page. Most of the time I need to understand the map first, then decide where to dive deeper. For me, AI is great exactly for this: it helps me circle around a document repeatedly, each time at a different level of detail.</p>
             <p>I call this spiral reading. First, a very high-level overview. Then a more detailed summary. Then questions about specific chapters. And eventually audio, so I can take the content with me into the car or on a walk.</p>
             <div class="ia-callout ia-callout-note">
               <p class="ia-callout-title">Core idea</p>
               <p>Do not generate an audiobook from a PDF in one blind step. First have AI understand the document structure, verify what is important, and only then turn it into spoken form.</p>
             </div>
+              </div>
+            </div>
           </div>
         </article>
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-2-body" data-ia-card-button>
-            <span class="ia-card-number">02</span>
+            <span class="ia-card-num">02</span>
             <span class="ia-card-title">The basic workflow</span>
-            <span class="ia-card-badge">workflow</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-2-body">
+          <div class="ia-card-body" id="card-2-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <ol class="ia-steps">
               <li><strong>Upload the PDF to an AI assistant.</strong><span>Let it map the structure: chapters, sections, tables, important definitions, warnings, and examples.</span></li>
               <li><strong>Ask for a hierarchical summary.</strong><span>First in five bullets, then by chapter, then by the parts that are relevant to you.</span></li>
@@ -101,15 +110,19 @@
               <li><strong>Feed the script into TTS.</strong><span>Use a text-to-speech tool or a service that can create a podcast-style output.</span></li>
             </ol>
             <p>This workflow is a little slower than the naive “turn the whole PDF into audio” approach, but it produces much better results. Above all, it keeps context.</p>
+              </div>
+            </div>
           </div>
         </article>
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-3-body" data-ia-card-button>
-            <span class="ia-card-number">03</span>
+            <span class="ia-card-num">03</span>
             <span class="ia-card-title">What must not get lost</span>
-            <span class="ia-card-badge">quality</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-3-body">
+          <div class="ia-card-body" id="card-3-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <p>When AI converts a document into audio, it tends to smooth things out. That is pleasant to listen to, but risky for technical materials. I therefore watch three things in particular.</p>
             <div class="ia-tabs" data-ia-tabs>
               <div class="ia-tab-list" role="tablist" aria-label="What must not get lost">
@@ -130,23 +143,24 @@
               </div>
             </div>
             <p>The goal is not a theatrical podcast. The goal is useful spoken reading that still respects the source.</p>
+              </div>
+            </div>
           </div>
         </article>
       </div>
     </section>
     <section class="ia-group" aria-labelledby="group-prompts-and-checks">
-      <div class="ia-group-heading">
-        <p class="ia-group-kicker">Group</p>
-        <h2 id="group-prompts-and-checks">Prompts and checks</h2>
-      </div>
+      <h2 class="ia-group-title" id="group-prompts-and-checks">Prompts and checks</h2>
       <div class="ia-card-list">
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-4-body" data-ia-card-button>
-            <span class="ia-card-number">04</span>
+            <span class="ia-card-num">04</span>
             <span class="ia-card-title">Prompt pattern</span>
-            <span class="ia-card-badge">prompt</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-4-body">
+          <div class="ia-card-body" id="card-4-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <p>I usually split the work into several prompts. One prompt asks for structure, another for the summary, another for a spoken script. For example:</p>
             <pre class="ia-code"><code>You are helping me read this PDF in a spiral.
 First identify the document structure and the author's main argument.
@@ -161,15 +175,19 @@ Return:
 Keep the meaning precise, but make the sentences easier to listen to.
 Clearly announce transitions between chapters.
 Do not invent examples or conclusions that are not in the PDF.</code></pre>
+              </div>
+            </div>
           </div>
         </article>
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-5-body" data-ia-card-button>
-            <span class="ia-card-number">05</span>
+            <span class="ia-card-num">05</span>
             <span class="ia-card-title">Control questions</span>
-            <span class="ia-card-badge">check</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-5-body">
+          <div class="ia-card-body" id="card-5-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <p>Before I let the text go to TTS, I ask a few control questions. They often reveal that the model has oversimplified something.</p>
             <ul class="ia-arrow-list">
               <li>Which important claim from the original PDF did you omit and why?</li>
@@ -178,15 +196,19 @@ Do not invent examples or conclusions that are not in the PDF.</code></pre>
               <li>What should I verify in the original PDF before sharing this audio with someone else?</li>
             </ul>
             <p>This is also the moment when I decide whether the output is only for my personal orientation, or whether it is good enough to send to someone else.</p>
+              </div>
+            </div>
           </div>
         </article>
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-6-body" data-ia-card-button>
-            <span class="ia-card-number">06</span>
+            <span class="ia-card-num">06</span>
             <span class="ia-card-title">Where the audiobook helps</span>
-            <span class="ia-card-badge">use cases</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-6-body">
+          <div class="ia-card-body" id="card-6-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <p>This approach is useful mainly when I do not need pixel-perfect fidelity, but I do need to keep the author's logic in my head.</p>
             <ol class="ia-sequence">
               <li><strong>First pass</strong><span>I listen to the high-level version to decide whether the document deserves attention.</span></li>
@@ -194,23 +216,24 @@ Do not invent examples or conclusions that are not in the PDF.</code></pre>
               <li><strong>Return to source</strong><span>For anything important, I go back to the original PDF and verify details.</span></li>
             </ol>
             <p>For legal, contractual, safety, or medical content I would not rely on audio alone. There the audiobook can help with orientation, but the original remains authoritative.</p>
+              </div>
+            </div>
           </div>
         </article>
       </div>
     </section>
     <section class="ia-group" aria-labelledby="group-practical-conclusion">
-      <div class="ia-group-heading">
-        <p class="ia-group-kicker">Group</p>
-        <h2 id="group-practical-conclusion">Practical conclusion</h2>
-      </div>
+      <h2 class="ia-group-title" id="group-practical-conclusion">Practical conclusion</h2>
       <div class="ia-card-list">
         <article class="ia-card" data-ia-card>
           <button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-7-body" data-ia-card-button>
-            <span class="ia-card-number">07</span>
+            <span class="ia-card-num">07</span>
             <span class="ia-card-title">My rule</span>
-            <span class="ia-card-badge">summary</span>
+            <span class="ia-card-toggle" aria-hidden="true">▾</span>
           </button>
-          <div class="ia-card-body" id="card-7-body">
+          <div class="ia-card-body" id="card-7-body" data-ia-card-panel>
+            <div class="ia-card-body-clip">
+              <div class="ia-card-content ia-prose">
             <div class="ia-summary-grid">
               <div>Start with structure, not with audio generation.</div>
               <div>Keep the hierarchy of the original document visible in the script.</div>
@@ -218,6 +241,8 @@ Do not invent examples or conclusions that are not in the PDF.</code></pre>
               <div>Use TTS only after you know the script is faithful enough.</div>
             </div>
             <p class="ia-closing">AI can turn a PDF into an audiobook, but the real trick is not the voice. The trick is preserving context while changing the medium.</p>
+              </div>
+            </div>
           </div>
         </article>
       </div>
@@ -227,6 +252,7 @@ Do not invent examples or conclusions that are not in the PDF.</code></pre>
     <p>Generated snapshot for a durable interactive article.</p>
     <p><a href="./source.md">Source</a> · <a href="./caveman.md">Caveman</a></p>
   </footer>
+  </div>
   <script src="../../../assets/interactive-article.js" defer></script>
 </body>
 </html>
