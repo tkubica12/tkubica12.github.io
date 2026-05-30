@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -19,18 +20,27 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "interactive" / "source"
+TRANSLATION_ROOT = ROOT / "interactive" / "translations"
 GENERATED_ROOT = ROOT / "interactive" / "generated"
 INDEX_PATH = ROOT / "interactive" / "article-index.json"
+EN_INDEX_PATH = ROOT / "interactive" / "article-index.en.json"
 SKILL_ASSET_ROOT = ROOT / ".agents" / "skills" / "interactive-article-generator" / "assets"
 AVATAR_SOURCE = ROOT / "assets" / "img" / "avatar.png"
 INDEX_AVATAR_SRC = "assets/img/avatar.png"
+EN_INDEX_AVATAR_SRC = "../assets/img/avatar.png"
 ARTICLE_AVATAR_SRC = "../../assets/img/avatar.png"
+EN_ARTICLE_AVATAR_SRC = "../../../assets/img/avatar.png"
 SITE_ROOT = ROOT / "_site"
 DEFAULT_PUBLIC_BASE = "/"
 DEFAULT_CLASSIC_BASE = "/classic/"
 RECENT_CARD_COUNT = 6
 ARCHIVE_INITIAL_VISIBLE = 24
 ARCHIVE_BATCH_SIZE = 24
+TRANSLATION_NOTICE_CURRENT = "Machine translation from Czech"
+TRANSLATION_NOTICE_STALE = (
+    "Machine translation from Czech. The Czech original has changed since this translation was generated "
+    "and is the authoritative version."
+)
 
 THEME_SCRIPT = """<script>
 (() => {
@@ -84,7 +94,6 @@ html[data-theme="dark"] {
   color-scheme: dark;
 }"""
 
-
 @dataclass(frozen=True)
 class Article:
     slug: str
@@ -97,6 +106,9 @@ class Article:
     summary: str
     labels: tuple[str, ...]
     themes: tuple[str, ...]
+    source_slug: str = ""
+    translated_from_hash: str = ""
+    translation_status: str = ""
 
 
 @dataclass(frozen=True)
@@ -105,6 +117,122 @@ class Theme:
     title: str
     summary: str
     featured_slugs: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LocaleConfig:
+    code: str
+    html_lang: str
+    public_base: str
+    output_subdir: str
+    generated_subdir: str
+    index_avatar_src: str
+    article_avatar_src: str
+    title: str
+    description: str
+    eyebrow: str
+    subtitle: str
+    navigation_label: str
+    theme_button_label: str
+    classic_link_text: str
+    rss_text: str
+    language_switch_label: str
+    current_language_label: str
+    other_language_label: str
+    recent_title: str
+    search_summary: str
+    search_label: str
+    search_placeholder: str
+    search_status: str
+    themes_title: str
+    all_title: str
+    section_note: str
+    archive_more: str
+    back_to_index: str
+    related_kicker: str
+    agent_friendly: str
+    article_navigation_label: str
+    related_same_theme: str
+    related_shared_context: str
+    related_shared_tokens: str
+    related_default: str
+
+
+CS_LOCALE = LocaleConfig(
+    code="cs",
+    html_lang="cs-CZ",
+    public_base="/",
+    output_subdir="",
+    generated_subdir="",
+    index_avatar_src=INDEX_AVATAR_SRC,
+    article_avatar_src=ARTICLE_AVATAR_SRC,
+    title="AI, vývoj a cloud | Tomáš Kubica",
+    description="Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.",
+    eyebrow="AI, vývoj a cloud",
+    subtitle="Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.",
+    navigation_label="Navigace",
+    theme_button_label="Tmavý režim",
+    classic_link_text="Starší články najdete na mém klasickém blogu",
+    rss_text="RSS",
+    language_switch_label="Jazyk",
+    current_language_label="CZ",
+    other_language_label="EN",
+    recent_title="Nejnovější",
+    search_summary="⌕ Hledat v článcích",
+    search_label="Hledat v názvech, shrnutích, tématech a štítcích",
+    search_placeholder="Například tokeny, GenUI, skills...",
+    search_status="Vyhledávací index se načte až při psaní.",
+    themes_title="Témata",
+    all_title="Všechny články",
+    section_note="Stránka je statická; při větším počtu článků se starší položky jen postupně odkrývají po dávkách.",
+    archive_more="Zobrazit další články",
+    back_to_index="← Všechny interaktivní články",
+    related_kicker="Doporučeno dál",
+    agent_friendly="Agent-friendly verze",
+    article_navigation_label="Navigace článku",
+    related_same_theme="Navazuje na stejné téma: {theme}.",
+    related_shared_context="Sdílí praktický kontext: {label}.",
+    related_shared_tokens="Má podobný slovník a praktický kontext.",
+    related_default="Je to další aktuální text z interaktivní série.",
+)
+
+EN_LOCALE = LocaleConfig(
+    code="en",
+    html_lang="en",
+    public_base="/en/",
+    output_subdir="en",
+    generated_subdir="en",
+    index_avatar_src=EN_INDEX_AVATAR_SRC,
+    article_avatar_src=EN_ARTICLE_AVATAR_SRC,
+    title="AI, development and cloud | Tomas Kubica",
+    description="Practical writing about AI, development, cloud and what works when building modern systems.",
+    eyebrow="AI, development and cloud",
+    subtitle="Practical writing about AI, development, cloud and what works when building modern systems.",
+    navigation_label="Navigation",
+    theme_button_label="Dark mode",
+    classic_link_text="Older Czech articles are on my classic blog",
+    rss_text="RSS",
+    language_switch_label="Language",
+    current_language_label="EN",
+    other_language_label="CZ",
+    recent_title="Latest",
+    search_summary="⌕ Search articles",
+    search_label="Search titles, summaries, topics and labels",
+    search_placeholder="For example tokens, GenUI, skills...",
+    search_status="The search index loads when you start typing.",
+    themes_title="Topics",
+    all_title="All articles",
+    section_note="This page is static; as the archive grows, older items are progressively revealed in batches.",
+    archive_more="Show more articles",
+    back_to_index="← All interactive articles",
+    related_kicker="Recommended next",
+    agent_friendly="Agent-friendly version",
+    article_navigation_label="Article navigation",
+    related_same_theme="Continues the same topic: {theme}.",
+    related_shared_context="Shares practical context: {label}.",
+    related_shared_tokens="Uses similar vocabulary and practical context.",
+    related_default="Another recent article from the interactive series.",
+)
 
 
 def e(value: object) -> str:
@@ -126,12 +254,12 @@ def tokens(article: Article) -> set[str]:
     return {part for part in re.split(r"[^0-9a-zA-Zá-žÁ-Ž]+", normalize(text)) if len(part) >= 3}
 
 
-def read_cache() -> tuple[list[Article], list[Theme]]:
-    with INDEX_PATH.open("r", encoding="utf-8") as handle:
+def read_cache(index_path: Path = INDEX_PATH) -> tuple[list[Article], list[Theme]]:
+    with index_path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
 
     if data.get("version") != 1:
-        raise ValueError("interactive\\article-index.json must have version 1")
+        raise ValueError(f"{index_path.relative_to(ROOT)} must have version 1")
 
     themes = [
         Theme(
@@ -154,10 +282,19 @@ def read_cache() -> tuple[list[Article], list[Theme]]:
             summary=item["summary"],
             labels=tuple(item.get("labels", [])),
             themes=tuple(item.get("themes", [])),
+            source_slug=item.get("source_slug", item["slug"]),
+            translated_from_hash=item.get("translated_from_hash", ""),
+            translation_status=item.get("translation_status", ""),
         )
         for item in data.get("articles", [])
     ]
     return articles, themes
+
+
+def read_optional_cache(index_path: Path) -> tuple[list[Article], list[Theme]]:
+    if not index_path.is_file():
+        return [], []
+    return read_cache(index_path)
 
 
 def parse_front_matter(path: Path) -> dict[str, str]:
@@ -189,6 +326,12 @@ def source_articles() -> dict[str, dict[str, str]]:
     return items
 
 
+def source_hash(slug: str) -> str:
+    for candidate in SOURCE_ROOT.glob(f"*/{slug}.article.md"):
+        return hashlib.sha256(candidate.read_bytes()).hexdigest()
+    raise FileNotFoundError(f"Missing Czech source for {slug}")
+
+
 def normalize_url_base(value: str) -> str:
     if not value:
         return "/"
@@ -208,30 +351,39 @@ def root_relative_url(path: str) -> str:
     return path.lstrip("/")
 
 
-def validate(articles: list[Article], themes: list[Theme], public_base: str) -> None:
+def validate_articles(
+    articles: list[Article],
+    themes: list[Theme],
+    public_base: str,
+    generated_root: Path,
+    cache_path: Path,
+) -> None:
     errors: list[str] = []
     source_by_slug = source_articles()
     article_by_slug = {article.slug: article for article in articles}
     theme_ids = {theme.id for theme in themes}
+    cache_name = str(cache_path.relative_to(ROOT))
 
     if len(article_by_slug) != len(articles):
-        errors.append("Duplicate article slug in interactive\\article-index.json")
+        errors.append(f"Duplicate article slug in {cache_name}")
 
     if len(theme_ids) != len(themes):
-        errors.append("Duplicate theme id in interactive\\article-index.json")
+        errors.append(f"Duplicate theme id in {cache_name}")
 
-    for slug in sorted(set(source_by_slug) - set(article_by_slug)):
-        errors.append(f"Source article {slug} is missing from interactive\\article-index.json")
+    if cache_path == INDEX_PATH:
+        for slug in sorted(set(source_by_slug) - set(article_by_slug)):
+            errors.append(f"Source article {slug} is missing from interactive\\article-index.json")
 
-    for slug in sorted(set(article_by_slug) - set(source_by_slug)):
-        errors.append(f"Cache article {slug} has no matching interactive source")
+        for slug in sorted(set(article_by_slug) - set(source_by_slug)):
+            errors.append(f"Cache article {slug} has no matching interactive source")
 
     for article in articles:
-        source = source_by_slug.get(article.slug)
+        source = source_by_slug.get(article.source_slug or article.slug)
         if source:
-            for key, expected in (("title", article.title), ("date", article.date)):
-                if source.get(key) != expected:
-                    errors.append(f"{article.slug}: cache {key} does not match source front matter")
+            if cache_path == INDEX_PATH:
+                for key, expected in (("title", article.title), ("date", article.date)):
+                    if source.get(key) != expected:
+                        errors.append(f"{article.slug}: cache {key} does not match source front matter")
         if article.year != int(article.date[:4]):
             errors.append(f"{article.slug}: year must match date year")
         expected_url = join_url(public_base, article.year, article.slug)
@@ -240,10 +392,10 @@ def validate(articles: list[Article], themes: list[Theme], public_base: str) -> 
         for theme_id in article.themes:
             if theme_id not in theme_ids:
                 errors.append(f"{article.slug}: unknown theme {theme_id}")
-        generated_dir = GENERATED_ROOT / str(article.year) / article.slug
+        generated_dir = generated_root / str(article.year) / article.slug
         for filename in ("index.html", "source.md", "caveman.md"):
             if not (generated_dir / filename).is_file():
-                errors.append(f"{article.slug}: missing interactive\\generated\\{article.year}\\{article.slug}\\{filename}")
+                errors.append(f"{article.slug}: missing {generated_dir.relative_to(ROOT)}\\{filename}")
 
     for theme in themes:
         for slug in theme.featured_slugs:
@@ -254,9 +406,48 @@ def validate(articles: list[Article], themes: list[Theme], public_base: str) -> 
         raise ValueError("\n".join(errors))
 
 
-def copy_public_files(output_root: Path, articles: list[Article], public_base: str) -> None:
+def validate_translations(en_articles: list[Article], en_themes: list[Theme], cs_articles: list[Article]) -> None:
+    if not en_articles:
+        return
+
+    errors: list[str] = []
+    source_by_slug = source_articles()
+    cs_by_slug = {article.slug: article for article in cs_articles}
+    validate_articles(en_articles, en_themes, EN_LOCALE.public_base, GENERATED_ROOT / "en", EN_INDEX_PATH)
+
+    for article in en_articles:
+        source_slug = article.source_slug or article.slug
+        if source_slug not in cs_by_slug:
+            errors.append(f"{article.slug}: English article source_slug {source_slug} has no Czech article")
+        if source_slug not in source_by_slug:
+            errors.append(f"{article.slug}: English article source_slug {source_slug} has no Czech source")
+
+        translation_path = TRANSLATION_ROOT / "en" / str(article.year) / f"{article.slug}.article.md"
+        if not translation_path.is_file():
+            errors.append(f"{article.slug}: missing {translation_path.relative_to(ROOT)}")
+            continue
+
+        metadata = parse_front_matter(translation_path)
+        expected = {
+            "language": "en",
+            "source_language": "cs-CZ",
+            "source_slug": source_slug,
+            "translation": "machine",
+        }
+        for key, value in expected.items():
+            if metadata.get(key) != value:
+                errors.append(f"{article.slug}: translation front matter {key} must be {value}")
+        if not metadata.get("translated_from_hash"):
+            errors.append(f"{article.slug}: translation front matter is missing translated_from_hash")
+        if article.translated_from_hash and metadata.get("translated_from_hash") != article.translated_from_hash:
+            errors.append(f"{article.slug}: article-index.en.json translated_from_hash does not match translation source")
+
+    if errors:
+        raise ValueError("\n".join(errors))
+
+
+def copy_assets(output_root: Path) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(GENERATED_ROOT, output_root, dirs_exist_ok=True)
 
     asset_target = output_root / "assets"
     asset_target.mkdir(parents=True, exist_ok=True)
@@ -268,8 +459,21 @@ def copy_public_files(output_root: Path, articles: list[Article], public_base: s
     avatar_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(AVATAR_SOURCE, avatar_target)
 
+
+def copy_article_files(
+    output_root: Path,
+    articles: list[Article],
+    public_base: str,
+    generated_root: Path,
+    output_subdir: str = "",
+) -> None:
+    target_root = output_root / output_subdir if output_subdir else output_root
+    target_root.mkdir(parents=True, exist_ok=True)
+
     for article in articles:
-        article_dir = output_root / str(article.year) / article.slug
+        source_dir = generated_root / str(article.year) / article.slug
+        article_dir = target_root / str(article.year) / article.slug
+        shutil.copytree(source_dir, article_dir, dirs_exist_ok=True)
         public_url = join_url(public_base, article.year, article.slug)
         legacy_url = f"/new/{article.year}/{article.slug}/"
         for filename in ("index.html", "source.md", "caveman.md"):
@@ -277,7 +481,8 @@ def copy_public_files(output_root: Path, articles: list[Article], public_base: s
             if path.is_file():
                 text = path.read_text(encoding="utf-8").replace(legacy_url, public_url)
                 if filename == "index.html":
-                    text = text.replace("../../../../images/", "../../images/")
+                    image_prefix = "../../../images/" if output_subdir else "../../images/"
+                    text = text.replace("../../../../images/", image_prefix)
                 path.write_text(text, encoding="utf-8")
 
 
@@ -285,7 +490,7 @@ def theme_lookup(themes: list[Theme]) -> dict[str, Theme]:
     return {theme.id: theme for theme in themes}
 
 
-def related_articles(articles: list[Article], themes: list[Theme]) -> dict[str, tuple[Article, str]]:
+def related_articles(articles: list[Article], themes: list[Theme], locale: LocaleConfig) -> dict[str, tuple[Article, str]]:
     by_theme = theme_lookup(themes)
     token_cache = {article.slug: tokens(article) for article in articles}
     recommendations: dict[str, tuple[Article, str]] = {}
@@ -305,16 +510,18 @@ def related_articles(articles: list[Article], themes: list[Theme]) -> dict[str, 
             score = len(shared_themes) * 8 + len(shared_labels) * 2 + min(len(shared_tokens), 6)
             candidates.append((score, candidate.date, candidate, shared_themes, shared_labels))
 
+        if not candidates:
+            continue
         best_score, _, best_article, shared_themes, shared_labels = max(candidates, key=lambda item: (item[0], item[1]))
         if shared_themes:
             theme_title = by_theme[sorted(shared_themes)[0]].title
-            reason = f"Navazuje na stejné téma: {theme_title}."
+            reason = locale.related_same_theme.format(theme=theme_title)
         elif shared_labels:
-            reason = f"Sdílí praktický kontext: {sorted(shared_labels)[0]}."
+            reason = locale.related_shared_context.format(label=sorted(shared_labels)[0])
         elif best_score > 0:
-            reason = "Má podobný slovník a praktický kontext."
+            reason = locale.related_shared_tokens
         else:
-            reason = "Je to další aktuální text z interaktivní série."
+            reason = locale.related_default
         recommendations[article.slug] = (best_article, reason)
 
     return recommendations
@@ -395,7 +602,28 @@ def search_payload_json(articles: list[Article], themes: list[Theme]) -> str:
     return json.dumps(build_search_payload(articles, themes), ensure_ascii=False, separators=(",", ":"))
 
 
-def generate_index(articles: list[Article], themes: list[Theme], output_root: Path, public_base: str, classic_base: str) -> None:
+def index_root_relative(path: str, locale: LocaleConfig) -> str:
+    relative = root_relative_url(path)
+    return f"../{relative}" if locale.output_subdir else relative
+
+
+def index_language_switch(locale: LocaleConfig, has_english: bool) -> str:
+    if locale.code == "cs":
+        if not has_english:
+            return ""
+        return f'<a href="en/" lang="en" hreflang="en">{e(locale.other_language_label)}</a>'
+    return f'<a href="../" lang="cs-CZ" hreflang="cs-CZ">{e(locale.other_language_label)}</a>'
+
+
+def generate_index(
+    articles: list[Article],
+    themes: list[Theme],
+    output_root: Path,
+    public_base: str,
+    classic_base: str,
+    locale: LocaleConfig,
+    has_english: bool = False,
+) -> None:
     recent = sorted(articles, key=lambda article: article.date, reverse=True)
     all_by_year: dict[int, list[Article]] = defaultdict(list)
     for article in recent:
@@ -407,7 +635,7 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
     archive_has_more = len(recent) > ARCHIVE_INITIAL_VISIBLE
     archive_button = (
         f'<button class="ia-control ia-archive-more" type="button" data-ia-archive-more data-batch-size="{ARCHIVE_BATCH_SIZE}" hidden>'
-        "Zobrazit další články</button>"
+        f"{e(locale.archive_more)}</button>"
         if archive_has_more
         else ""
     )
@@ -426,14 +654,25 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
 </section>""".strip()
         )
     archive = "\n".join(archive_sections)
-    classic_link = root_relative_url(classic_base)
-    classic_feed_link = f"{classic_link}feed.xml"
+    classic_link = index_root_relative(classic_base, locale)
+    feed_link = index_root_relative("/", locale) + "feed.xml"
     hero_avatar = (
-        f'<img class="ia-avatar ia-avatar-hero" src="{e(INDEX_AVATAR_SRC)}" alt="" '
+        f'<img class="ia-avatar ia-avatar-hero" src="{e(locale.index_avatar_src)}" alt="" '
         'width="112" height="112" aria-hidden="true" decoding="async">'
     )
+    language_link = index_language_switch(locale, has_english)
+    language_nav = ""
+    if language_link:
+        language_nav = f"""
+      <nav class="ia-links" aria-label="{e(locale.language_switch_label)}">
+        <a href="./" aria-current="page">{e(locale.current_language_label)}</a>
+        {language_link}
+      </nav>""".rstrip()
+    asset_prefix = "../" if locale.output_subdir else ""
+    output_dir = output_root / locale.output_subdir if locale.output_subdir else output_root
+    output_dir.mkdir(parents=True, exist_ok=True)
     html_text = f"""<!doctype html>
-<html lang="cs-CZ">
+<html lang="{e(locale.html_lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -441,33 +680,34 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
 <style>
 {THEME_VARIABLES}
 </style>
-<link rel="stylesheet" href="assets/interactive-article.css">
-<title>AI, vývoj a cloud | Tomáš Kubica</title>
-<meta name="description" content="Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.">
+<link rel="stylesheet" href="{asset_prefix}assets/interactive-article.css">
+<title>{e(locale.title)}</title>
+<meta name="description" content="{e(locale.description)}">
 <link rel="canonical" href="{e(normalize_url_base(public_base))}">
 </head>
 <body>
-<div class="ia-controls" aria-label="Ovládání stránky">
-  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+<div class="ia-controls" aria-label="{e(locale.navigation_label)}">
+  <button class="ia-control theme" type="button" data-theme-toggle>{e(locale.theme_button_label)}</button>
 </div>
 <div class="ia-page ia-index-page">
 <header class="ia-header ia-index-hero">
   <div class="ia-author-hero">
     {hero_avatar}
     <div class="ia-author-copy">
-      <p class="ia-eyebrow">AI, vývoj a cloud</p>
+      <p class="ia-eyebrow">{e(locale.eyebrow)}</p>
       <h1 class="ia-title">Tomáš Kubica</h1>
-      <p class="ia-subtitle">Prakticky o AI, vývoji, cloudu a o tom, co se mi při stavbě moderních systémů osvědčilo.</p>
-      <nav class="ia-links" aria-label="Navigace">
-        <a href="{e(classic_link)}">Starší články najdete na mém klasickém blogu</a>
-        <a href="{e(classic_feed_link)}">RSS</a>
+      <p class="ia-subtitle">{e(locale.subtitle)}</p>
+      <nav class="ia-links" aria-label="{e(locale.navigation_label)}">
+        <a href="{e(classic_link)}">{e(locale.classic_link_text)}</a>
+        <a href="{e(feed_link)}">{e(locale.rss_text)}</a>
       </nav>
+      {language_nav}
     </div>
   </div>
 </header>
 <main>
   <section class="ia-group" aria-labelledby="recent-title">
-    <h2 class="ia-group-title" id="recent-title">Nejnovější</h2>
+    <h2 class="ia-group-title" id="recent-title">{e(locale.recent_title)}</h2>
     <div class="ia-index-grid">
       {recent_cards}
     </div>
@@ -475,26 +715,26 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
 
   <section class="ia-group ia-index-search" aria-labelledby="search-title" data-ia-index-search>
     <details class="ia-search-disclosure">
-      <summary class="ia-search-summary" id="search-title"><span aria-hidden="true">⌕</span> Hledat v článcích</summary>
+      <summary class="ia-search-summary" id="search-title">{e(locale.search_summary)}</summary>
       <div class="ia-search-panel">
-        <label class="ia-search-label" for="ia-search-input">Hledat v názvech, shrnutích, tématech a štítcích</label>
-        <input class="ia-search-input" id="ia-search-input" type="search" autocomplete="off" placeholder="Například tokeny, GenUI, skills..." data-search-src="search.json">
-        <p class="ia-search-status" data-ia-search-status>Vyhledávací index se načte až při psaní.</p>
+        <label class="ia-search-label" for="ia-search-input">{e(locale.search_label)}</label>
+        <input class="ia-search-input" id="ia-search-input" type="search" autocomplete="off" placeholder="{e(locale.search_placeholder)}" data-search-src="search.json">
+        <p class="ia-search-status" data-ia-search-status>{e(locale.search_status)}</p>
         <ol class="ia-search-results" data-ia-search-results></ol>
       </div>
     </details>
   </section>
 
   <section class="ia-group" aria-labelledby="themes-title">
-    <h2 class="ia-group-title" id="themes-title">Témata</h2>
+    <h2 class="ia-group-title" id="themes-title">{e(locale.themes_title)}</h2>
     <div class="ia-card-list ia-theme-list">
       {theme_cards}
     </div>
   </section>
 
   <section class="ia-group" aria-labelledby="all-title">
-    <h2 class="ia-group-title" id="all-title">Všechny články</h2>
-    <p class="ia-section-note">Stránka je statická; při větším počtu článků se starší položky jen postupně odkrývají po dávkách.</p>
+    <h2 class="ia-group-title" id="all-title">{e(locale.all_title)}</h2>
+    <p class="ia-section-note">{e(locale.section_note)}</p>
     <div data-ia-archive data-initial-visible="{ARCHIVE_INITIAL_VISIBLE}">
     {archive}
     </div>
@@ -502,50 +742,111 @@ def generate_index(articles: list[Article], themes: list[Theme], output_root: Pa
   </section>
 </main>
 <footer class="ia-footer">
-  <p>Starší články najdete na <a href="{e(classic_link)}">mém klasickém blogu</a> · <a href="{e(classic_feed_link)}">RSS</a></p>
+  <p><a href="{e(classic_link)}">{e(locale.classic_link_text)}</a> · <a href="{e(feed_link)}">{e(locale.rss_text)}</a></p>
 </footer>
 </div>
-<script src="assets/interactive-article.js"></script>
+<script src="{asset_prefix}assets/interactive-article.js"></script>
 </body>
 </html>
 """
-    (output_root / "index.html").write_text(html_text, encoding="utf-8")
+    (output_dir / "index.html").write_text(html_text, encoding="utf-8")
 
 
-def generate_search_json(articles: list[Article], themes: list[Theme], output_root: Path) -> None:
-    (output_root / "search.json").write_text(search_payload_json(articles, themes), encoding="utf-8")
+def generate_search_json(articles: list[Article], themes: list[Theme], output_root: Path, locale: LocaleConfig) -> None:
+    output_dir = output_root / locale.output_subdir if locale.output_subdir else output_root
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "search.json").write_text(search_payload_json(articles, themes), encoding="utf-8")
 
 
 def relative_article_url(from_article: Article, to_article: Article) -> str:
     return f"../../{to_article.year}/{to_article.slug}/"
 
 
-def article_footer(article: Article, related: Article, reason: str) -> str:
-    related_url = relative_article_url(article, related)
-    return f"""<footer class="ia-footer">
-<div class="ia-article-nav">
-  <a href="../../">← Všechny interaktivní články</a>
-</div>
+def article_footer(article: Article, related: Article | None, reason: str, locale: LocaleConfig) -> str:
+    related_block = ""
+    if related is not None:
+        related_url = relative_article_url(article, related)
+        related_block = f"""
 <section class="ia-related" aria-labelledby="related-title">
-  <p class="ia-related-kicker">Doporučeno dál</p>
+  <p class="ia-related-kicker">{e(locale.related_kicker)}</p>
   <h2 id="related-title"><a href="{e(related_url)}">{e(related.title)}</a></h2>
   <p>{e(reason)} {e(related.summary)}</p>
   <p class="ia-related-meta"><time datetime="{e(related.date)}">{e(display_date(related.date))}</time></p>
-</section>
-<p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</section>""".rstrip()
+    return f"""<footer class="ia-footer">
+<div class="ia-article-nav">
+  <a href="../../">{e(locale.back_to_index)}</a>
+</div>
+{related_block}
+<p>{e(locale.agent_friendly)}: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
 </footer>"""
 
 
-def patch_article_nav(text: str, article: Article) -> str:
-    pattern = re.compile(r'(<nav class="ia-links"[^>]*>)(.*?</nav>)', re.S)
-    for match in pattern.finditer(text):
-        block = match.group(0)
-        if "./source.md" not in block or "./caveman.md" not in block:
-            continue
+def article_language_links(
+    article: Article,
+    locale: LocaleConfig,
+    translations_by_source: dict[str, Article],
+    cs_by_slug: dict[str, Article],
+) -> str:
+    if locale.code == "cs":
+        translated = translations_by_source.get(article.slug)
+        if not translated:
+            return ""
+        return (
+            f'<a href="./" aria-current="page" lang="cs-CZ" hreflang="cs-CZ">{e(locale.current_language_label)}</a>\n'
+            f'<a href="../../en/{translated.year}/{translated.slug}/" lang="en" hreflang="en">{e(locale.other_language_label)}</a>'
+        )
 
-        opening = re.sub(r'aria-label="[^"]*"', 'aria-label="Navigace článku"', match.group(1), count=1)
-        replacement = f'{opening}\n<a href="../../">← Všechny interaktivní články</a>\n{match.group(2)}'
-        return text[: match.start()] + replacement + text[match.end() :]
+    source = cs_by_slug.get(article.source_slug or article.slug)
+    if not source:
+        return ""
+    return (
+        f'<a href="../../../{source.year}/{source.slug}/" lang="cs-CZ" hreflang="cs-CZ">{e(locale.other_language_label)}</a>\n'
+        f'<a href="./" aria-current="page" lang="en" hreflang="en">{e(locale.current_language_label)}</a>'
+    )
+
+
+def patch_article_nav(
+    text: str,
+    article: Article,
+    locale: LocaleConfig,
+    translations_by_source: dict[str, Article],
+    cs_by_slug: dict[str, Article],
+) -> str:
+    candidates = [
+        (
+            re.compile(r'(<nav\b(?=[^>]*\bclass="[^"]*\bia-links\b[^"]*")[^>]*>)(.*?</nav>)', re.S),
+            None,
+        ),
+        (
+            re.compile(r'(<div\b(?=[^>]*\bclass="[^"]*\bia-actions\b[^"]*")[^>]*>)(.*?</div>)', re.S),
+            "div",
+        ),
+    ]
+    for pattern, fallback_tag in candidates:
+        for match in pattern.finditer(text):
+            block = match.group(0)
+            if "./source.md" not in block or "./caveman.md" not in block:
+                continue
+
+            if fallback_tag == "div":
+                opening = f'<nav class="ia-links" aria-label="{e(locale.article_navigation_label)}">'
+                body = re.sub(r"</div>\s*$", "</nav>", match.group(2), count=1)
+            else:
+                opening = re.sub(
+                    r'aria-label="[^"]*"',
+                    f'aria-label="{e(locale.article_navigation_label)}"',
+                    match.group(1),
+                    count=1,
+                )
+                if opening == match.group(1):
+                    opening = opening[:-1] + f' aria-label="{e(locale.article_navigation_label)}">'
+                body = match.group(2)
+
+            language_links = article_language_links(article, locale, translations_by_source, cs_by_slug)
+            language_block = f"\n{language_links}" if language_links else ""
+            replacement = f'{opening}\n<a href="../../">{e(locale.back_to_index)}</a>{language_block}\n{body}'
+            return text[: match.start()] + replacement + text[match.end() :]
 
     raise ValueError(f"{article.slug}: could not patch article navigation")
 
@@ -571,14 +872,14 @@ def normalize_article_card_defaults(text: str) -> str:
     )
 
 
-def article_avatar_markup() -> str:
+def article_avatar_markup(locale: LocaleConfig) -> str:
     return (
-        f'<img class="ia-avatar ia-avatar-small" src="{e(ARTICLE_AVATAR_SRC)}" alt="Tomáš Kubica" '
+        f'<img class="ia-avatar ia-avatar-small" src="{e(locale.article_avatar_src)}" alt="Tomáš Kubica" '
         'width="40" height="40" decoding="async">'
     )
 
 
-def patch_article_avatar(text: str, article: Article) -> str:
+def patch_article_avatar(text: str, article: Article, locale: LocaleConfig) -> str:
     if 'class="ia-avatar ia-avatar-small"' in text:
         return text
 
@@ -586,22 +887,97 @@ def patch_article_avatar(text: str, article: Article) -> str:
     if not match:
         raise ValueError(f"{article.slug}: could not patch article avatar")
 
-    wrapped = f'<div class="ia-author-row">{article_avatar_markup()}{match.group(0)}</div>'
+    wrapped = f'<div class="ia-author-row">{article_avatar_markup(locale)}{match.group(0)}</div>'
     return text[: match.start()] + wrapped + text[match.end() :]
 
 
-def patch_article_pages(articles: list[Article], themes: list[Theme], output_root: Path) -> None:
-    recommendations = related_articles(articles, themes)
+def patch_head_language_metadata(
+    text: str,
+    article: Article,
+    locale: LocaleConfig,
+    translations_by_source: dict[str, Article],
+    cs_by_slug: dict[str, Article],
+) -> str:
+    text = re.sub(r'<html lang="[^"]*"', f'<html lang="{e(locale.html_lang)}"', text, count=1)
+    text = re.sub(
+        r'<link rel="canonical" href="[^"]*">',
+        f'<link rel="canonical" href="{e(article.url)}">',
+        text,
+        count=1,
+    )
+
+    alternates = ""
+    if locale.code == "cs":
+        translated = translations_by_source.get(article.slug)
+        if translated:
+            alternates = f"""
+<link rel="alternate" hreflang="cs-CZ" href="{e(article.url)}">
+<link rel="alternate" hreflang="en" href="{e(translated.url)}">
+<link rel="alternate" hreflang="x-default" href="{e(article.url)}">""".rstrip()
+    else:
+        source = cs_by_slug.get(article.source_slug or article.slug)
+        if source:
+            alternates = f"""
+<link rel="alternate" hreflang="cs-CZ" href="{e(source.url)}">
+<link rel="alternate" hreflang="en" href="{e(article.url)}">
+<link rel="alternate" hreflang="x-default" href="{e(source.url)}">""".rstrip()
+
+    text = re.sub(r'\n<link rel="alternate" hreflang="[^"]+" href="[^"]+">', "", text)
+    if alternates and "</head>" in text:
+        text = text.replace("</head>", f"{alternates}\n</head>", 1)
+    return text
+
+
+def translation_is_stale(article: Article) -> bool:
+    return bool(article.translated_from_hash) and article.translated_from_hash != source_hash(article.source_slug or article.slug)
+
+
+def patch_translation_notice(text: str, article: Article, cs_by_slug: dict[str, Article]) -> str:
+    if 'class="ia-translation-notice"' in text:
+        return text
+    source = cs_by_slug.get(article.source_slug or article.slug)
+    if not source:
+        raise ValueError(f"{article.slug}: translation source article is missing")
+    source_url = f"../../../{source.year}/{source.slug}/"
+    notice = f'{e(TRANSLATION_NOTICE_CURRENT)} <a href="{e(source_url)}">original</a>.'
+    if translation_is_stale(article):
+        notice = (
+            f"{notice} Czech original has changed since this translation was generated "
+            "and is the authoritative version."
+        )
+    block = f"""
+<aside class="ia-callout warning ia-translation-notice">
+  <p>{notice}</p>
+</aside>""".rstrip()
+    if "</header>" not in text:
+        raise ValueError(f"{article.slug}: could not insert translation notice")
+    return text.replace("</header>", f"</header>\n{block}", 1)
+
+
+def patch_article_pages(
+    articles: list[Article],
+    themes: list[Theme],
+    output_root: Path,
+    locale: LocaleConfig,
+    translations_by_source: dict[str, Article],
+    cs_by_slug: dict[str, Article],
+) -> None:
+    recommendations = related_articles(articles, themes, locale)
+    base_dir = output_root / locale.output_subdir if locale.output_subdir else output_root
     for article in articles:
-        path = output_root / str(article.year) / article.slug / "index.html"
+        path = base_dir / str(article.year) / article.slug / "index.html"
         text = path.read_text(encoding="utf-8")
-        text = patch_article_avatar(text, article)
-        text = patch_article_nav(text, article)
+        text = patch_head_language_metadata(text, article, locale, translations_by_source, cs_by_slug)
+        text = patch_article_avatar(text, article, locale)
+        text = patch_article_nav(text, article, locale, translations_by_source, cs_by_slug)
+        if locale.code == "en":
+            text = patch_translation_notice(text, article, cs_by_slug)
         text = normalize_article_card_defaults(text)
-        related, reason = recommendations[article.slug]
+        related_item = recommendations.get(article.slug)
+        related, reason = related_item if related_item else (None, "")
         text, footer_count = re.subn(
             r"<footer class=\"ia-footer\">.*?</footer>",
-            article_footer(article, related, reason),
+            article_footer(article, related, reason, locale),
             text,
             count=1,
             flags=re.S,
@@ -616,11 +992,27 @@ def run(output_root: Path, public_base: str = DEFAULT_PUBLIC_BASE, classic_base:
     public_base = normalize_url_base(public_base)
     classic_base = normalize_url_base(classic_base)
     articles, themes = read_cache()
-    validate(articles, themes, public_base)
-    copy_public_files(output_root, articles, public_base)
-    generate_index(articles, themes, output_root, public_base, classic_base)
-    generate_search_json(articles, themes, output_root)
-    patch_article_pages(articles, themes, output_root)
+    en_articles, en_themes = read_optional_cache(EN_INDEX_PATH)
+    cs_by_slug = {article.slug: article for article in articles}
+    translations_by_source = {article.source_slug or article.slug: article for article in en_articles}
+
+    cs_locale = LocaleConfig(**(CS_LOCALE.__dict__ | {"public_base": public_base}))
+    en_locale = EN_LOCALE
+
+    validate_articles(articles, themes, public_base, GENERATED_ROOT, INDEX_PATH)
+    validate_translations(en_articles, en_themes, articles)
+    copy_assets(output_root)
+    copy_article_files(output_root, articles, public_base, GENERATED_ROOT)
+    if en_articles:
+        copy_article_files(output_root, en_articles, en_locale.public_base, GENERATED_ROOT / "en", en_locale.output_subdir)
+
+    generate_index(articles, themes, output_root, public_base, classic_base, cs_locale, has_english=bool(en_articles))
+    generate_search_json(articles, themes, output_root, cs_locale)
+    patch_article_pages(articles, themes, output_root, cs_locale, translations_by_source, cs_by_slug)
+    if en_articles:
+        generate_index(en_articles, en_themes, output_root, en_locale.public_base, classic_base, en_locale, has_english=True)
+        generate_search_json(en_articles, en_themes, output_root, en_locale)
+        patch_article_pages(en_articles, en_themes, output_root, en_locale, translations_by_source, cs_by_slug)
 
 
 def main() -> int:

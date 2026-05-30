@@ -8,12 +8,21 @@ The source format is Markdown-first. It should be pleasant for the author to wri
 interactive\source\YYYY\slug.article.md
 ```
 
+Optional English machine-translation source:
+
+```text
+interactive\translations\en\YYYY\slug.article.md
+```
+
 Generated public files:
 
 ```text
 _site\YYYY\slug\index.html
 _site\YYYY\slug\source.md
 _site\YYYY\slug\caveman.md
+_site\en\YYYY\slug\index.html
+_site\en\YYYY\slug\source.md
+_site\en\YYYY\slug\caveman.md
 ```
 
 ## Front matter
@@ -37,6 +46,19 @@ agent_friendly:
 ```
 
 The `date` field is public metadata. Generated HTML must show it in the article header using a semantic `<time datetime="YYYY-MM-DD">D. M. YYYY</time>` element.
+
+English translation sources add provenance fields:
+
+```yaml
+language: en
+source_language: cs-CZ
+source_slug: article-slug
+translation: machine
+translated_from_hash: "<sha256 of Czech source article>"
+translation_status: current
+```
+
+Czech remains canonical and default. English translations publish only under `/en/`, must visibly disclose machine translation, and may remain published when stale if the page shows that the Czech original changed since the translation was generated.
 
 ## Normal Markdown
 

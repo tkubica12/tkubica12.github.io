@@ -34,6 +34,7 @@ Keep this skill separate from `interactive-article-generator`: authoring is for 
 5. Ask before changing the core opinion, claim strength, or conclusion.
 6. Keep research citations close to the claims they support.
 7. Use `references\quality-review.md` when reviewing facts, flow, style, links, missing areas, or typos.
+8. When Czech source content is added or materially changed, offer to regenerate the optional English machine translation under `interactive\translations\en\...`; Czech remains the source of truth.
 
 ## Good interactive candidates
 

@@ -3,6 +3,20 @@
 
   const root = document.documentElement;
   const storageKey = "interactive-article-theme";
+  const isEnglish = (root.lang || "").toLowerCase().startsWith("en");
+  const themeLabels = isEnglish
+    ? {
+        lightText: "Light mode",
+        darkText: "Dark mode",
+        lightAria: "Switch to light mode",
+        darkAria: "Switch to dark mode",
+      }
+    : {
+        lightText: "Světlý režim",
+        darkText: "Tmavý režim",
+        lightAria: "Přepnout na světlý režim",
+        darkAria: "Přepnout na tmavý režim",
+      };
 
   const getStoredTheme = () => {
     try {
@@ -22,8 +36,8 @@
 
   const updateThemeButtons = (theme) => {
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
-      button.textContent = theme === "dark" ? "Světlý režim" : "Tmavý režim";
-      button.setAttribute("aria-label", theme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim");
+      button.textContent = theme === "dark" ? themeLabels.lightText : themeLabels.darkText;
+      button.setAttribute("aria-label", theme === "dark" ? themeLabels.lightAria : themeLabels.darkAria);
     });
   };
 

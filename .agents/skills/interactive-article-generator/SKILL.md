@@ -37,9 +37,22 @@ For source `interactive\source\YYYY\slug.article.md`, create:
 - `_site\assets\interactive-article.css`
 - `_site\assets\interactive-article.js`
 
+Optional English machine translations are non-default and live under `/en/`. For translated source `interactive\translations\en\YYYY\slug.article.md`, create and commit:
+
+- `interactive\generated\en\YYYY\slug\index.html`
+- `interactive\generated\en\YYYY\slug\source.md`
+- `interactive\generated\en\YYYY\slug\caveman.md`
+- `_site\en\YYYY\slug\index.html`
+- `_site\en\YYYY\slug\source.md`
+- `_site\en\YYYY\slug\caveman.md`
+- `_site\en\index.html`
+- `_site\en\search.json`
+
 `source.md` must be a faithful copy of the source article, excluding only internal `agent-note` blocks if the source clearly marks them as non-public.
 
-Update `interactive\article-index.json` whenever an interactive article is added or materially rewritten. Keep entries compact: title, subtitle, date, URL, a short summary, a few labels, and theme IDs. The Python site generator uses this committed cache to render the root interactive site, lightweight search data, back-links, and related-article recommendations without LLM calls in CI.
+Update `interactive\article-index.json` whenever an interactive article is added or materially rewritten. Keep entries compact: title, subtitle, date, URL, a short summary, a few labels, and theme IDs. Update `interactive\article-index.en.json` when adding or refreshing English translations. The Python site generator uses these committed caches to render the root interactive site, English `/en/` layer, lightweight search data, back-links, language links, and related-article recommendations without LLM calls in CI.
+
+After changing Czech source content materially, actively offer to regenerate or refresh the English translation. Do not edit Czech source while translating. English translations must disclose machine translation, set `translated_from_hash` to the current Czech source hash, and remain publishable when stale; stale translations must show the stronger warning that the Czech original changed and remains authoritative.
 
 Copy public assets from this skill folder:
 
@@ -52,6 +65,7 @@ Copy public assets from this skill folder:
 - Include the exact interactive article CSS variable block from `references\design-contract.md` in a small inline `<style>`.
 - Link shared CSS with `../../assets/interactive-article.css`.
 - Load shared JS with `../../assets/interactive-article.js`.
+- For English article pages under `/en/YYYY/slug/`, link shared CSS/JS with `../../../assets/...` and use `<html lang="en">`.
 - Do not add per-article palettes, gradients, or extra component CSS. The visual baseline is the token-saving article: cold GitHub-like dark mode, white/light gray light mode, restrained blue links/accent, thin borders, no warm brown or pink page palette.
 - Use semantic HTML: `header`, `main`, `section`, `article`, `footer`, tables, lists, code.
 - Preserve Czech prose and technical terms from the source unless the source asks for adaptation.

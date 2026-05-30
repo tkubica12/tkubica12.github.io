@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "ai-agenti-a-kodovani",
+      "title": "AI agents and coding",
+      "summary": "Copilot, skills, context, feedback, and practical work with agents in software development.",
+      "featured_slugs": [
+        "token-saving-cz",
+        "agent-skills-centralni-sprava",
+        "ai-code-context-feedback"
+      ]
+    },
+    {
+      "id": "ai-produkt-a-byznys",
+      "title": "AI product and business",
+      "summary": "How user interfaces, pricing, consumption, and business models change in AI-first products.",
+      "featured_slugs": [
+        "subskripce-ve-svete-ai",
+        "3-cesty-k-genui",
+        "ai-code-context-feedback"
+      ]
+    },
+    {
+      "id": "osobni-ai-workflow",
+      "title": "Personal AI workflow",
+      "summary": "Practical personal workflows for using AI to accelerate learning, reading, and work with information.",
+      "featured_slugs": [
+        "spiralni-cteni",
+        "token-saving-cz"
+      ]
+    }
+  ],
+  "articles": [
+    {
+      "slug": "token-saving-cz",
+      "year": 2026,
+      "date": "2026-05-29",
+      "title": "Saving tokens in GitHub Copilot",
+      "eyebrow": "How to reduce costs in 15 minutes",
+      "subtitle": "From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one.",
+      "url": "/en/2026/token-saving-cz/",
+      "summary": "Practical techniques for reducing token consumption in agentic coding without losing result quality.",
+      "labels": [
+        "Copilot",
+        "tokens",
+        "context engineering",
+        "agents",
+        "MCP"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "osobni-ai-workflow"
+      ],
+      "source_slug": "token-saving-cz",
+      "translated_from_hash": "b35cee2ce7d4dcd2dd1b7f7fa93ae47594b131a58c3669d3b6551b962832806b",
+      "translation_status": "current"
+    },
+    {
+      "slug": "agent-skills-centralni-sprava",
+      "year": 2026,
+      "date": "2026-05-11",
+      "title": "How to centrally manage and govern skills for agents",
+      "eyebrow": "Skills as a team capability",
+      "subtitle": "Download a central skill, create a local PoC when it needs improvement, send the proposal to GitHub, let agents triage and prepare a PR after human approval, and distribute the improved skill to everyone.",
+      "url": "/en/2026/agent-skills-centralni-sprava/",
+      "summary": "A workflow proposal for team-managed agent skills through a catalog, local PoC, GitHub issue, and agentic triage.",
+      "labels": [
+        "skills",
+        "agents",
+        "GitHub",
+        "governance",
+        "benchmark"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani"
+      ],
+      "source_slug": "agent-skills-centralni-sprava",
+      "translated_from_hash": "e5295c09b619c061b1271149b03d9d98d2dd6051e8d2b845e4a7186eec0a4239",
+      "translation_status": "current"
+    },
+    {
+      "slug": "subskripce-ve-svete-ai",
+      "year": 2026,
+      "date": "2026-04-27",
+      "title": "Is subscription a suitable business model for an AI product? Is AI getting more expensive? Are tokens getting more expensive? Or are we just moving toward a fair model?",
+      "eyebrow": "Subscription, tokens and agents",
+      "subtitle": "Flat subscription is great for adoption, but agents break the natural limits of consumption. I see the future more in a license as an entry ticket, pooled prepaid consumption, and fair top-up units.",
+      "url": "/en/2026/subskripce-ve-svete-ai/",
+      "summary": "A reflection on why agents change the economics of AI products and why a pure flat subscription model runs into limits.",
+      "labels": [
+        "AI product",
+        "subscription",
+        "tokens",
+        "pricing",
+        "agents"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "subskripce-ve-svete-ai",
+      "translated_from_hash": "ff13eec8e86981125d72348688373f06386882c6ee2fcabefd460e0204daf507",
+      "translation_status": "current"
+    },
+    {
+      "slug": "ai-code-context-feedback",
+      "year": 2026,
+      "date": "2026-03-30",
+      "title": "AI coding - context vs. measurement, software as memory, I will not learn your software, OpenClaw and the smart home",
+      "eyebrow": "A home experiment with AI agents",
+      "subtitle": "A home project with Home Assistant, Copilot CLI, and OpenClaw as a practical lab for thinking about context, feedback, software as memory, and GenUI.",
+      "url": "/en/2026/ai-code-context-feedback/",
+      "summary": "A home experiment showing why context, measurement, feedback, and agentic UX matter for AI coding.",
+      "labels": [
+        "AI coding",
+        "feedback",
+        "context",
+        "OpenClaw",
+        "GenUI"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "ai-code-context-feedback",
+      "translated_from_hash": "eaf693ad7dd1efdcccd5f29bab1c75352c6088dd1277d44ed636934c0c78c601",
+      "translation_status": "current"
+    },
+    {
+      "slug": "spiralni-cteni",
+      "year": 2026,
+      "date": "2026-03-11",
+      "title": "Spiral reading: AI podcast from PDFs without losing context",
+      "eyebrow": "AI, PDF, and audio",
+      "subtitle": "How to build a simple workflow in which AI turns a PDF into an audiobook without losing the document's original structure.",
+      "url": "/en/2026/spiralni-cteni/",
+      "summary": "A personal workflow for layered reading, listening, and asking AI questions about books, PDFs, and longer texts.",
+      "labels": [
+        "AI",
+        "reading",
+        "audiobooks",
+        "workflow",
+        "learning"
+      ],
+      "themes": [
+        "osobni-ai-workflow"
+      ],
+      "source_slug": "spiralni-cteni",
+      "translated_from_hash": "60164b8b2f44943bf69341adc039c9e5160b1b4dea19487addd3e9faa3a33d15",
+      "translation_status": "current"
+    },
+    {
+      "slug": "3-cesty-k-genui",
+      "year": 2026,
+      "date": "2026-01-27",
+      "title": "Three paths to GenUI and their pros and cons",
+      "eyebrow": "GenUI and AI-first interfaces",
+      "subtitle": "A static artifact, a declarative specification, or fully generated interactive code? Three practical paths to visual GenUI and their trade-offs.",
+      "url": "/en/2026/3-cesty-k-genui/",
+      "summary": "A comparison of three paths to generated UI: static artifacts, declarative specifications, and fully generated interactive code.",
+      "labels": [
+        "GenUI",
+        "AI-first UI",
+        "UX",
+        "artifacts",
+        "applications"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "3-cesty-k-genui",
+      "translated_from_hash": "55a145f069659705920e21966ee7a600dd22307f40845d39dd33c2d88dfa00e7",
+      "translation_status": "current"
+    }
+  ]
+}

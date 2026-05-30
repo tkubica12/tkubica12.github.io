@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>Is subscription a suitable business model for an AI product?</title>
+<meta name="description" content="Flat subscription is great for adoption, but agents break the natural limits of consumption.">
+<link rel="canonical" href="/en/2026/subskripce-ve-svete-ai/">
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">Subscription, tokens and agents</p>
+    <h1 class="ia-title">Is subscription a suitable business model for an AI product? Is AI getting more expensive? Are tokens getting more expensive? Or are we just moving toward a fair model?</h1>
+    <p class="ia-subtitle">Flat subscription is great for adoption, but agents break the natural limits of consumption. I see the future more in a license as an entry ticket, pooled prepaid consumption, and fair top-up units.</p>
+    <p class="ia-date"><time datetime="2026-04-27">27. 4. 2026</time></p>
+    <nav class="ia-links" aria-label="Source files">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+  <main>
+    <nav class="ia-toc" aria-labelledby="toc-title">
+      <p class="ia-toc-title" id="toc-title">Contents</p>
+      <div class="ia-toc-list">
+        <a href="#predplatne"><span class="ia-toc-num">01</span><span>Why classic subscription worked</span></a>
+        <a href="#naklady"><span class="ia-toc-num">02</span><span>Two sources of cost</span></a>
+        <a href="#cloud-model"><span class="ia-toc-num">03</span><span>A model for cloud</span></a>
+        <a href="#zbytek-ai"><span class="ia-toc-num">04</span><span>Beyond coding</span></a>
+      </div>
+    </nav>
+    <section class="ia-group" id="uvod" aria-label="Introduction">
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-uvod-head" type="button" aria-expanded="true" aria-controls="card-uvod" data-ia-card-button>
+            <span class="ia-card-title">Why I am talking about this now</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-uvod" role="region" aria-labelledby="card-uvod-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Recently there have been many changes in the business models of some AI products, especially those around coding. I think this is a preview of changes in other areas too - once we see the same phase transition we experienced in coding in December 2025 (when it simply started working beautifully and reliably), similar pressure will emerge on other products, including those for non-developers. And I would guess agents such as OpenClaw or Cowork are the next service that will follow this trend.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="ia-group" id="predplatne" aria-labelledby="predplatne-title">
+      <h2 class="ia-group-title" id="predplatne-title">Why classic subscription worked</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-klasicke-predplatne-head" type="button" aria-expanded="true" aria-controls="card-klasicke-predplatne" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">Classic subscription</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-klasicke-predplatne" role="region" aria-labelledby="card-klasicke-predplatne-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>If you make people pay based on how they use a service, it is well known that they then use it little and cannot realize its full value - they never really learn it, because they keep counting money and feeling afraid. Subscription solved this brilliantly in the past - it pulls you into the game, you use it, get used to it, do not want to lose it. And you spread it around, increasing the user base. In short, <strong>flat subscription is ideal for adoption</strong>.</p>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-spotify-head" type="button" aria-expanded="false" aria-controls="reveal-spotify" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Spotify, the gym and a natural limit</button>
+                <div class="ia-reveal-body" id="reveal-spotify" role="region" aria-labelledby="reveal-spotify-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p>How does the service provider make money on that? It is clear they have calculated it so they have a good margin on the average user. They earn much more on those who use it little, earn little on power users, and may lose money on a few extreme ones. Take Spotify, for example. It certainly has some fixed costs per user (servers, app development, and so on), but many costs are consumption-driven - royalties to authors, data transfer fees. An average user may consume, say, 50 hours per month. And a "power user"? There is a natural limit - even if they never slept, it cannot be more than 730 hours per month; with some sleep, say about 10x more than the average user (gym or public transport subscriptions have similar natural limits). Another type of business may have a smaller difference (for example an electronic magazine subscription - how many articles a power user reads does not matter much) or a larger one (for example Box-like storage with unlimited space also has unlimited costs). Where there is no natural limit (such as the number of hours in a month), the provider often protects itself with an "asterisk" - it is unlimited, but unfair use is detected and a vague limit is applied.</p>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ai-problem-head" type="button" aria-expanded="true" aria-controls="card-ai-problem" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">Why AI makes this problematic</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-ai-problem" role="region" aria-labelledby="card-ai-problem-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>With ordinary chat, of course, a very active user consumes far more tokens and therefore generates costs not 10x between the average and power user, but certainly more like 100x. Maybe the business model can still handle that, but some restrictions may be used:</p>
+              <ul>
+                <li>Limits within an hour</li>
+                <li>Temporary switch to a cheaper model</li>
+                <li>Slower response (not deliberately, but perhaps because someone overshooting is deprioritized)</li>
+              </ul>
+              <p>But that is chat - <strong>agents change everything</strong>. So-called Deep Research was already a bit of a problem, but a full-fledged agent is much bigger - and in coding it is the only thing that makes sense today. An agent can work on a given task for hours, load code and documentation (so it has enormous token context), call tools across hundreds of interactions, create colleague subagents and let them work on parts of the problem in parallel. And if your agent works on something for an hour, will you watch it, or open another window and start another one solving something else? Of course you will do that, so in the end a de facto unlimited number of hungry agents and subagents is running. The ratio between your average user and Power User can easily reach a 4-order-of-magnitude difference and can practically go completely off the rails - not intentionally at all, the user simply used agents fully and sleep is not a natural limit.</p>
+              <div class="ia-sequence" aria-label="The path from chat to agents">
+                <h3 class="ia-sequence-title">The path from chat to agents</h3>
+                <ol class="ia-sequence-list">
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Chat</strong><p>The difference between average and power user may be more like 100x.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Deep Research</strong><p>Already a bit of a problem because it runs longer and consumes more context.</p></li>
+                  <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Full-fledged agent</strong><p>Hours of work, hundreds of tool calls, subagents and parallel windows can drive consumption up by whole orders of magnitude.</p></li>
+                </ol>
+              </div>
+              <aside class="ia-callout verdict">
+                <span class="ia-callout-title">The point</span>
+                <p>What to do about it? <strong>It cannot be flat subscription</strong> - and that is why there are so many market changes and a move toward paying by fair use. Let us first look at what will actually be paid for, and then at what the model may look like.</p>
+              </aside>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="ia-group" id="naklady" aria-labelledby="naklady-title">
+      <h2 class="ia-group-title" id="naklady-title">Two sources of cost</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-naklady-head" type="button" aria-expanded="true" aria-controls="card-naklady" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title">Tokens and compute are measurable</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-naklady" role="region" aria-labelledby="card-naklady-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>A solution typically has to include payment for the fact that it exists - someone built it, handles its security, architecture, compliance, and also has some basic operating costs. But that is not what we care about now - we want to focus on two sources of cost that are directly measurable and directly depend on the user (without the user they do not arise).</p>
+              <div class="ia-summary-grid">
+                <div class="ia-summary-item"><strong>Tokens</strong><p>Input, cached input and output tokens are a direct model cost.</p></div>
+                <div class="ia-summary-item"><strong>Compute</strong><p>A cloud agent needs CPU, RAM and an isolated environment; for an agent this is the second key component.</p></div>
+              </div>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-tokeny-head" type="button" aria-expanded="false" aria-controls="reveal-tokeny" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Tokens</button>
+                <div class="ia-reveal-body" id="reveal-tokeny" role="region" aria-labelledby="reveal-tokeny-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p><strong>Tokens</strong> are real costs of the given solution. People say Anthropic has a 40%-50% margin on tokens (which includes model IP and inferencing, meaning GPU), so we can assume it will be similar elsewhere. Even if the provider hosts the model itself or has a discount, token costs are still very real - this is not some license or something similar, but actual electrons converted into intelligence. Input, cached input and output tokens are a direct cost. Of course different models have different prices (they differ in hardware demands), and that must be included, so some conversion is usually used in the form of an "AI unit" - medium model 1x, large model 3x, and so on. Some places count money directly, but for services supporting different models (for example GitHub Copilot with support for OpenAI, Anthropic and Google), conversion through a virtual currency is more common.</p>
+                </div></div></div>
+              </div>
+              <div class="ia-reveal" data-ia-reveal>
+                <button class="ia-reveal-button" id="reveal-compute-head" type="button" aria-expanded="false" aria-controls="reveal-compute" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Compute</button>
+                <div class="ia-reveal-body" id="reveal-compute" role="region" aria-labelledby="reveal-compute-head"><div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+                  <p><strong>Compute</strong> will become the second key component, because for a chatbot the consumed compute is relatively small, but for an agent the situation is different. Yes, an agent can run locally on the user's laptop (see for example GitHub Copilot CLI), but for security and practical reasons it will increasingly be a machine in the cloud. An agent needs a computer, and giving it one in the cloud will make enormous sense. But then it is rented compute - real costs for electrons flowing through CPU and RAM. Infrastructure cloud has some margin (let us count 30%-40%), so again it is true that even if there is an operations discount or the provider hosts it itself, most of the price still remains a cost.</p>
+                </div></div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="ia-group" id="cloud-model" aria-labelledby="cloud-model-title">
+      <h2 class="ia-group-title" id="cloud-model-title">A model for cloud</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-cloud-model-head" type="button" aria-expanded="true" aria-controls="card-cloud-model" data-ia-card-button>
+            <span class="ia-card-num">04</span><span class="ia-card-title">Subscription as an entry ticket, consumption package and top-ups</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-cloud-model" role="region" aria-labelledby="card-cloud-model-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>I think this is the model of the future - a subscription that unlocks features and typically also includes some <strong>prepaid consumption</strong>, ideally pooled. Let us explain.</p>
+              <p>GitHub Copilot (announced and in effect from June) or Cursor work on the principle that you have a subscription that lets you use its features and at the same time includes some amount of consumption. That amount may even be absolutely zero (seat-only, as Anthropic Claude Enterprise has it, with nothing included in the price), or smaller (for a 20 USD license you get 10 USD included), but the standard is usually from 1:1 upward (Cursor has 1:1 on the 20 USD license, but the 60 USD plan includes 70 USD of consumption; GitHub Copilot uses 1:1, so a 19 USD license includes 19 USD of consumption).</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Consumption models">
+                  <button class="ia-tab" id="tab-seat-only" type="button" role="tab" aria-selected="true" aria-controls="panel-seat-only">Seat-only</button>
+                  <button class="ia-tab" id="tab-included" type="button" role="tab" aria-selected="false" aria-controls="panel-included" tabindex="-1">Included consumption</button>
+                  <button class="ia-tab" id="tab-pool" type="button" role="tab" aria-selected="false" aria-controls="panel-pool" tabindex="-1">Pool</button>
+                  <button class="ia-tab" id="tab-dokupy" type="button" role="tab" aria-selected="false" aria-controls="panel-dokupy" tabindex="-1">Top-ups and limits</button>
+                </div>
+                <div class="ia-tab-panel" id="panel-seat-only" role="tabpanel" aria-labelledby="tab-seat-only"><p>The license unlocks the product, but no consumption is included in the price. Anthropic Claude Enterprise has it this way: the license includes absolutely nothing, you buy everything extra.</p></div>
+                <div class="ia-tab-panel" id="panel-included" role="tabpanel" aria-labelledby="tab-included" hidden><p>With the license you also receive some consumption bundle. It can be smaller than the license price, 1:1, or even higher - for example Cursor's 60 USD license includes 70 USD of consumption.</p></div>
+                <div class="ia-tab-panel" id="panel-pool" role="tabpanel" aria-labelledby="tab-pool" hidden><p>All purchased licenses create a pool of money for the whole company, so a user who uses the product little does not mean their consumption is lost - someone else uses it.</p></div>
+                <div class="ia-tab-panel" id="panel-dokupy" role="tabpanel" aria-labelledby="tab-dokupy" hidden><p>Enterprise needs to manage per-user limits and top-up policy by company or organization. In my view this replaces the era of vague limits such as week, hour, exceptions and unclear changes.</p></div>
+              </div>
+              <p>What I find very fair, and as far as I know only GitHub Copilot and Cursor have it, is the <strong>pool</strong>. All purchased licenses create a pool of money for the whole company, so a user who uses it little does not mean their consumption is lost - someone else uses it. Ideal for AI infusing into an organization - everyone should have it! This is a good incentive: nobody is "not promising" and therefore without AI; everyone has it, and if someone does not use it fully, someone else consumes it. Of course it is important to have good ways to manage possible per-user limits and top-up policy by company or its organizations - GitHub Copilot has this handled very well.</p>
+              <p>Claude Code is very readable in the Enterprise version - <strong>the license includes absolutely nothing, you buy everything extra</strong>. I think the era of vague limits (week, hour, we will never say exactly, or we will say it but then keep changing it and granting exceptions) will end, especially for enterprise, because that kind of fog is not good for companies. OpenAI Codex, however, is still currently operating this way.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="ia-group" id="zbytek-ai" aria-labelledby="zbytek-ai-title">
+      <h2 class="ia-group-title" id="zbytek-ai-title">Beyond coding</h2>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-zbytek-ai-head" type="button" aria-expanded="true" aria-controls="card-zbytek-ai" data-ia-card-button>
+            <span class="ia-card-num">05</span><span class="ia-card-title">That is coding, what about the rest?</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-zbytek-ai" role="region" aria-labelledby="card-zbytek-ai-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Currently all of this concerns coding agents, but other AI services such as M365 Copilot, Gemini, OpenAI and Claude still typically run on a more classic subscription with strange limits. Claude Enterprise is an exception - even for ordinary chatting, nothing is included in the price; it is seat-only. I guess this is a preview that one day other enterprise services will also move into a different model, and I expect something quite similar to coding agents - a fee per hour of borrowed computer (for example for Cowork), and a fee for tokens.</p>
+              <p>What about you? Do you prefer a flat subscription world with strange and unclear limits, subtle quality reduction (see some Claude affairs from the last few days), but potentially better price predictability and the ability to get several orders of magnitude more out of it if you are a power user? Or do you prefer a model based on actual consumption with a separate entry-ticket fee? Personally, because I grew up on Azure and consider pay-as-you-go the most natural and fair model, I like the model GitHub Copilot has now - subscription costs something, but you get its value back in tokens and it is pooled, so you do not have to be afraid to give a subscription even to people who do not yet know how to use it that much.</p>
+            </div></div>
+          </div>
+        </article>
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-zdrazuje-ai-head" type="button" aria-expanded="true" aria-controls="card-zdrazuje-ai" data-ia-card-button>
+            <span class="ia-card-num">06</span><span class="ia-card-title">Is AI getting more expensive?</span><span class="ia-card-toggle" aria-hidden="true">⌄</span>
+          </button>
+          <div class="ia-card-body" id="card-zdrazuje-ai" role="region" aria-labelledby="card-zdrazuje-ai-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>So is AI getting more expensive? I do not think so - tokens across the whole market are priced very fairly with a reasonable margin and never get more expensive for a specific generation/quality. Rather, new models arrive, and in practice today's mini model in the cloud gives you a similar service at 5x lower price than a high-end model a year ago; the fee per unit of intelligence is therefore dropping absolutely dramatically, more than in any other IT technology over the last 50 years. But - today a coding agent writes a whole application for you in an hour; a year ago an AI assistant suggested a new class, and when you ran it, you dealt with the fact that it did not work and sent it back. If living in the past is enough for you, use a 5x cheaper model and enjoy saving money - AI has become brutally cheaper. I would rather ride a different wave - for very similar money to a year or two ago, today I have a substantially better and more useful solution. I prefer intelligence and growth over savings. But everyone can have it differently, and that is fine - <strong>but AI has not become more expensive</strong>. However, we have hit the limit of a business model that is unsustainable in this era. In my view we need a model where, for predictable costs, we introduce AI to everyone, do not lose unused tokens thanks to pooling, and sensibly manage top-up limits, for example by organization or individually.</p>
+              <div class="ia-summary-grid">
+                <div class="ia-summary-item"><strong>Adoption</strong><p>Flat subscription pulls people into using the product.</p></div>
+                <div class="ia-summary-item"><strong>Limit</strong><p>Agents do not have a natural consumption ceiling like listening hours or gym visits.</p></div>
+                <div class="ia-summary-item"><strong>Costs</strong><p>Tokens and cloud compute are real and measurable costs.</p></div>
+                <div class="ia-summary-item"><strong>Fairness</strong><p>The ideal is a predictable license, pooled consumption and managed top-ups.</p></div>
+              </div>
+              <p>I have prepared and tested tips for saving tokens - we will look at that in the next article!</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="ia-closing" aria-label="Conclusion">
+      <p class="ia-quote">AI has not become more expensive. <strong>We have hit the limit of the business model</strong> that agents broke in this era.</p>
+    </section>
+  </main>
+  <footer class="ia-footer">
+    <p>Agent-friendly version: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+  </footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

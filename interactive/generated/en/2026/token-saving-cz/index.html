@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link href="../../../assets/interactive-article.css" rel="stylesheet"/>
+<title>Saving tokens in GitHub Copilot</title>
+<meta content="From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one." name="description"/>
+<link href="/en/2026/token-saving-cz/" rel="canonical"/>
+</head>
+<body>
+<div aria-label="Article controls" class="ia-controls">
+<button class="ia-control" data-expand-all="" type="button">Expand all</button>
+<button class="ia-control" data-collapse-all="" type="button">Collapse all</button>
+<button class="ia-control theme" data-theme-toggle="" type="button">Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">How to reduce costs in 15 minutes</p>
+<h1 class="ia-title">Saving tokens in GitHub Copilot</h1>
+<p class="ia-subtitle">From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one.</p>
+<p class="ia-date"><time datetime="2026-05-29">May 29, 2026</time></p>
+<nav aria-label="Source files" class="ia-links">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main>
+<nav aria-labelledby="toc-title" class="ia-toc">
+<p class="ia-toc-title" id="toc-title">Contents</p>
+<div class="ia-toc-list">
+<a href="#intro"><span class="ia-toc-num">01</span><span>Mental model</span></a>
+<a href="#easy"><span class="ia-toc-num">02</span><span>Easy wins for everyone</span></a>
+<a href="#advanced"><span class="ia-toc-num">03</span><span>Advanced techniques</span></a>
+<a href="#summary"><span class="ia-toc-num">04</span><span>Summary</span></a>
+</div>
+</nav>
+<section aria-labelledby="intro-title" class="ia-group" id="intro">
+<h2 class="ia-group-title" id="intro-title">Mental model</h2>
+<div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card="">
+<button aria-controls="card-00-co-vsechno-zere-tokeny-panel" aria-expanded="true" class="ia-card-head" data-ia-card-button="" id="card-00-co-vsechno-zere-tokeny-button" type="button">
+<span class="ia-card-num">01</span>
+<span class="ia-card-title">What eats tokens</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-00-co-vsechno-zere-tokeny-button" class="ia-card-body" data-ia-card-panel="" id="card-00-co-vsechno-zere-tokeny-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Cost does not come only from what you type into chat. It adds up across many layers:</p>
+<ul>
+<li><strong>Always-on instructions</strong> — <code>AGENTS.md</code>, custom instructions, hooks</li>
+<li><strong>Selected and open files</strong> in context</li>
+<li><strong>Chat history</strong> and summaries between turns</li>
+<li><strong>MCP tool definitions</strong> and their JSON schemas — even the ones you do not use</li>
+<li><strong>Tool call results</strong> replayed as input in the next step</li>
+<li><strong>Model output</strong> (output tokens are the most expensive)</li>
+<li><strong>Retries, subagents, loops</strong> in agent mode</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>The goal is <strong>scoped sufficiency</strong> — enough context for Copilot to solve the task correctly, but not one extra word.</p>
+</aside>
+<p><strong>Three token types — why they matter:</strong></p>
+<ul>
+<li><strong>Input</strong> — everything you send to the model for the first time (prompt, context, tool results)</li>
+<li><strong>Cached input</strong> — a repeated prefix the model has already seen in a previous turn of the same session. <strong>~10× cheaper</strong> than fresh input.</li>
+<li><strong>Output</strong> — what the model generates. <strong>~6× more expensive</strong> than fresh input, <strong>~60× more expensive</strong> than cached input.</li>
+</ul>
+<p><strong>Example from current real pricing (USD per 1M tokens):</strong></p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Model</th>
+<th class="align-right">Short cache</th>
+<th class="align-right">Short input</th>
+<th class="align-right">Short output</th>
+<th class="align-right">Long cache</th>
+<th class="align-right">Long input</th>
+<th class="align-right">Long output</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><strong>gpt-5.5</strong></td>
+<td class="align-right">$0.50</td>
+<td class="align-right">$5.00</td>
+<td class="align-right">$30.00</td>
+<td class="align-right">$1.00</td>
+<td class="align-right">$10.00</td>
+<td class="align-right">$45.00</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4</strong></td>
+<td class="align-right">$0.25</td>
+<td class="align-right">$2.50</td>
+<td class="align-right">$15.00</td>
+<td class="align-right">$0.50</td>
+<td class="align-right">$5.00</td>
+<td class="align-right">$22.50</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4-mini</strong></td>
+<td class="align-right">$0.075</td>
+<td class="align-right">$0.75</td>
+<td class="align-right">$4.50</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+</tr>
+<tr>
+<td><strong>gpt-5.4-nano</strong></td>
+<td class="align-right">$0.02</td>
+<td class="align-right">$0.20</td>
+<td class="align-right">$1.25</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+<td class="align-right">—</td>
+</tr>
+</tbody></table></div>
+<p>Mini and nano do not have long context.</p>
+<p><strong>Ballpark rules:</strong></p>
+<ul>
+<li><strong>Cache : Input : Output ≈ 1 : 10 : 60</strong></li>
+<li><strong>Each tier down is ~3–4× cheaper</strong></li>
+<li><strong>Long context makes input/cache ~2× more expensive and output ~1.5× more expensive</strong></li>
+<li><strong>Cache is why <code>/compact</code> is not free</strong></li>
+</ul>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section aria-labelledby="easy-title" class="ia-group" id="easy">
+<h2 class="ia-group-title" id="easy-title">Easy wins for everyone</h2>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-01-pouzijte-auto-model-jako-default-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-01-pouzijte-auto-model-jako-default-button" type="button">
+<span class="ia-card-num">02</span>
+<span class="ia-card-title">Use Auto model as the default</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-01-pouzijte-auto-model-jako-default-button" class="ia-card-body" data-ia-card-panel="" id="card-01-pouzijte-auto-model-jako-default-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>If you are not sure why you need a premium reasoning model, start with <strong>Auto</strong>.</p>
+<ul>
+<li>It routes by task complexity, availability and system health</li>
+<li>You will not keep an expensive model pinned for routine work</li>
+<li><strong>10% discount on the multiplier</strong> for paid plans</li>
+<li>Manual override for architecture or hard debugging remains available</li>
+</ul>
+<p>In practice, for normal work this means you save 10% compared with pinning a specific model — and often also get a cheaper model that can handle the task.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-02-explicitni-kontext-misto-sirokych-promptu-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-02-explicitni-kontext-misto-sirokych-promptu-button" type="button">
+<span class="ia-card-num">03</span>
+<span class="ia-card-title">Explicit context instead of broad prompts</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-02-explicitni-kontext-misto-sirokych-promptu-button" class="ia-card-body" data-ia-card-panel="" id="card-02-explicitni-kontext-misto-sirokych-promptu-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<div class="ia-code has-label bad">
+<span class="ia-code-label bad">Expensive</span>
+<pre><code class="language-text">Understand this repository and fix the login problem.</code></pre>
+</div>
+<div class="ia-code has-label good">
+<span class="ia-code-label good">Cheap</span>
+<pre><code class="language-text">Focus on src\auth\login.ts and tests\auth\login.test.ts. Bug: validateEmail rejects user+tag@example.com. Add a test and fix only this behavior.</code></pre>
+</div>
+<p><strong>Rule:</strong> concrete file paths are cheaper than exploring the whole repository.</p>
+<p><strong>Bonus: batch related tasks into one prompt.</strong></p>
+<div class="ia-code good">
+<pre><code class="language-text">In src\auth\login.ts: 1. validateEmail — allow user+tag@example.com 2. add a test in tests\auth\login.test.ts 3. add a docstring to the function 4. record the change in CHANGELOG.md</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">How far should you go?</span>
+<p>The practical limit is <strong>3–5 related tasks</strong> in the same code area. Above that the agent loses focus, makes more mistakes, and retries eat the whole saving.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-button" type="button">
+<span class="ia-card-num">04</span>
+<span class="ia-card-title">Find files first, before implementation</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-button" class="ia-card-body" data-ia-card-panel="" id="card-03-nalezeni-souboru-jako-prvni-krok-pred-implementaci-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Instead of "do you understand the whole thing?", ask:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Find the smallest set of files I need to understand the event-driven flow. List only paths and one sentence why. Do not summarize the whole repo.</code></pre>
+</div>
+<p>Only then give the task — knowing what is relevant.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-button" type="button">
+<span class="ia-card-num">05</span>
+<span class="ia-card-title">Limit output length (output tokens are the most expensive)</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-button" class="ia-card-body" data-ia-card-panel="" id="card-04-omezte-delku-vystupu-output-tokeny-jsou-nejdrazsi-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<div class="ia-code has-label bad">
+<span class="ia-code-label bad">Expensive</span>
+<pre><code class="language-text">Explain in detail everything you changed.</code></pre>
+</div>
+<div class="ia-code has-label good">
+<span class="ia-code-label good">Cheap</span>
+<pre><code class="language-text">List: changed files, why, tests. Max 5 bullets.</code></pre>
+</div>
+<p>"Caveman" output style for reports:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Done. List: files, why, validation, risks. No intro. ≤5 bullets.</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Careful</span>
+<p>Do not shorten safety, destructive or compliance instructions. Ambiguity costs more than the saved tokens.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-button" type="button">
+<span class="ia-card-num">★</span>
+<span class="ia-card-title">Example — a message for a child in three versions</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-button" class="ia-card-body" data-ia-card-panel="" id="card-section-ukazka-vzkaz-pro-dite-ve-trech-verzich-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The same information in three versions. It shows the "sweet spot" between readability and compactness.</p>
+<div class="ia-tabs" data-ia-tabs="">
+<div aria-label="kid-message" class="ia-tab-list" role="tablist">
+<button aria-controls="kid-message-v1-panel" aria-selected="true" class="ia-tab" id="kid-message-v1-tab" role="tab" tabindex="0" type="button">1 · Careful mom</button>
+<button aria-controls="kid-message-v2-panel" aria-selected="false" class="ia-tab" id="kid-message-v2-tab" role="tab" tabindex="-1" type="button">2 · Compact (caveman)</button>
+<button aria-controls="kid-message-v3-panel" aria-selected="false" class="ia-tab" id="kid-message-v3-tab" role="tab" tabindex="-1" type="button">3 · Extreme (agent → agent)</button>
+</div>
+<div aria-labelledby="kid-message-v1-tab" class="ia-tab-panel ia-prose" id="kid-message-v1-panel" role="tabpanel">
+<p class="ia-handwritten-note">Hi sweetheart, mom will come home around six in the evening. Please do your math and Czech homework first, okay? Once you are done, you can play on the tablet for an hour. There is tomato soup in the fridge; heat it in the microwave for three minutes on high. Please do not forget to walk Bertik around five o'clock and then put kibble in his bowl. I love you very much, mom 💕</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metric</th>
+<th class="align-right">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Characters</td>
+<td class="align-right">388</td>
+</tr>
+<tr>
+<td>Tokens (GPT-5)</td>
+<td class="align-right">140</td>
+</tr>
+<tr>
+<td>Readability</td>
+<td class="align-right">high</td>
+</tr>
+<tr>
+<td>For whom</td>
+<td class="align-right">people with time</td>
+</tr>
+</tbody></table></div>
+</div>
+<div aria-labelledby="kid-message-v2-tab" class="ia-tab-panel ia-prose" hidden="" id="kid-message-v2-panel" role="tabpanel">
+<p class="ia-handwritten-note">Home at 18:00. Homework: math + Czech → then tablet 1h. Soup in fridge → microwave 3 min. Dog out 17:00 + kibble. Mom 💕</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metric</th>
+<th class="align-right">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Characters</td>
+<td class="align-right">110 −72 %</td>
+</tr>
+<tr>
+<td>Tokens (GPT-5)</td>
+<td class="align-right">48 −66 %</td>
+</tr>
+<tr>
+<td>Readability</td>
+<td class="align-right">still good</td>
+</tr>
+<tr>
+<td>For whom</td>
+<td class="align-right">human who understands</td>
+</tr>
+</tbody></table></div>
+</div>
+<div aria-labelledby="kid-message-v3-tab" class="ia-tab-panel ia-prose" hidden="" id="kid-message-v3-panel" role="tabpanel">
+<p class="ia-handwritten-note">18→mom. homework→tablet1h. soup:micro3m. dog:17→out+eat.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Metric</th>
+<th class="align-right">Value</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Characters</td>
+<td class="align-right">57 −85 %</td>
+</tr>
+<tr>
+<td>Tokens (GPT-5)</td>
+<td class="align-right">29 −79 %</td>
+</tr>
+<tr>
+<td>Readability</td>
+<td class="align-right">poor</td>
+</tr>
+<tr>
+<td>For whom</td>
+<td class="align-right">agent → agent</td>
+</tr>
+</tbody></table></div>
+</div>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Point</span>
+<p>Caveman style is the sweet spot for reports that a human still reads. Extreme style makes sense only for agent-to-agent handoff or durable context.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-button" type="button">
+<span class="ia-card-num">06</span>
+<span class="ia-card-title">Paste excerpts, not whole logs — and prefer Playwright for UI</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-button" class="ia-card-body" data-ia-card-panel="" id="card-05-vkladejte-vynatky-ne-cele-logy-a-u-ui-radeji-playwright-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>For terminal output, a screenshot is an antipattern. Instead of 5,000 lines of CI log, send only the relevant excerpt:</p>
+<div class="ia-code good">
+<pre><code class="language-text">Command: npm test Exit code: 1 Relevant error: TypeError: Cannot read property 'id' of undefined at UserService.findById (src/services/user.ts:42) Last 30 lines: ...</code></pre>
+</div>
+<p>For visual questions, it is more efficient to use <strong>Playwright MCP or browser canvas</strong>.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>Rule: text for text, controlled browser for visuals. Static screenshot only as a last resort.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" type="button">
+<span class="ia-card-num">07</span>
+<span class="ia-card-title">Prompt language and structure — why English is not dogma</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" class="ia-card-body" data-ia-card-panel="" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The tokenizer is trained mostly on English text, but this is not dogma:</p>
+<ol>
+<li><strong>Structured format erases most of the difference</strong></li>
+<li><strong>Quality comes before saving</strong></li>
+<li><strong>Cost of a mistake &gt; cost of tokens</strong></li>
+</ol>
+<div class="ia-reveal" data-ia-reveal="">
+<button aria-controls="reveal-1-normalni-prompt" aria-expanded="false" class="ia-reveal-button" data-ia-reveal-button="" type="button">
+<span aria-hidden="true" class="ia-reveal-arrow">▶</span>
+<span>Normal prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-1-normalni-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">Create a POST endpoint /api/users that validates required fields name and email, returns 400 on error and 201 with the created user on success.</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Language</th>
+<th class="align-right">Characters</th>
+<th class="align-right">Tokens</th>
+<th class="align-right">vs EN</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>English</td>
+<td class="align-right">148</td>
+<td class="align-right"><strong>31</strong></td>
+<td class="align-right">1.00×</td>
+</tr>
+<tr>
+<td>Czech</td>
+<td class="align-right">148</td>
+<td class="align-right"><strong>50</strong></td>
+<td class="align-right">1.61×</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<div class="ia-reveal" data-ia-reveal="">
+<button aria-controls="reveal-2-strukturovany-prompt" aria-expanded="false" class="ia-reveal-button" data-ia-reveal-button="" type="button">
+<span aria-hidden="true" class="ia-reveal-arrow">▶</span>
+<span>Structured prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-2-strukturovany-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">POST /api/users
+Validate: name req, email req+valid
+400 errors
+201 user</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Language</th>
+<th class="align-right">Characters</th>
+<th class="align-right">Tokens</th>
+<th class="align-right">vs EN</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>English</td>
+<td class="align-right">71</td>
+<td class="align-right"><strong>20</strong></td>
+<td class="align-right">1.00×</td>
+</tr>
+<tr>
+<td>Czech</td>
+<td class="align-right">70</td>
+<td class="align-right"><strong>23</strong></td>
+<td class="align-right">1.15×</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<div class="ia-reveal" data-ia-reveal="">
+<button aria-controls="reveal-3-verbose-prompt" aria-expanded="false" class="ia-reveal-button" data-ia-reveal-button="" type="button">
+<span aria-hidden="true" class="ia-reveal-arrow">▶</span>
+<span>Verbose prompt</span>
+</button>
+<div class="ia-reveal-body" id="reveal-3-verbose-prompt">
+<div class="ia-reveal-body-clip"><div class="ia-reveal-content">
+<div class="ia-code">
+<pre><code class="language-text">Please, could you create a new HTTP endpoint of type POST at path /api/users that accepts JSON with fields name and email, validates that both values are present and the email is in the correct format, and on success returns 201 Created with the created user object, while on validation error it returns 400 Bad Request with error details?</code></pre>
+</div>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Version</th>
+<th class="align-right">Tokens</th>
+<th class="align-right">vs structured</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Verbose CZ</td>
+<td class="align-right"><strong>~95</strong></td>
+<td class="align-right">+313 %</td>
+</tr>
+<tr>
+<td>Normal CZ</td>
+<td class="align-right">50</td>
+<td class="align-right">+117 %</td>
+</tr>
+<tr>
+<td>Structured CZ</td>
+<td class="align-right">23</td>
+<td class="align-right">baseline</td>
+</tr>
+</tbody></table></div>
+</div></div>
+</div>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Conclusion</span>
+<p>Use your native language when quality matters and you are expressing nuance. For repeated operational prompts, compact English or structured keys win.</p>
+</aside>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section aria-labelledby="advanced-title" class="ia-group" id="advanced">
+<h2 class="ia-group-title" id="advanced-title">Advanced techniques</h2>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-button" type="button">
+<span class="ia-card-num">08</span>
+<span class="ia-card-title">Hierarchical context — skills instead of a giant AGENTS.md</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-button" class="ia-card-body" data-ia-card-panel="" id="card-07-hierarchicky-kontext-skills-misto-obriho-agents-md-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Always-on instructions are a <strong>recurring tax</strong> — you pay them on every turn.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Context type</th>
+<th>Where it belongs</th>
+<th>Rule</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Always-on (small)</td>
+<td><code>AGENTS.md</code></td>
+<td>only facts the agent cannot infer</td>
+</tr>
+<tr>
+<td>Path-specific</td>
+<td><code>.github\instructions\*.instructions.md</code></td>
+<td>loaded only for relevant files</td>
+</tr>
+<tr>
+<td>Workflow-specific</td>
+<td>prompt files</td>
+<td>invoked on demand</td>
+</tr>
+<tr>
+<td>Detailed capability</td>
+<td><code>.github\skills\</code></td>
+<td>progressive reveal — only when the topic appears</td>
+</tr>
+<tr>
+<td>Live data</td>
+<td>MCP server</td>
+<td>fetch on demand</td>
+</tr>
+</tbody></table></div>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>Big AGENTS.md vs. small AGENTS.md + one relevant skill → <strong>68.8% saving in weighted units</strong>.</p>
+</aside>
+<p><strong>Let the agent write context for the future.</strong></p>
+<div class="ia-code good">
+<pre><code class="language-text">Write into .github\skills\auth-flow\SKILL.md a concise (≤60 lines) description of the auth flow as we have just understood it. Focus on: entry points, key files, pitfalls, what to do when changing it. No prose, only lists and links.</code></pre>
+</div>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>If you learned something the hard way in a session, it is a <strong>candidate for durable context</strong>.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-08-mcp-progressivne-search-select-fetch-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-08-mcp-progressivne-search-select-fetch-button" type="button">
+<span class="ia-card-num">09</span>
+<span class="ia-card-title">MCP progressively — search → select → fetch</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-08-mcp-progressivne-search-select-fetch-button" class="ia-card-body" data-ia-card-panel="" id="card-08-mcp-progressivne-search-select-fetch-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>MCP has three hidden cost layers:</strong></p>
+<ol>
+<li>Tool definitions and JSON schemas loaded into context</li>
+<li>Tool call arguments as output tokens</li>
+<li>Tool results replayed as input in the next step</li>
+</ol>
+<div class="ia-code good">
+<pre><code class="language-text">1. search or list candidates 2. choose one 3. fetch only the detail you need for the decision 4. summarize the result before continuing</code></pre>
+</div>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Careful</span>
+<p>Unused global MCP servers cost tokens before you even call them. Keep MCP per-workspace.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-button" type="button">
+<span class="ia-card-num">10</span>
+<span class="ia-card-title">Deterministic tools instead of many-turn reasoning</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-button" class="ia-card-body" data-ia-card-panel="" id="card-09-deterministicke-nastroje-misto-reasoningu-pres-mnoho-tahu-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>If an algorithm exists that solves the task <strong>exactly</strong>, do not force the model to do it across several turns.</p>
+<p>Typical candidates:</p>
+<ul>
+<li>JSON → XML / CSV conversion</li>
+<li>Token counting, log slicing, schema validation</li>
+<li>Dependency graph extraction</li>
+<li>Sort, filter, dedupe large data</li>
+<li>ID generators, parameterized templates</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>A skill with a script-backed tool does 1 tool call with deterministic output instead of 5 turns with error probability.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-button" type="button">
+<span class="ia-card-num">11</span>
+<span class="ia-card-title">Session management — /ask, /undo, /fork, /resume, /new, /clear, /compact, /share, /chronicle</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-button" class="ia-card-body" data-ia-card-panel="" id="card-10-session-management-ask-undo-fork-resume-new-clear-compact-share-chronicle-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The economics are always the same: old cache is cheapest, fresh input ~10×, output ~60×.</p>
+<div class="ia-table-wrap"><table>
+<thead><tr>
+<th>Situation</th>
+<th>Command</th>
+<th>What happens</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>Short off-topic question</td>
+<td><code>/ask</code> (<code>/btw</code>)</td>
+<td>cache stays, answer does not grow into history</td>
+</tr>
+<tr>
+<td>Bad last turn</td>
+<td><code>/undo</code> (<code>/rewind</code>)</td>
+<td>removes changes and the context of the last turn</td>
+</tr>
+<tr>
+<td>Sidequest on the same base</td>
+<td><code>/fork</code></td>
+<td>branches share the cached prefix</td>
+</tr>
+<tr>
+<td>Return after a break</td>
+<td><code>/resume</code></td>
+<td>often cache hit, later input</td>
+</tr>
+<tr>
+<td>New topic</td>
+<td><code>/new</code></td>
+<td>old session saved, new one without cache</td>
+</tr>
+<tr>
+<td>End permanently</td>
+<td><code>/clear</code></td>
+<td>session discarded, file changes are not</td>
+</tr>
+<tr>
+<td>Context grew</td>
+<td><code>/compact</code></td>
+<td>expensive operation, output bolus + cache invalidation</td>
+</tr>
+<tr>
+<td>Export session</td>
+<td><code>/share</code></td>
+<td>input for analysis and improvement</td>
+</tr>
+</tbody></table></div>
+<p><code>/chronicle tips</code>, <code>/chronicle cost-tips</code> and <code>/chronicle improve</code> serve as regular self-reflection.</p>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-11-subagents-izolace-ne-magicka-uspora-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-11-subagents-izolace-ne-magicka-uspora-button" type="button">
+<span class="ia-card-num">12</span>
+<span class="ia-card-title">Subagents — isolation, not magic savings</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-11-subagents-izolace-ne-magicka-uspora-button" class="ia-card-body" data-ia-card-panel="" id="card-11-subagents-izolace-ne-magicka-uspora-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Parallel agents can save wall-clock time, but <strong>multiply input tokens</strong> if they read the same files.</p>
+<p>Use a subagent when:</p>
+<ul>
+<li>The work is truly independent</li>
+<li>Context can be sharded by service / file area</li>
+<li>A cheaper model is enough</li>
+<li>The result can come back as a short summary</li>
+</ul>
+<p>Do not use when:</p>
+<ul>
+<li>All agents need the same context</li>
+<li>The task is sequential</li>
+<li>Coordination overhead dominates</li>
+</ul>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.</p>
+</aside>
+</div></div>
+</div>
+</article>
+<article class="ia-card" data-ia-card="">
+<button aria-controls="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-button" type="button">
+<span class="ia-card-num">13</span>
+<span class="ia-card-title">Measurement as part of skills development — CI/CD + self-improvement</span>
+<span aria-hidden="true" class="ia-card-toggle">⌄</span>
+</button>
+<div aria-labelledby="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-button" class="ia-card-body" data-ia-card-panel="" id="card-12-mereni-jako-soucast-vyvoje-skills-ci-cd-self-improvement-panel" role="region">
+<div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Token efficiency is not a one-time audit — it is an <strong>engineering discipline with a feedback loop</strong>.</p>
+<p>Measure:</p>
+<ul>
+<li>input, output, cached tokens</li>
+<li>number of turns</li>
+<li>tool calls</li>
+<li>latency</li>
+<li>retry rate</li>
+<li>quality of result</li>
+</ul>
+<div class="ia-code">
+<pre><code class="language-yaml">on: pull_request
+  paths: ['.github/skills/**', 'AGENTS.md', '.github/prompts/**']
+
+steps:
+  - run: copilot-token-lab run --scenarios skills-regression --iterations 3
+  - run: copilot-token-lab compare --baseline main --head HEAD
+  - fail-if: weighted_units_delta &gt; +10% AND quality_score &lt; baseline
+  - comment-pr: report.md</code></pre>
+</div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Verdict</span>
+<p>The only universal advice: <strong>measure your workload</strong>. Cheaper model is not automatically cheaper outcome.</p>
+</aside>
+</div></div>
+</div>
+</article>
+</div>
+</section>
+<section aria-labelledby="summary-title" class="ia-group" id="summary">
+<h2 class="ia-group-title" id="summary-title">Summary</h2>
+<div class="ia-summary-grid">
+<div class="ia-summary-card">
+<h3>Easy</h3>
+<ul>
+<li>Auto model as the default</li>
+<li>Name exact files and done criteria</li>
+<li>Find files as the first step</li>
+<li>Limit output</li>
+<li>Log excerpts, not dumps</li>
+<li>Structured format erases the language difference</li>
+</ul></div>
+<div class="ia-summary-card">
+<h3>Advanced</h3>
+<ul>
+<li>Small <code>AGENTS.md</code> + skills + path instructions</li>
+<li>MCP as search → select → fetch</li>
+<li>Deterministic tooling</li>
+<li><code>/ask</code>, <code>/fork</code>, <code>/resume</code> consciously, <code>/compact</code> carefully</li>
+<li>Subagents only for independent work</li>
+<li>Measure in CI and ask the agent for self-improvement</li>
+</ul></div>
+</div>
+<div class="ia-closing"><p class="ia-quote">Tokens are not a cost to throttle. They are an <strong>investment</strong>. Optimize return, not consumption.</p></div>
+</section>
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly version: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

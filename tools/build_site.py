@@ -4,12 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import html
 import json
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 import generate_interactive_site
 
@@ -19,7 +25,21 @@ SITE_ROOT = ROOT / "_site"
 CLASSIC_ROOT = SITE_ROOT / "classic"
 REDIRECT_OVERRIDES = ROOT / "redirects" / "legacy-overrides.json"
 COMPATIBILITY_DIRS = ("assets", "images", ".well-known")
-LEGACY_ROOT_FILES = ("feed.xml",)
+SITE_URL = "https://tomaskubica.cz"
+ATOM_NS = "http://www.w3.org/2005/Atom"
+AUTHOR_NAME = "Tomáš Kubica"
+SITE_TITLE = "Tomáš Kubica"
+SITE_SUBTITLE = "AI, vývoj a cloud"
+SITE_TIMEZONE = ZoneInfo("Europe/Prague")
+
+ET.register_namespace("", ATOM_NS)
+
+
+@dataclass(frozen=True)
+class FeedEntry:
+    element: ET.Element
+    sort_date: datetime
+    keys: frozenset[str]
 
 
 def remove_path(path: Path) -> None:
@@ -62,10 +82,139 @@ def copy_compatibility_assets() -> None:
     image_source = ROOT / "images"
     if image_source.is_dir() and CLASSIC_ROOT.is_dir():
         shutil.copytree(image_source, CLASSIC_ROOT / "images", dirs_exist_ok=True)
-    for filename in LEGACY_ROOT_FILES:
-        source = CLASSIC_ROOT / filename
-        if source.is_file():
-            shutil.copy2(source, SITE_ROOT / filename)
+
+
+def atom_tag(name: str) -> str:
+    return f"{{{ATOM_NS}}}{name}"
+
+
+def absolute_site_url(path: str) -> str:
+    if path.startswith(("http://", "https://")):
+        return path
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{SITE_URL}{path}"
+
+
+def article_datetime(value: str) -> str:
+    return datetime.fromisoformat(value).replace(tzinfo=SITE_TIMEZONE).isoformat()
+
+
+def parse_feed_datetime(value: str | None) -> datetime:
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def add_text(parent: ET.Element, name: str, text: str) -> ET.Element:
+    element = ET.SubElement(parent, atom_tag(name))
+    element.text = text
+    return element
+
+
+def interactive_feed_entry(article: generate_interactive_site.Article) -> FeedEntry:
+    url = absolute_site_url(article.url)
+    published = article_datetime(article.date)
+    entry = ET.Element(atom_tag("entry"))
+    add_text(entry, "title", article.title)
+    ET.SubElement(
+        entry,
+        atom_tag("link"),
+        {"href": url, "rel": "alternate", "type": "text/html", "title": article.title},
+    )
+    add_text(entry, "published", published)
+    add_text(entry, "updated", published)
+    add_text(entry, "id", url)
+    ET.SubElement(entry, atom_tag("content"), {"type": "text/html", "src": url})
+    author = ET.SubElement(entry, atom_tag("author"))
+    add_text(author, "name", AUTHOR_NAME)
+    for label in article.labels:
+        ET.SubElement(entry, atom_tag("category"), {"term": label})
+    add_text(entry, "summary", article.summary)
+    return FeedEntry(entry, parse_feed_datetime(published), frozenset({url}))
+
+
+def text_of(element: ET.Element, name: str) -> str:
+    child = element.find(atom_tag(name))
+    return child.text.strip() if child is not None and child.text else ""
+
+
+def feed_key_aliases(key: str, redirect_overrides: dict[str, str]) -> set[str]:
+    aliases = {key}
+    parsed = urlsplit(key)
+    path = parsed.path
+    if parsed.netloc == "tomaskubica.cz" and path.startswith("/classic/"):
+        legacy_path = path.removeprefix("/classic")
+        if legacy_path in redirect_overrides:
+            aliases.add(absolute_site_url(redirect_overrides[legacy_path]))
+    return aliases
+
+
+def classic_feed_entries(path: Path, redirect_overrides: dict[str, str]) -> list[FeedEntry]:
+    if not path.is_file():
+        return []
+    root = ET.parse(path).getroot()
+    entries: list[FeedEntry] = []
+    for entry in root.findall(atom_tag("entry")):
+        keys = {text_of(entry, "id")}
+        for link in entry.findall(atom_tag("link")):
+            href = link.attrib.get("href", "")
+            if href:
+                keys.add(href)
+        keys = {key for key in keys if key}
+        keys = {alias for key in keys for alias in feed_key_aliases(key, redirect_overrides)}
+        sort_text = text_of(entry, "updated") or text_of(entry, "published")
+        entries.append(FeedEntry(copy.deepcopy(entry), parse_feed_datetime(sort_text), frozenset(keys)))
+    return entries
+
+
+def write_combined_feed() -> None:
+    articles, _ = generate_interactive_site.read_cache()
+    interactive_entries = [interactive_feed_entry(article) for article in articles]
+    interactive_keys = {key for entry in interactive_entries for key in entry.keys}
+    classic_entries = [
+        entry
+        for entry in classic_feed_entries(CLASSIC_ROOT / "feed.xml", load_redirect_overrides())
+        if not entry.keys.intersection(interactive_keys)
+    ]
+    entries = interactive_entries + classic_entries
+
+    deduped: list[FeedEntry] = []
+    seen: set[str] = set()
+    for entry in sorted(entries, key=lambda item: item.sort_date, reverse=True):
+        if entry.keys and seen.intersection(entry.keys):
+            continue
+        deduped.append(entry)
+        seen.update(entry.keys)
+
+    updated = deduped[0].sort_date.isoformat().replace("+00:00", "Z") if deduped else datetime.now(timezone.utc).isoformat()
+    feed = ET.Element(atom_tag("feed"))
+    add_text(feed, "id", f"{SITE_URL}/")
+    add_text(feed, "title", SITE_TITLE)
+    add_text(feed, "subtitle", SITE_SUBTITLE)
+    add_text(feed, "updated", updated)
+    author = ET.SubElement(feed, atom_tag("author"))
+    add_text(author, "name", AUTHOR_NAME)
+    add_text(author, "uri", f"{SITE_URL}/")
+    ET.SubElement(feed, atom_tag("link"), {"rel": "self", "type": "application/atom+xml", "href": f"{SITE_URL}/feed.xml"})
+    ET.SubElement(feed, atom_tag("link"), {"rel": "alternate", "type": "text/html", "hreflang": "cs-CZ", "href": f"{SITE_URL}/"})
+    generator = add_text(feed, "generator", "Python static site build")
+    generator.set("uri", "https://github.com/tkubica12/tkubica12.github.io")
+    add_text(feed, "rights", f"© {datetime.now(timezone.utc).year} {AUTHOR_NAME}")
+    add_text(feed, "icon", f"{SITE_URL}/assets/img/favicons/favicon.ico")
+    add_text(feed, "logo", f"{SITE_URL}/assets/img/favicons/favicon-96x96.png")
+    for entry in deduped:
+        feed.append(entry.element)
+
+    tree = ET.ElementTree(feed)
+    ET.indent(tree, space="  ")
+    tree.write(SITE_ROOT / "feed.xml", encoding="utf-8", xml_declaration=True)
 
 
 def normalize_path(value: str) -> str:
@@ -161,6 +310,7 @@ def build(skip_classic: bool) -> None:
 
     generate_interactive_site.run(SITE_ROOT, public_base="/", classic_base="/classic/")
     copy_compatibility_assets()
+    write_combined_feed()
     generate_redirects()
     write_root_404()
 

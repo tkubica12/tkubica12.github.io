@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three paths to GenUI and their pros and cons</title>
+<meta name="description" content="A static artifact, a declarative specification, or fully generated interactive code? Three practical paths to visual GenUI and their trade-offs.">
+<link rel="canonical" href="/en/2026/3-cesty-k-genui/">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<script defer src="../../../assets/interactive-article.js"></script>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">GenUI and AI-first interfaces</p>
+    <h1 class="ia-title">Three paths to GenUI and their pros and cons</h1>
+    <p class="ia-subtitle">A static artifact, a declarative specification, or fully generated interactive code? Three practical paths to visual GenUI and their trade-offs.</p>
+    <p class="ia-date"><time datetime="2026-01-27">27. 1. 2026</time></p>
+    <nav class="ia-links" aria-label="Source files">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <nav class="ia-toc" aria-label="Contents">
+    <p class="ia-toc-title">Contents</p>
+    <div class="ia-toc-list">
+      <a href="#ai-ui"><span class="ia-toc-num">01</span><span>Universal UI for AI vs. AI-first UI</span></a>
+      <a href="#tri-cesty"><span class="ia-toc-num">02</span><span>Three paths to creating visual GenUI</span></a>
+      <a href="#shrnuti"><span class="ia-toc-num">03</span><span>Summary</span></a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="ia-group" id="uvod" aria-labelledby="uvod-title">
+      <h2 class="ia-group-title" id="uvod-title">Introduction</h2>
+      <article class="ia-card is-open" data-ia-card>
+        <button class="ia-card-head" id="card-uvod-head" type="button" aria-expanded="true" aria-controls="card-uvod" data-ia-card-button>
+          <span class="ia-card-title">Why GenUI fascinates me</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+        </button>
+        <div class="ia-card-body" id="card-uvod" role="region" aria-labelledby="card-uvod-head" data-ia-card-panel>
+          <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+            <p>The area of ad-hoc automatically generated UI fascinates me and I see it as key for modern applications born in an AI world. We will certainly see applications that use non-visual modalities, for example voice, but screens will stay with us for some time. I do not think it is likely that UI will keep being universally pre-programmed inside every application.</p>
+          </div></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="ia-group" id="ai-ui" aria-labelledby="ai-ui-title">
+      <h2 class="ia-group-title" id="ai-ui-title">Universal UI for AI vs. AI-first UI</h2>
+      <p class="ia-section-intro">I expect two approaches:</p>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ui-schranka-head" type="button" aria-expanded="true" aria-controls="card-ui-schranka" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">A UI container for AI</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-ui-schranka" role="region" aria-labelledby="card-ui-schranka-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>That will be, for example, <strong>Copilot</strong> or <strong>Excel</strong>. A universal way to interact with AI will exist, and my specific applications will live inside it. Chat is useful for advice and overviews, but financial planning and budgets often belong in Excel.</p>
+            </div></div>
+          </div>
+        </article>
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-ai-first-head" type="button" aria-expanded="true" aria-controls="card-ai-first" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">AI-first UI</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-ai-first" role="region" aria-labelledby="card-ai-first-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Some applications will be so different and complex that consuming them from a universal UI such as Copilot or PowerPoint will not be suitable. For musicians, for example, the product might need humming, playback and arrangement controls rather than a chat box.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="tri-cesty" aria-labelledby="tri-cesty-title">
+      <h2 class="ia-group-title" id="tri-cesty-title">Three paths to creating visual GenUI and how they compare</h2>
+      <article class="ia-card is-open" data-ia-card>
+        <button class="ia-card-head" id="card-cesty-head" type="button" aria-expanded="true" aria-controls="card-cesty" data-ia-card-button>
+          <span class="ia-card-title">Map of options</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+        </button>
+        <div class="ia-card-body" id="card-cesty" role="region" aria-labelledby="card-cesty-head" data-ia-card-panel>
+          <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+            <p>I see three paths emerging for generated visual user interfaces (GenUI):</p>
+            <div class="ia-sequence" aria-label="Three paths">
+              <h3 class="ia-sequence-title">Three paths</h3>
+              <ol class="ia-sequence-list">
+                <li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Ad-hoc generated static artifacts</strong><p>The output is an image or a similar artifact.</p></li>
+                <li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Ad-hoc generated declarative UI specifications</strong><p>AI composes predefined components.</p></li>
+                <li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Fully generated interactive UI through ad-hoc imperative code generation</strong><p>AI creates a small custom application.</p></li>
+              </ol>
+            </div>
+            <p>Let's look at them more closely and compare their advantages and disadvantages.</p>
+          </div></div>
+        </div>
+      </article>
+
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-staticke-head" type="button" aria-expanded="true" aria-controls="card-staticke" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title">Ad-hoc generated static artifacts</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-staticke" role="region" aria-labelledby="card-staticke-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>This became widespread already in 2023. It is typically used to generate charts and diagrams from tabular data: Code Interpreter writes Python with Matplotlib or Seaborn, produces an image, pulls it from the sandbox and shows it to the user.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Advantages and disadvantages of static artifacts">
+                  <button class="ia-tab" id="tab-staticke-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-staticke-vyhody">Advantages</button>
+                  <button class="ia-tab" id="tab-staticke-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-staticke-nevyhody">Disadvantages</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-staticke-vyhody" role="tabpanel" aria-labelledby="tab-staticke-vyhody">
+                  <ul><li>Very safe: the sandbox typically cannot access the internet and the user receives only an image.</li><li>Easy to store in history and recall later.</li></ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-staticke-nevyhody" role="tabpanel" aria-labelledby="tab-staticke-nevyhody" hidden>
+                  <ul><li>Zero interactivity: the chart cannot be manipulated, filtered or zoomed.</li><li>Visual limitations and weaker adaptation to the application's design.</li></ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-deklarativni-head" type="button" aria-expanded="true" aria-controls="card-deklarativni" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title">Ad-hoc generated declarative UI specifications</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-deklarativni" role="region" aria-labelledby="card-deklarativni-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>This variant separates the display code from the way we say what should be displayed. AI generates within a declarative language and chooses from predefined components. Examples include <a href="https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/design-effective-cards?tabs=design">Adaptive Cards</a> and <a href="https://a2ui-composer.ag-ui.com/gallery">A2UI</a>.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Advantages and disadvantages of declarative UI">
+                  <button class="ia-tab" id="tab-deklarativni-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-deklarativni-vyhody">Advantages</button>
+                  <button class="ia-tab" id="tab-deklarativni-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-deklarativni-nevyhody">Disadvantages</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-deklarativni-vyhody" role="tabpanel" aria-labelledby="tab-deklarativni-vyhody">
+                  <ul><li>Safe: AI cannot generate arbitrary code.</li><li>Interactive: the user can typically click on things.</li><li>Design is controlled by the client.</li></ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-deklarativni-nevyhody" role="tabpanel" aria-labelledby="tab-deklarativni-nevyhody" hidden>
+                  <ul><li>Limited to the component set.</li><li>Harder to implement and maintain.</li></ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-imperativni-head" type="button" aria-expanded="true" aria-controls="card-imperativni" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title">Fully generated interactive UI through imperative code</span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-imperativni" role="region" aria-labelledby="card-imperativni-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>What if we give AI a free hand to generate any code and show that code to the user in an iframe? This enables custom mini-applications. New standards such as <a href="https://mcpui.dev/">MCP-Apps</a> push this further and are starting to appear in tools such as <a href="https://code.visualstudio.com/blogs/2026/01/26/mcp-apps-support">VS Code Insiders</a>.</p>
+              <div class="ia-tabs" data-ia-tabs>
+                <div class="ia-tab-list" role="tablist" aria-label="Advantages and disadvantages of imperative generation">
+                  <button class="ia-tab" id="tab-imperativni-vyhody" type="button" role="tab" aria-selected="true" aria-controls="panel-imperativni-vyhody">Advantages</button>
+                  <button class="ia-tab" id="tab-imperativni-nevyhody" type="button" role="tab" aria-selected="false" aria-controls="panel-imperativni-nevyhody">Disadvantages</button>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-imperativni-vyhody" role="tabpanel" aria-labelledby="tab-imperativni-vyhody">
+                  <ul><li>Maximum flexibility.</li><li>Full interactivity: literally mini-applications.</li></ul>
+                </div>
+                <div class="ia-tab-panel ia-prose" id="panel-imperativni-nevyhody" role="tabpanel" aria-labelledby="tab-imperativni-nevyhody" hidden>
+                  <ul><li>Security risks require sandboxing and other controls.</li><li>Design can be inconsistent without strong instructions.</li></ul>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="shrnuti" aria-labelledby="shrnuti-title">
+      <h2 class="ia-group-title" id="shrnuti-title">Summary</h2>
+      <div class="ia-summary-grid">
+        <div class="ia-summary-item"><strong>Static artifacts</strong><p>Safe and easy to store, but not interactive.</p></div>
+        <div class="ia-summary-item"><strong>Declarative specifications</strong><p>Safer and interactive, but limited by the component set.</p></div>
+        <div class="ia-summary-item"><strong>Imperative code</strong><p>Maximum flexibility and mini-applications, but with security and design risks.</p></div>
+      </div>
+      <div class="ia-callout verdict">
+        <span class="ia-callout-title">Final question</span>
+        <p>So, do your applications already have #GenUI capabilities? Which path are you planning to use?</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <nav class="ia-links" aria-label="Source files in footer">
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </footer>
+</div>
+</body>
+</html>
