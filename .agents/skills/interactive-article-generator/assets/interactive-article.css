@@ -10,29 +10,6 @@
   --cp-note-ink: #101418;
 }
 
-html[lang="en"]:not([data-theme]) {
-  --cp-bg: var(--ia-bg, #ffffff);
-  --cp-bg-elevated: var(--ia-surface, #ffffff);
-  --cp-surface: var(--ia-surface, #ffffff);
-  --cp-surface-soft: var(--ia-surface-muted, #f6f8fa);
-  --cp-panel: var(--ia-surface, #ffffff);
-  --cp-text: var(--ia-text, #1f2328);
-  --cp-text-muted: var(--ia-muted, #57606a);
-  --cp-text-soft: var(--ia-muted, #57606a);
-  --cp-border: var(--ia-border, #d0d7de);
-  --cp-border-strong: var(--ia-border, #d0d7de);
-  --cp-accent: var(--ia-accent, #0969da);
-  --cp-accent-strong: var(--ia-accent-strong, #0550ae);
-  --cp-accent-soft: rgba(9, 105, 218, 0.12);
-  --cp-accent-soft: color-mix(in srgb, var(--cp-accent) 12%, transparent);
-  --cp-success: var(--ia-good, #1a7f37);
-  --cp-warning: var(--ia-warn, #9a6700);
-  --cp-danger: var(--ia-danger, #cf222e);
-  --cp-link: var(--ia-accent, #0969da);
-  --cp-radius: var(--ia-radius, 18px);
-  --cp-shadow: var(--ia-shadow, 0 16px 48px rgba(31, 35, 40, 0.08));
-}
-
 html[data-theme="dark"] {
   --cp-note-paper: #f7f3e7;
   --cp-note-border: #d8caa9;
@@ -74,26 +51,6 @@ a:hover {
   max-width: 1180px;
   margin: 0 auto;
   padding: 72px 36px 96px;
-}
-
-.ia-hero-inner,
-.ia-main {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding-right: 36px;
-  padding-left: 36px;
-}
-
-.ia-hero {
-  margin-bottom: 48px;
-}
-
-.ia-hero-inner {
-  padding-top: 72px;
-}
-
-.ia-main {
-  padding-bottom: 96px;
 }
 
 .ia-header {
@@ -253,28 +210,6 @@ a:hover {
   border-bottom: 1px solid var(--cp-border);
 }
 
-.ia-group-heading {
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--cp-border);
-}
-
-.ia-group-kicker {
-  margin: 0 0 8px;
-  color: var(--cp-text-soft);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.ia-group-heading h2 {
-  margin: 0;
-  color: var(--cp-text);
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1.15;
-}
-
 .ia-card-list {
   display: flex;
   flex-direction: column;
@@ -372,19 +307,6 @@ a:hover {
   color: var(--cp-accent);
 }
 
-.ia-card-number {
-  flex-shrink: 0;
-  width: 28px;
-  color: var(--cp-text-soft);
-  font-family: Consolas, "Courier New", Courier, monospace;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.ia-card.is-open .ia-card-number {
-  color: var(--cp-accent);
-}
-
 .ia-card-title {
   flex: 1;
   color: var(--cp-text);
@@ -399,18 +321,6 @@ a:hover {
   transition: color 0.15s, transform 0.2s;
 }
 
-.ia-card-badge {
-  margin-left: auto;
-  padding: 3px 8px;
-  border: 1px solid var(--cp-border);
-  border-radius: 999px;
-  color: var(--cp-text-soft);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .ia-card.is-open .ia-card-toggle {
   color: var(--cp-accent);
   transform: rotate(180deg);
@@ -419,7 +329,6 @@ a:hover {
 .ia-card-body {
   display: grid;
   grid-template-rows: 0fr;
-  overflow: hidden;
   transition: grid-template-rows 0.25s ease;
 }
 
@@ -436,23 +345,6 @@ a:hover {
   padding: 0 32px 32px 72px;
   color: var(--cp-text-muted);
   font-size: 17.5px;
-}
-
-.ia-card-body > :not(.ia-card-body-clip) {
-  display: none;
-}
-
-.ia-card.is-open .ia-card-body > :not(.ia-card-body-clip),
-html:not(.ia-js) .ia-card-body > :not(.ia-card-body-clip) {
-  display: block;
-  margin: 0 32px 14px 72px;
-  color: var(--cp-text-muted);
-  font-size: 17.5px;
-}
-
-.ia-card.is-open .ia-card-body > :not(.ia-card-body-clip):last-child,
-html:not(.ia-js) .ia-card-body > :not(.ia-card-body-clip):last-child {
-  margin-bottom: 32px;
 }
 
 .ia-card-body.ia-prose {
@@ -818,13 +710,6 @@ html[data-theme="dark"] .ia-handwritten-note {
   list-style: none;
 }
 
-ol.ia-sequence {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  list-style: none;
-}
-
 .ia-sequence-item {
   position: relative;
   padding: 16px;
@@ -833,28 +718,7 @@ ol.ia-sequence {
   border-radius: 8px;
 }
 
-.ia-sequence > li {
-  position: relative;
-  padding: 16px;
-  background: var(--cp-bg-elevated);
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-}
-
 .ia-sequence-item:not(:last-child)::after {
-  content: "->";
-  position: absolute;
-  top: 50%;
-  right: -17px;
-  z-index: 1;
-  color: var(--cp-accent);
-  font-family: Consolas, "Courier New", Courier, monospace;
-  font-size: 13px;
-  font-weight: 700;
-  transform: translateY(-50%);
-}
-
-.ia-sequence > li:not(:last-child)::after {
   content: "->";
   position: absolute;
   top: 50%;
@@ -892,24 +756,9 @@ ol.ia-sequence {
   font-weight: 650;
 }
 
-.ia-sequence > li strong,
-.ia-steps > li strong {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--cp-text);
-  font-weight: 650;
-}
-
 .ia-sequence-item p,
 .ia-step p {
   margin: 0;
-  color: var(--cp-text-muted);
-  font-size: 16.5px;
-}
-
-.ia-sequence > li span,
-.ia-steps > li span {
-  display: block;
   color: var(--cp-text-muted);
   font-size: 16.5px;
 }
@@ -922,13 +771,6 @@ ol.ia-sequence {
   list-style: none;
 }
 
-ol.ia-steps {
-  display: grid;
-  gap: 10px;
-  list-style: none;
-  counter-reset: ia-step;
-}
-
 .ia-step {
   display: grid;
   grid-template-columns: 36px 1fr;
@@ -937,35 +779,6 @@ ol.ia-steps {
   background: var(--cp-bg-elevated);
   border: 1px solid var(--cp-border);
   border-radius: 8px;
-}
-
-.ia-steps > li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 14px;
-  padding: 14px 16px;
-  background: var(--cp-bg-elevated);
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  counter-increment: ia-step;
-}
-
-.ia-steps > li::before {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  background: var(--cp-accent-soft);
-  border: 1px solid var(--cp-border);
-  border-radius: 999px;
-  color: var(--cp-accent);
-  content: counter(ia-step);
-  font-family: Consolas, "Courier New", Courier, monospace;
-  font-size: 12px;
-  font-weight: 700;
-  grid-row: span 2;
 }
 
 .ia-step-num {
@@ -1019,14 +832,6 @@ ol.ia-steps {
   background: var(--cp-surface);
   border: 1px solid var(--cp-border);
   border-radius: 10px;
-}
-
-.ia-summary-grid > :not(.ia-summary-item) {
-  padding: 18px;
-  background: var(--cp-surface);
-  border: 1px solid var(--cp-border);
-  border-radius: 10px;
-  color: var(--cp-text-muted);
 }
 
 .ia-summary-item strong {
@@ -1291,10 +1096,6 @@ ol.ia-steps {
   background: var(--cp-bg-elevated);
   border: 1px solid var(--cp-border);
   border-radius: 12px;
-}
-
-ul.ia-arrow-list {
-  list-style: none;
 }
 
 .ia-arrow-list-title {
