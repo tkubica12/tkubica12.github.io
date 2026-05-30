@@ -78,6 +78,16 @@ Copy public assets from this skill folder:
 - Article labels stay in `interactive\article-index.json` for search and recommendations; do not show them as non-clickable pills on index cards.
 - Exclude `presenter-note` and `agent-note` content from public HTML.
 
+## Canonical article shell
+
+All generated article HTML, including English translations, must use the same current shell as the shared assets:
+
+- Theme state is controlled by the first head script using `localStorage` key `interactive-article-theme` and `document.documentElement.dataset.theme`.
+- The inline variable block uses the shared `--cp-*` tokens from `references\design-contract.md`; do not emit legacy `--ia-*` variables or one-off palettes.
+- The page body uses `.ia-controls`, `.ia-page`, `.ia-header`, `.ia-links`, `.ia-card`, `.ia-card-head`, `.ia-card-num`, `.ia-card-toggle`, `data-ia-card-panel`, `.ia-card-body-clip`, and `.ia-card-content.ia-prose`.
+- Do not emit legacy or foreign shell classes such as `.ia-hero`, `.ia-hero-inner`, `.ia-main`, `.ia-group-heading`, `.ia-group-kicker`, `.ia-card-number`, or `.ia-card-badge`.
+- Do not add a visible skip link such as `Skip to content` or `.ia-skip` unless the shared stylesheet defines its hidden-until-focused behavior.
+
 ## Component mapping
 
 - `group` -> `<section class="ia-group">`
@@ -137,3 +147,4 @@ Before finishing:
 - No `presenter-note` or `agent-note` content appears in HTML.
 - No inline style attributes or per-page component CSS beyond the mandatory theme variable block.
 - Controls have ARIA attributes.
+- Article HTML follows the canonical shell and contains no legacy shell tokens (`--ia-`, `theme-light`, `.ia-hero`, `.ia-main`, `.ia-card-number`, `.ia-card-badge`, or visible `.ia-skip`).
