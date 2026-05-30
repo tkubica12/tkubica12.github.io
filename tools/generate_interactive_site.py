@@ -33,6 +33,7 @@ EN_ARTICLE_AVATAR_SRC = "../../../assets/img/avatar.png"
 SITE_ROOT = ROOT / "_site"
 DEFAULT_PUBLIC_BASE = "/"
 DEFAULT_CLASSIC_BASE = "/classic/"
+SITE_URL = "https://tomaskubica.cz"
 RECENT_CARD_COUNT = 6
 ARCHIVE_INITIAL_VISIBLE = 24
 ARCHIVE_BATCH_SIZE = 24
@@ -136,6 +137,7 @@ class LocaleConfig:
     theme_button_label: str
     classic_link_text: str
     rss_text: str
+    llms_text: str
     language_switch_label: str
     current_language_label: str
     other_language_label: str
@@ -174,6 +176,7 @@ CS_LOCALE = LocaleConfig(
     theme_button_label="Tmavý režim",
     classic_link_text="Starší články najdete na mém klasickém blogu",
     rss_text="RSS",
+    llms_text="llms.txt",
     language_switch_label="Jazyk",
     current_language_label="CZ",
     other_language_label="EN",
@@ -212,6 +215,7 @@ EN_LOCALE = LocaleConfig(
     theme_button_label="Dark mode",
     classic_link_text="Older Czech articles are on my classic blog",
     rss_text="RSS",
+    llms_text="llms.txt",
     language_switch_label="Language",
     current_language_label="EN",
     other_language_label="CZ",
@@ -345,6 +349,12 @@ def join_url(base: str, *parts: object) -> str:
     if not suffix:
         return normalized
     return f"{normalized}{suffix}/"
+
+
+def absolute_public_url(path: str) -> str:
+    if path.startswith(("http://", "https://")):
+        return path
+    return f"{SITE_URL}/{path.lstrip('/')}"
 
 
 def root_relative_url(path: str) -> str:
@@ -602,6 +612,43 @@ def search_payload_json(articles: list[Article], themes: list[Theme]) -> str:
     return json.dumps(build_search_payload(articles, themes), ensure_ascii=False, separators=(",", ":"))
 
 
+def llms_text(value: str) -> str:
+    return value.replace("\n", " ").replace("[", r"\[").replace("]", r"\]").strip()
+
+
+def llms_article_link(article: Article, prefix: str, filename: str, label: str) -> str:
+    url = absolute_public_url(f"{prefix}{article.year}/{article.slug}/{filename}")
+    return f"- [{llms_text(label)}: {llms_text(article.title)}]({url}): {llms_text(article.summary)}"
+
+
+def llms_section(title: str, articles: list[Article], prefix: str, filename: str, label: str) -> str:
+    if not articles:
+        return ""
+    links = "\n".join(llms_article_link(article, prefix, filename, label) for article in articles)
+    return f"## {title}\n\n{links}"
+
+
+def generate_llms_txt(cs_articles: list[Article], en_articles: list[Article], output_root: Path) -> None:
+    cs_recent = sorted(cs_articles, key=lambda article: article.date, reverse=True)
+    en_recent = sorted(en_articles, key=lambda article: article.date, reverse=True)
+    sections = [
+        llms_section("Czech source articles", cs_recent, "", "source.md", "CZ source.md"),
+        llms_section("Czech caveman summaries", cs_recent, "", "caveman.md", "CZ caveman.md"),
+        llms_section("English source articles", en_recent, "en/", "source.md", "EN source.md"),
+        llms_section("English caveman summaries", en_recent, "en/", "caveman.md", "EN caveman.md"),
+    ]
+    body = "\n\n".join(section for section in sections if section)
+    text = f"""# Tomáš Kubica
+
+> Interactive Czech and English articles about AI, development, cloud, and practical engineering experience.
+
+Use `source.md` links for faithful article sources and `caveman.md` links for compact agent-friendly summaries. Czech articles are the originals; English articles are machine translations when available.
+
+{body}
+"""
+    (output_root / "llms.txt").write_text(text, encoding="utf-8")
+
+
 def index_root_relative(path: str, locale: LocaleConfig) -> str:
     relative = root_relative_url(path)
     return f"../{relative}" if locale.output_subdir else relative
@@ -656,6 +703,7 @@ def generate_index(
     archive = "\n".join(archive_sections)
     classic_link = index_root_relative(classic_base, locale)
     feed_link = index_root_relative("/", locale) + "feed.xml"
+    llms_link = index_root_relative("/", locale) + "llms.txt"
     hero_avatar = (
         f'<img class="ia-avatar ia-avatar-hero" src="{e(locale.index_avatar_src)}" alt="" '
         'width="112" height="112" aria-hidden="true" decoding="async">'
@@ -700,6 +748,7 @@ def generate_index(
       <nav class="ia-links" aria-label="{e(locale.navigation_label)}">
         <a href="{e(classic_link)}">{e(locale.classic_link_text)}</a>
         <a href="{e(feed_link)}">{e(locale.rss_text)}</a>
+        <a href="{e(llms_link)}">{e(locale.llms_text)}</a>
       </nav>
       {language_nav}
     </div>
@@ -742,7 +791,7 @@ def generate_index(
   </section>
 </main>
 <footer class="ia-footer">
-  <p><a href="{e(classic_link)}">{e(locale.classic_link_text)}</a> · <a href="{e(feed_link)}">{e(locale.rss_text)}</a></p>
+  <p><a href="{e(classic_link)}">{e(locale.classic_link_text)}</a> · <a href="{e(feed_link)}">{e(locale.rss_text)}</a> · <a href="{e(llms_link)}">{e(locale.llms_text)}</a></p>
 </footer>
 </div>
 <script src="{asset_prefix}assets/interactive-article.js"></script>
@@ -1005,6 +1054,7 @@ def run(output_root: Path, public_base: str = DEFAULT_PUBLIC_BASE, classic_base:
     copy_article_files(output_root, articles, public_base, GENERATED_ROOT)
     if en_articles:
         copy_article_files(output_root, en_articles, en_locale.public_base, GENERATED_ROOT / "en", en_locale.output_subdir)
+    generate_llms_txt(articles, en_articles, output_root)
 
     generate_index(articles, themes, output_root, public_base, classic_base, cs_locale, has_english=bool(en_articles))
     generate_search_json(articles, themes, output_root, cs_locale)

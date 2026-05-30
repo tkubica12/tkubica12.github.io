@@ -142,6 +142,7 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
         en_index_html = en_index.read_text(encoding="utf-8")
         require('html lang="en"' in en_index_html, "English index must use lang=\"en\".", errors)
         require('href="../"' in en_index_html, "English index must link back to the Czech root.", errors)
+        require('href="../llms.txt"' in en_index_html, "English index does not link to llms.txt.", errors)
 
     cs_by_slug = {str(article["slug"]): article for article in cs_articles}
     en_by_source = {str(article.get("source_slug") or article["slug"]): article for article in en_articles}
@@ -196,6 +197,37 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
             require('hreflang="en"' in cs_html, f"{source_slug}: Czech article is missing hreflang=en.", errors)
 
 
+def validate_llms_txt(cs_articles: list[dict[str, object]], errors: list[str]) -> None:
+    llms_path = SITE_ROOT / "llms.txt"
+    require(llms_path.is_file(), "llms.txt is missing.", errors)
+    if not llms_path.is_file():
+        return
+
+    text = llms_path.read_text(encoding="utf-8")
+    require(text.startswith("# Tomáš Kubica\n"), "llms.txt must start with the site H1.", errors)
+    require("## Czech source articles" in text, "llms.txt is missing the Czech source section.", errors)
+    require("## Czech caveman summaries" in text, "llms.txt is missing the Czech caveman section.", errors)
+    for article in cs_articles:
+        year = str(article["year"])
+        slug = str(article["slug"])
+        for filename in ("source.md", "caveman.md"):
+            url = f"{SITE_URL}/{year}/{slug}/{filename}"
+            require(url in text, f"llms.txt is missing {url}.", errors)
+            require((SITE_ROOT / year / slug / filename).is_file(), f"llms.txt target is missing: {year}\\{slug}\\{filename}", errors)
+
+    en_articles = optional_article_entries(ARTICLE_INDEX_EN)
+    if en_articles:
+        require("## English source articles" in text, "llms.txt is missing the English source section.", errors)
+        require("## English caveman summaries" in text, "llms.txt is missing the English caveman section.", errors)
+    for article in en_articles:
+        year = str(article["year"])
+        slug = str(article["slug"])
+        for filename in ("source.md", "caveman.md"):
+            url = f"{SITE_URL}/en/{year}/{slug}/{filename}"
+            require(url in text, f"llms.txt is missing {url}.", errors)
+            require((SITE_ROOT / "en" / year / slug / filename).is_file(), f"llms.txt target is missing: en\\{year}\\{slug}\\{filename}", errors)
+
+
 def validate_site() -> list[str]:
     errors: list[str] = []
     cs_articles = article_entries()
@@ -206,6 +238,7 @@ def validate_site() -> list[str]:
     require((SITE_ROOT / "assets" / "interactive-article.css").is_file(), "Interactive CSS is missing.", errors)
     require((SITE_ROOT / "assets" / "interactive-article.js").is_file(), "Interactive JS is missing.", errors)
     feed_refs = root_feed_refs(errors)
+    validate_llms_txt(cs_articles, errors)
     if classic_index.is_file():
         require((SITE_ROOT / "classic" / "feed.xml").is_file(), "Classic feed.xml is missing.", errors)
     if root_index.is_file():
@@ -213,6 +246,7 @@ def validate_site() -> list[str]:
         require("ia-index-page" in root_html, "Root index is not the interactive index.", errors)
         require("/new/" not in root_html, "Root index still links to /new/.", errors)
         require('href="feed.xml"' in root_html, "Root index does not link to the canonical feed.xml.", errors)
+        require('href="llms.txt"' in root_html, "Root index does not link to llms.txt.", errors)
 
     for article in cs_articles:
         year = str(article["year"])
