@@ -154,7 +154,9 @@ class LocaleConfig:
     related_shared_context: str
     related_shared_tokens: str
     related_default: str
-    repo_text: str
+    profile_label: str
+    repo_label: str
+    profile_url: str = "https://github.com/tkubica12"
     repo_url: str = "https://github.com/tkubica12/tkubica12.github.io"
 
 
@@ -195,7 +197,8 @@ CS_LOCALE = LocaleConfig(
     related_shared_context="Sdílí praktický kontext: {label}.",
     related_shared_tokens="Má podobný slovník a praktický kontext.",
     related_default="Je to další aktuální text z interaktivní série.",
-    repo_text="Zdrojový kód webu na GitHubu",
+    profile_label="GitHub",
+    repo_label="zdroj webu",
 )
 
 EN_LOCALE = LocaleConfig(
@@ -235,7 +238,8 @@ EN_LOCALE = LocaleConfig(
     related_shared_context="Shares practical context: {label}.",
     related_shared_tokens="Uses similar vocabulary and practical context.",
     related_default="Another recent article from the interactive series.",
-    repo_text="Site source code on GitHub",
+    profile_label="GitHub",
+    repo_label="site source",
 )
 
 
@@ -791,7 +795,7 @@ def generate_index(
   </section>
 </main>
 <footer class="ia-footer">
-  <p><a href="{e(classic_link)}">{e(locale.classic_link_text)}</a> · <a href="{e(feed_link)}">{e(locale.rss_text)}</a> · <a href="{e(llms_link)}">{e(locale.llms_text)}</a> · <a href="{e(locale.repo_url)}" rel="noopener">{e(locale.repo_text)}</a></p>
+  <p><a href="{e(classic_link)}">{e(locale.classic_link_text)}</a> · <a href="{e(feed_link)}">{e(locale.rss_text)}</a> · <a href="{e(llms_link)}">{e(locale.llms_text)}</a> · <a href="{e(locale.profile_url)}" rel="noopener">{e(locale.profile_label)}</a> · <a href="{e(locale.repo_url)}" rel="noopener">{e(locale.repo_label)}</a></p>
 </footer>
 </div>
 <script src="{asset_prefix}assets/interactive-article.js"></script>
@@ -827,7 +831,7 @@ def article_footer(article: Article, related: Article | None, reason: str, local
   <a href="../../">{e(locale.back_to_index)}</a>
 </div>
 {related_block}
-<p>{e(locale.agent_friendly)}: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a> · <a href="{e(locale.repo_url)}" rel="noopener">{e(locale.repo_text)}</a></p>
+<p>{e(locale.agent_friendly)}: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a> · <a href="{e(locale.profile_url)}" rel="noopener">{e(locale.profile_label)}</a> · <a href="{e(locale.repo_url)}" rel="noopener">{e(locale.repo_label)}</a></p>
 </footer>"""
 
 
