@@ -155,7 +155,7 @@ class LocaleConfig:
     related_shared_tokens: str
     related_default: str
     repo_text: str
-    repo_url: str = "https://github.com/tkubica12"
+    repo_url: str = "https://github.com/tkubica12/tkubica12.github.io"
 
 
 CS_LOCALE = LocaleConfig(
@@ -195,7 +195,7 @@ CS_LOCALE = LocaleConfig(
     related_shared_context="Sdílí praktický kontext: {label}.",
     related_shared_tokens="Má podobný slovník a praktický kontext.",
     related_default="Je to další aktuální text z interaktivní série.",
-    repo_text="Zdrojový kód a další projekty na GitHubu",
+    repo_text="Zdrojový kód webu na GitHubu",
 )
 
 EN_LOCALE = LocaleConfig(
@@ -235,7 +235,7 @@ EN_LOCALE = LocaleConfig(
     related_shared_context="Shares practical context: {label}.",
     related_shared_tokens="Uses similar vocabulary and practical context.",
     related_default="Another recent article from the interactive series.",
-    repo_text="Source code and other projects on GitHub",
+    repo_text="Site source code on GitHub",
 )
 
 
