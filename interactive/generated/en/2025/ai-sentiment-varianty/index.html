@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>How to do simple AI text analysis? LLM, fine-tuning, BERT, or embeddings?</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">How to do simple AI text analysis? LLM, fine-tuning, BERT, or embeddings?</h1>
+<p class="ia-subtitle">Using short-text sentiment, I compare quality, cost, latency, and practicality across four approaches.</p>
+<p class="ia-date"><time datetime="2025-07-08">2025-07-08</time></p>
+<nav class="ia-links" aria-label="Source files">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>Decades ago, natural-language processing was mostly about specialized models for relatively simple tasks. They were small, cheap to run, and you had to know what you were doing. Today we have large language models that can follow instructions and often do the same thing without training your own model.</p>
+<p>Let's use sentiment as the lab task. I take a short social-media post and want to put it into one of three classes: <strong>positive</strong>, <strong>negative</strong>, <strong>neutral</strong>. This is not meant as an academic benchmark. It is the practical question: what should I use, how good will it be, how fast will it be, and how much will it cost?</p>
+<aside class="ia-callout note"><span class="ia-callout-title">Data and code</span>
+<p>I use a dataset with roughly 25 thousand human-labeled training examples, 6 thousand validation examples, and 5 thousand test examples. All details, including test and training code, are on my <a href="https://github.com/tkubica12/d-ai-sentiment/tree/main">GitHub</a>.</p>
+</aside>
+<section class="ia-group" id="uvod"><h2 class="ia-group-title">Introduction to the comparison</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Four options side by side</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>For the same classification task I have four practical paths. The next cards walk through each one, but here is a quick preview of what I will be comparing.</p>
+<div class="ia-tabs" data-ia-tabs><div class="ia-tab-list" role="tablist"><button class="ia-tab" id="tab-llm" role="tab" aria-selected="true" aria-controls="panel-llm" type="button">LLM without training</button><button class="ia-tab" id="tab-ft" role="tab" aria-selected="false" aria-controls="panel-ft" type="button">Fine-tuned LLM</button><button class="ia-tab" id="tab-bert" role="tab" aria-selected="false" aria-controls="panel-bert" type="button">BERT encoder</button><button class="ia-tab" id="tab-emb" role="tab" aria-selected="false" aria-controls="panel-emb" type="button">Embeddings + LR</button></div><div class="ia-tab-panel" id="panel-llm" role="tabpanel" aria-labelledby="tab-llm"><p>I instruct the model to return one class. I try almost-zero-shot and few-shot with 100 or 1000 examples. This is the simplest variant, but cost and latency grow with context length.</p>
+</div><div class="ia-tab-panel" id="panel-ft" role="tabpanel" aria-labelledby="tab-ft" hidden><p>I take GPT-4.1 nano or mini and fine-tune it on 25 thousand examples. It is still a generative model, but now specialized for this task.</p>
+</div><div class="ia-tab-panel" id="panel-bert" role="tabpanel" aria-labelledby="tab-bert" hidden><p>A classic encoder-only transformer is very natural for text classification. It is not generative, looks at the whole input bidirectionally, and returns a class.</p>
+</div><div class="ia-tab-panel" id="panel-emb" role="tabpanel" aria-labelledby="tab-emb" hidden><p>I convert text into a vector with an embedding model and train simple logistic regression on top. The cloud provides a universal representation; the tiny local model decides the class.</p>
+</div></div>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Best accuracy</strong><p>fine-tuned GPT-4.1-mini, 80.0%.</p></div>
+<div class="ia-summary-item"><strong>Lowest cost</strong><p>embeddings + logistic regression, about $0.0005 per 1000 samples.</p></div>
+<div class="ia-summary-item"><strong>Lowest latency</strong><p>BERT, about 0.09 seconds per sample.</p></div>
+<div class="ia-summary-item"><strong>Easiest changes</strong><p>plain LLM, because I change the prompt, not the model.</p></div>
+</div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Results: accuracy, cost, and speed</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The accuracy may not look amazing at first glance. Part of the reason is that the boundary between positive and neutral sentiment is often fuzzy. Some posts are simply labeled differently by different people.</p>
+<p><strong>Classification quality</strong></p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th style="text-align: right;">Experiment</th>
+<th>Model / approach</th>
+<th>Strategy</th>
+<th style="text-align: right;">Accuracy</th>
+<th style="text-align: right;">Run cost</th>
+<th style="text-align: right;">Time</th>
+<th style="text-align: right;">Samples/s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_ZEROSHOT</td>
+<td>GPT-4.1-nano</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">67.7%</td>
+<td style="text-align: right;">$0.13</td>
+<td style="text-align: right;">3306.7 s</td>
+<td style="text-align: right;">1.56</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_FEWSHOT_100</td>
+<td>GPT-4.1-nano</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">68.6%</td>
+<td style="text-align: right;">$1.45 (~$0.87 cached)</td>
+<td style="text-align: right;">4215.4 s</td>
+<td style="text-align: right;">1.23</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_FEWSHOT_1000</td>
+<td>GPT-4.1-nano</td>
+<td>Few-shot 1000</td>
+<td style="text-align: right;">68.4%</td>
+<td style="text-align: right;">$13.39 (~$8.03 cached)</td>
+<td style="text-align: right;">9160.4 s</td>
+<td style="text-align: right;">0.56</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_ZEROSHOT</td>
+<td>GPT-4.1-mini</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">69.3%</td>
+<td style="text-align: right;">$0.55</td>
+<td style="text-align: right;">3919.9 s</td>
+<td style="text-align: right;">1.38</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_FEWSHOT_100</td>
+<td>GPT-4.1-mini</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">69.4%</td>
+<td style="text-align: right;">$5.88 (~$3.53 cached)</td>
+<td style="text-align: right;">5565.6 s</td>
+<td style="text-align: right;">0.94</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_FEWSHOT_1000</td>
+<td>GPT-4.1-mini</td>
+<td>Few-shot 1000</td>
+<td style="text-align: right;">68.4%</td>
+<td style="text-align: right;">$55.53 (~$33.32 cached)</td>
+<td style="text-align: right;">16084.1 s</td>
+<td style="text-align: right;">0.33</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_NANO_ZEROSHOT</td>
+<td>GPT-4.1-nano FT</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">79.0%</td>
+<td style="text-align: right;">$0.26</td>
+<td style="text-align: right;">1907.0 s</td>
+<td style="text-align: right;">2.71</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_NANO_FEWSHOT_100</td>
+<td>GPT-4.1-nano FT</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">78.4%</td>
+<td style="text-align: right;">$2.90 (~$1.74 cached)</td>
+<td style="text-align: right;">1940.0 s</td>
+<td style="text-align: right;">2.66</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_MINI_ZEROSHOT</td>
+<td>GPT-4.1-mini FT</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">80.0%</td>
+<td style="text-align: right;">$1.04</td>
+<td style="text-align: right;">1564.2 s</td>
+<td style="text-align: right;">3.30</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_MINI_FEWSHOT_100</td>
+<td>GPT-4.1-mini FT</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">79.3%</td>
+<td style="text-align: right;">$11.58 (~$6.95 cached)</td>
+<td style="text-align: right;">1918.4 s</td>
+<td style="text-align: right;">2.69</td>
+</tr>
+<tr>
+<td>Embeddings + ML</td>
+<td style="text-align: right;">LR_100</td>
+<td>OpenAI Embeddings + LR</td>
+<td>100 samples</td>
+<td style="text-align: right;">60.9%</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">963.2 s</td>
+<td style="text-align: right;">5.40</td>
+</tr>
+<tr>
+<td>Embeddings + ML</td>
+<td style="text-align: right;">LR_1000</td>
+<td>OpenAI Embeddings + LR</td>
+<td>1000 samples</td>
+<td style="text-align: right;">67.1%</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">951.7 s</td>
+<td style="text-align: right;">5.47</td>
+</tr>
+<tr>
+<td>Embeddings + ML</td>
+<td style="text-align: right;">LR_ALL</td>
+<td>OpenAI Embeddings + LR</td>
+<td>full dataset</td>
+<td style="text-align: right;">73.2%</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">932.1 s</td>
+<td style="text-align: right;">5.58</td>
+</tr>
+<tr>
+<td>Transformer encoder</td>
+<td style="text-align: right;">BERT_SENTIMENT</td>
+<td>BERT-base FT</td>
+<td>full dataset</td>
+<td style="text-align: right;">74.5%</td>
+<td style="text-align: right;">$0.028</td>
+<td style="text-align: right;">465.4 s</td>
+<td style="text-align: right;">11.19</td>
+</tr>
+</tbody>
+</table>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-12-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Full token and completion measurements</button><div class="ia-reveal-body" id="reveal-12-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<table>
+<thead>
+<tr>
+<th>Experiment</th>
+<th style="text-align: right;">Completed</th>
+<th style="text-align: right;">Failed</th>
+<th style="text-align: right;">Total tokens</th>
+<th style="text-align: right;">Input tokens</th>
+<th style="text-align: right;">Output tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99.3%)</td>
+<td style="text-align: right;">39 (0.7%)</td>
+<td style="text-align: right;">1,289,946</td>
+<td style="text-align: right;">1,284,780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">5165 (99.2%)</td>
+<td style="text-align: right;">40 (0.8%)</td>
+<td style="text-align: right;">14,470,776</td>
+<td style="text-align: right;">14,465,611</td>
+<td style="text-align: right;">5165</td>
+</tr>
+<tr>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">5166 (99.3%)</td>
+<td style="text-align: right;">39 (0.7%)</td>
+<td style="text-align: right;">133,890,834</td>
+<td style="text-align: right;">133,885,668</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">5076 (97.5%)</td>
+<td style="text-align: right;">129 (2.5%)</td>
+<td style="text-align: right;">1,351,565</td>
+<td style="text-align: right;">1,346,144</td>
+<td style="text-align: right;">5421</td>
+</tr>
+<tr>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">5140 (98.8%)</td>
+<td style="text-align: right;">65 (1.2%)</td>
+<td style="text-align: right;">14,688,863</td>
+<td style="text-align: right;">14,683,620</td>
+<td style="text-align: right;">5243</td>
+</tr>
+<tr>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">5088 (97.8%)</td>
+<td style="text-align: right;">117 (2.2%)</td>
+<td style="text-align: right;">138,814,519</td>
+<td style="text-align: right;">138,809,163</td>
+<td style="text-align: right;">5356</td>
+</tr>
+<tr>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99.3%)</td>
+<td style="text-align: right;">39 (0.7%)</td>
+<td style="text-align: right;">1,289,946</td>
+<td style="text-align: right;">1,284,780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">5166 (99.3%)</td>
+<td style="text-align: right;">39 (0.7%)</td>
+<td style="text-align: right;">14,473,578</td>
+<td style="text-align: right;">14,468,412</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99.3%)</td>
+<td style="text-align: right;">39 (0.7%)</td>
+<td style="text-align: right;">1,289,946</td>
+<td style="text-align: right;">1,284,780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">5165 (99.2%)</td>
+<td style="text-align: right;">40 (0.8%)</td>
+<td style="text-align: right;">14,470,685</td>
+<td style="text-align: right;">14,465,520</td>
+<td style="text-align: right;">5165</td>
+</tr>
+<tr>
+<td>LR_100</td>
+<td style="text-align: right;">5205 (100%)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>LR_1000</td>
+<td style="text-align: right;">5205 (100%)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>LR_ALL</td>
+<td style="text-align: right;">5205 (100%)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">124,123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">5205 (100%)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">N/A</td>
+<td style="text-align: right;">N/A</td>
+<td style="text-align: right;">N/A</td>
+</tr>
+</tbody>
+</table>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-15-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Cost per 1000 samples and latency</button><div class="ia-reveal-body" id="reveal-15-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p><strong>Cost per 1000 samples</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Experiment</th>
+<th style="text-align: right;">Cost per 1000 samples</th>
+<th style="text-align: right;">Rank</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cheapest</td>
+<td>LR_100</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Cheapest</td>
+<td>LR_1000</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Cheapest</td>
+<td>LR_ALL</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Low</td>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">$0.025</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>Low</td>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">$0.028</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>Low</td>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">$0.050</td>
+<td style="text-align: right;">6</td>
+</tr>
+<tr>
+<td>Low</td>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">$0.106</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr>
+<td>Low</td>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">$0.202</td>
+<td style="text-align: right;">8</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">$0.280 ($0.168 cached)</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">$0.562 ($0.337 cached)</td>
+<td style="text-align: right;">10</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">$1.130 ($0.678 cached)</td>
+<td style="text-align: right;">11</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">$2.242 ($1.345 cached)</td>
+<td style="text-align: right;">12</td>
+</tr>
+<tr>
+<td>Expensive</td>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">$2.590 ($1.554 cached)</td>
+<td style="text-align: right;">13</td>
+</tr>
+<tr>
+<td>Expensive</td>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">$10.670 ($6.402 cached)</td>
+<td style="text-align: right;">14</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Latency</strong></p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Experiment</th>
+<th style="text-align: right;">Time per sample</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fastest</td>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">0.09 s</td>
+</tr>
+<tr>
+<td>Fast</td>
+<td>LR_ALL</td>
+<td style="text-align: right;">0.18 s</td>
+</tr>
+<tr>
+<td>Fast</td>
+<td>LR_1000</td>
+<td style="text-align: right;">0.18 s</td>
+</tr>
+<tr>
+<td>Fast</td>
+<td>LR_100</td>
+<td style="text-align: right;">0.19 s</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">0.30 s</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">0.37 s</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">0.37 s</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">0.38 s</td>
+</tr>
+<tr>
+<td>Slow</td>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">0.64 s</td>
+</tr>
+<tr>
+<td>Slow</td>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">0.72 s</td>
+</tr>
+<tr>
+<td>Slow</td>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">0.81 s</td>
+</tr>
+<tr>
+<td>Slow</td>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">1.06 s</td>
+</tr>
+<tr>
+<td>Outlier</td>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">1.77 s</td>
+</tr>
+<tr>
+<td>Outlier</td>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">3.00 s</td>
+</tr>
+</tbody>
+</table>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="varianty"><h2 class="ia-group-title">Four options in depth</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Large language model without training</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>An LLM can follow instructions, so we can simply tell it: classify this text and return only one output token. In my case <code>0</code>, <code>1</code>, or <code>2</code>. If I let the model think and explain at length it might be more accurate, but also many times more expensive. I care about practical operation here.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">What we saw with the LLM</h3>
+<p class="ia-detail-grid-hint">Click a card for the detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Quality</span><span class="ia-detail-card-summary">Mini is a bit better than nano, but not dramatically.</span></div><div class="ia-detail-content ia-prose">
+<p>Few-shot with 100 examples helps a little. Few-shot with 1000 examples actually confuses small models and stretches context so much that the result stops making sense.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cost</span><span class="ia-detail-card-summary">Input tokens dominate.</span></div><div class="ia-detail-content ia-prose">
+<p>That is why few-shot 1000 is practically nonsense: dramatically more expensive and worse. Input-token caching helps for few-shot scenarios, but it does not change the rules.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latency</span><span class="ia-detail-card-summary">Short context is faster; nano is faster.</span></div><div class="ia-detail-content ia-prose">
+<p>Sequential processing comes out at roughly 0.64 to 1.06 seconds per sample. The 1000-example variant is completely off, three seconds per sample with the mini model.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibility</span><span class="ia-detail-card-summary">This is where LLM wins.</span></div><div class="ia-detail-content ia-prose">
+<p>No training, no pipeline, no specialized model. I change the prompt and get different behavior. One endpoint, one library, one runtime model.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Fine-tuning a large language model</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Here I again take the mini and nano models and show them 25,000 training examples. Then I use them zero-shot and with few-shot 100 examples.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Fine-tuned LLM in practice</h3>
+<p class="ia-detail-grid-hint">Click a card for the detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Quality</span><span class="ia-detail-card-summary">Best result of the whole test.</span></div><div class="ia-detail-content ia-prose">
+<p>Fine-tuning helped dramatically. GPT-4.1-mini reached 80.0%. Interestingly, few-shot stops helping and actually hurts. My guess is that 100 randomly picked examples are not representative against the 25,000 used in training.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cost</span><span class="ia-detail-card-summary">Inferencing is not the whole story.</span></div><div class="ia-detail-content ia-prose">
+<p>Fine-tuning itself cost $40. In Azure OpenAI Service the fine-tuned model uses the same token prices as the regular version, but hosting is billed at $1.7/h. With OpenAI you do not pay hosting, but tokens are more expensive. Sometimes one is cheaper, sometimes the other.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latency</span><span class="ia-detail-card-summary">Markedly better in my measurement.</span></div><div class="ia-detail-content ia-prose">
+<p>I tested in Azure where you pay hosting. This should not be taken as an official guarantee, but I measured 2x to 3x lower latency than the regular variant.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibility</span><span class="ia-detail-card-summary">You can still bend it with prompts.</span></div><div class="ia-detail-content ia-prose">
+<p>It is a specialized model, but still generative. Small instruction tweaks or in-context examples work. Bigger changes mean another fine-tuning run.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Fine-tuned transformer encoder (BERT)</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>BERT is older, but for text classification it works very well. Generative models are decoder-only and learn to predict the next token. An encoder-only model does not generate text, but processes the whole input well and outputs a class.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">BERT: older approach, still strong</h3>
+<p class="ia-detail-grid-hint">Click a card for the detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Quality</span><span class="ia-detail-card-summary">Very good, but fine-tuned LLM is higher.</span></div><div class="ia-detail-content ia-prose">
+<p>A simple and briefly trained variant ended up clearly above the plain LLMs and similar to logistic regression on embeddings. I believe BERT could be pushed further.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cost</span><span class="ia-detail-card-summary">Model is free-ish; operation is not.</span></div><div class="ia-detail-content ia-prose">
+<p>We need a GPU machine. I counted two older NVIDIA T4 nodes on Azure VM at $0.56/h. Training ran for 500 seconds, so almost nothing. But inferencing costs compute and that brings BERT into GPT-4.1-nano territory.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latency</span><span class="ia-detail-card-summary">Best in the test.</span></div><div class="ia-detail-content ia-prose">
+<p>BERT ran locally on Azure VM, so it did not have the same cloud round-trip as the other variants. Even if 0.09 s became 0.12 s in a more realistic setup, it is still excellent.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibility</span><span class="ia-detail-card-summary">The biggest weakness.</span></div><div class="ia-detail-content ia-prose">
+<p>You need code or AutoML; the model is single-purpose and you cannot tune it via a prompt. Plus I started from BERT, which does not speak Czech, so Czech and multilingual scenarios are harder.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Embeddings and logistic regression</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>This is a combination of modern pre-training and prehistorically simple classification. An embedding model turns text into the latent space, roughly 1500 dimensions, and logistic regression decides the three classes.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-74-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Why this combination feels interesting to me</button><div class="ia-reveal-body" id="reveal-74-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Embeddings on their own are not a classifier. They will not say "positive" or "negative". But they are a universal representation of meaning. On top of them I can put a tiny model that trains quickly, runs on CPU, and costs almost nothing. Inferencing is then the cloud call for embeddings plus a local classification computation.</p>
+</div></div></div></div>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Embeddings + LR</h3>
+<p class="ia-detail-grid-hint">Click a card for the detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Quality</span><span class="ia-detail-card-summary">Surprisingly good with the full dataset.</span></div><div class="ia-detail-content ia-prose">
+<p>Training on the full dataset puts the result clearly above the plain LLM and close to BERT.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cost</span><span class="ia-detail-card-summary">Lowest by orders of magnitude.</span></div><div class="ia-detail-content ia-prose">
+<p>The cost of logistic regression is negligible. What matters is the embedding token price and that is very low.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latency</span><span class="ia-detail-card-summary">Very good.</span></div><div class="ia-detail-content ia-prose">
+<p>Embeddings come back from the cloud quickly and the local LR model is instant.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibility</span><span class="ia-detail-card-summary">Single-purpose, but language-friendly.</span></div><div class="ia-detail-content ia-prose">
+<p>Like BERT, the final classifier is fixed. Unlike BERT, modern embeddings typically speak Czech and other languages, which is a big practical advantage.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="zaver"><h2 class="ia-group-title">What I would pick</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">My practical recommendation</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>None of the variants is the absolute winner. It depends on the task, volume, language, and how much future flexibility you want.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Choice</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I am a nerd and a saver</td>
+<td>LR + embeddings</td>
+<td>Lowest cost, great speed, more complex and single-purpose.</td>
+</tr>
+<tr>
+<td>I want something general and tunable over time</td>
+<td>LLM</td>
+<td>Baseline quality, higher cost and latency, but extreme simplicity.</td>
+</tr>
+<tr>
+<td>I want best quality and relatively easy operation</td>
+<td>Fine-tuned LLM</td>
+<td>Best quality, hosted, but specialized and more expensive.</td>
+</tr>
+<tr>
+<td>I am a nerd, no cloud, English only, GPU to spare</td>
+<td>BERT fine-tuning</td>
+<td>Very good quality, low cost with good utilization, best latency, least flexibility.</td>
+</tr>
+</tbody>
+</table>
+<div class="ia-arrow-list">
+<h3 class="ia-arrow-list-title">My practical shortcut</h3>
+<ul>
+<li>If the task is not yet stable, I would start with a plain LLM and a prompt.</li>
+<li>If you have high volume and a clearly defined class, try embeddings + a simple classifier.</li>
+<li>If you chase quality and want hosted operation, reach for fine-tuning an LLM.</li>
+<li>If you have a strong ML team and your own compute, an encoder model makes sense.</li>
+</ul></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>Of course, this is my example; in yours it may turn out differently. The important thing is not to think only about accuracy, but also about cost, latency, operation, and future changes in the task.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

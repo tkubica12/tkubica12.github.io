@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>New Agent Skills Standard for Your Coding Workers in GitHub Copilot</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">New Agent Skills Standard for Your Coding Workers in GitHub Copilot</h1>
+<p class="ia-subtitle">How Agent Skills fill the space between AGENTS.md and MCP: context loaded on demand, project instructions and lightweight scripts without the full protocol overhead.</p>
+<p class="ia-date"><time datetime="2026-01-12">2026-01-12</time></p>
+<nav class="ia-links" aria-label="Source files">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>How do you work with context in AI coding tools, or teach an agent to use scripts you have prepared in advance? It can be solved by prompting in <a href="https://agents.md/">AGENTS.md</a>, but that is not a standardized approach and does not always work — the behaviour will depend heavily on the model used and will be harder to predict. For better results you can use <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>, but that means writing a piece of software and is generally more robust and for some situations unnecessarily complex. That is why today we will focus on an option somewhere in between — <a href="https://agentskills.io/">Agent Skills</a>.</p>
+<aside class="ia-callout verdict"><span class="ia-callout-title">The Point</span>
+<p>Skills are a practical middle ground between <code>AGENTS.md</code> and MCP: a standardized directory with instructions that is loaded into context only at the moment the agent actually needs it.</p>
+</aside>
+<section class="ia-group" id="zaklady"><h2 class="ia-group-title">Basics</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">What it is and how it differs from AGENTS.MD and MCP</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>AGENTS.MD</strong> is a file with instructions for the agent. In VS Code, GitHub Copilot can (depending on settings) automatically add it to the chat context, typically as "project instructions" — how the agent should behave, what standards to follow, and how to navigate your repository (where to find specs, coding standards, how the source is structured, etc.). VS Code can also (experimentally) work with <code>AGENTS.md</code> in subdirectories — the agent then picks the relevant instructions based on which part of the repository it is currently working in.</p>
+<p><strong>MCP</strong> defines tools, where the agent has a list of available tools with a short description of their purpose and expected arguments. This covers the basic editor operations in tools like VS Code (searching the codebase, reading and editing files, running local commands and scripts, creating todos, downloading web pages), but also a whole range of other tools such as access to Azure, GitHub, Kubernetes, PostgreSQL, Jira, and your own proprietary APIs and services. MCP is not only for coding agents, but also for various conversational and business agents — and in addition to running locally, it is primarily a complete protocol for operation discovery, security, and a very robust and universal solution.</p>
+<p><strong>Skills</strong> are something in between. Like <code>AGENTS.md</code>, they are just local files (typically in a specific directory in the repo — in GitHub's case that is <code>.github/skills/skillname</code> or <code>.claude/skills/skillname</code>), but the trick is that they are not loaded entirely into context. Similar to MCP, only their list and description are placed into context — nothing more. The agent thus knows what is in them, but the detailed content does not fill up the context. This is beneficial because it reduces latency, sometimes costs (with GitHub Copilot you pay in the form of Premium Requests, so you may not worry about it as much, but elsewhere it plays a big role), but most importantly it simplifies the agent's job. Too much information that is not relevant to the task at hand often reduces the overall quality of its work — there is simply too much for it to handle and it gets lost.</p>
+<p>Note: at the time of writing, Agent Skills in VS Code are available from version 1.108 (already released) as an experimental/preview feature and need to be explicitly enabled via the <code>chat.useAgentSkills</code> setting.</p>
+<p>The directory structure is prescribed. There must be a <code>SKILL.md</code> file with a YAML header containing a name and description, and a body where any instructions and details can go. In addition, this directory can contain other files, and their role can be described in the <code>SKILL.md</code> text — typically individual scripts and utilities, what they are for and how they are used, i.e. what arguments they take, and so on.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="dynamicky-kontext"><h2 class="ia-group-title">Dynamic Context Loading</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Using Skills for Dynamic Context Loading</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Let's try out how it works with a simple example — here is my <code>SKILL.md</code>:</p>
+<pre><code class="language-markdown">---
+name: simplecontext
+description: This contains information about company project code-named BigDog
+---
+
+Here are information about this project:
+- Owner: Michael Coder
+- Inventary number: 54321
+</code></pre>
+<p>We will take advantage of VS Code's ability to display exactly what is part of the context and how everything works under the hood (Chat Debug view / log of requests to the model). First I'll type simply <code>Ping</code> into the chat and see what was sent to the model.</p>
+<figure class="ia-figure"><a href="../../../images/2026/2026-01-06-14-01-15.png" data-ia-lightbox><img class="ia-image" src="../../../images/2026/2026-01-06-14-01-15.png" alt="Screenshot 2026-01-06-14-01-15" loading="lazy"></a><figcaption>Screenshot 2026-01-06-14-01-15</figcaption></figure>
+
+<p>First come the metadata, where a lot of space is dedicated to describing the built-in tools and MCP servers, for example:</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-12-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Sample tool metadata in request</button><div class="ia-reveal-body" id="reveal-12-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p class="ia-code-label"><strong>Tool metadata excerpt</strong></p>
+
+<pre><code class="language-json">[
+    {
+        &quot;function&quot;: {
+            &quot;name&quot;: &quot;apply_patch&quot;,
+            &quot;description&quot;: &quot;Edit text files. Do not use this tool to edit Jupyter notebooks. `apply_patch` allows you to execute a diff/patch against a text file, but the format of the diff specification is unique to this task, so pay careful attention to these instructions. To use the `apply_patch` command, you should pass a message of the following structure as \&quot;input\&quot;:\n\n*** Begin Patch\n[YOUR_PATCH]\n*** End Patch\n\nWhere [YOUR_PATCH] is the actual content of your patch, specified in the following V4A diff format.\n\n*** [ACTION] File: [/absolute/path/to/file] -&gt; ACTION can be one of Add, Update, or Delete.\nAn example of a message that you might pass as \&quot;input\&quot; to this function, in order to apply a patch, is shown below.\n\n*** Begin Patch\n*** Update File: /Users/someone/pygorithm/searching/binary_search.py\n@@class BaseClass\n@@    def search():\n-        pass\n+        raise NotImplementedError()\n\n@@class Subclass\n@@    def search():\n-        pass\n+        raise NotImplementedError()\n\n*** End Patch\nDo not use line numbers in this diff format.&quot;,
+            &quot;parameters&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                    &quot;input&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;The edit patch to apply.&quot;
+                    },
+                    &quot;explanation&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;A short description of what the tool call is aiming to achieve.&quot;
+                    }
+                },
+                &quot;required&quot;: [
+                    &quot;input&quot;,
+                    &quot;explanation&quot;
+                ]
+            }
+        },
+        &quot;type&quot;: &quot;function&quot;
+    },
+    {
+        &quot;function&quot;: {
+            &quot;name&quot;: &quot;create_directory&quot;,
+            &quot;description&quot;: &quot;Create a new directory structure in the workspace. Will recursively create all directories in the path, like mkdir -p. You do not need to use this tool before using create_file, that tool will automatically create the needed directories.&quot;,
+            &quot;parameters&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                    &quot;dirPath&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;The absolute path to the directory to create.&quot;
+                    }
+                },
+                &quot;required&quot;: [
+                    &quot;dirPath&quot;
+                ]
+            }
+        },
+        &quot;type&quot;: &quot;function&quot;
+    }
+]
+</code></pre>
+</div></div></div></div>
+<p>Then comes the built-in system prompt, where Copilot describes the agent's role, its personality, explains how to use tools, and so on. Here is a short excerpt:</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-16-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>System prompt excerpt</button><div class="ia-reveal-body" id="reveal-16-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p class="ia-code-label"><strong>System prompt excerpt</strong></p>
+
+<pre><code class="language-xml">You are an expert AI programming assistant, working with a user in the VS Code editor.
+Your name is GitHub Copilot. When asked about the model you are using, state that you are using GPT-5 mini.
+Follow Microsoft content policies.
+Avoid content that violates copyrights.
+If you are asked to generate content that is harmful, hateful, racist, sexist, lewd, or violent, only respond with &quot;Sorry, I can't assist with that.&quot;
+&lt;coding_agent_instructions&gt;
+You are a coding agent running in VS Code. You are expected to be precise, safe, and helpful.
+Your capabilities:
+- Receive user prompts and other context provided by the workspace, such as files in the environment.
+- Communicate with the user by streaming thinking &amp; responses, and by making &amp; updating plans.
+- Execute a wide range of development tasks including file operations, code analysis, testing, workspace management, and external integrations.
+
+&lt;/coding_agent_instructions&gt;
+&lt;personality&gt;
+Your default personality and tone is concise, direct, and friendly. You communicate efficiently, always keeping the user clearly informed about ongoing actions without unnecessary detail. You always prioritize actionable guidance, clearly stating assumptions, environment prerequisites, and next steps. Unless explicitly asked, you avoid excessively verbose explanations about your work.
+
+&lt;/personality&gt;
+&lt;tool_preambles&gt;
+Before making tool calls, send a brief preamble to the user explaining what you're about to do. When sending preamble messages, follow these principles:
+- Logically group related actions: if you're about to run several related commands, describe them together in one preamble rather than sending a separate note for each.
+- Keep it concise: be no more than 1-2 sentences (8-12 words for quick updates).
+- Build on prior context: if this is not your first tool call, use the preamble message to connect the dots with what's been done so far and create a sense of momentum and clarity for the user to understand your next actions.
+- Keep your tone light, friendly and curious: add small touches of personality in preambles to feel collaborative and engaging.
+Examples of good preambles:
+- &quot;I've explored the repo; now checking the API route definitions.&quot;
+- &quot;Next, I'll patch the config and update the related tests.&quot;
+- &quot;I'm about to scaffold the CLI commands and helper functions.&quot;
+- &quot;Config's looking tidy. Next up is patching helpers to keep things in sync.&quot;
+
+Avoiding preambles when:
+- Avoiding a preamble for every trivial read (e.g., `cat` a single file) unless it's part of a larger grouped action.
+- Jumping straight into tool calls without explaining what's about to happen.
+- Writing overly long or speculative preambles — focus on immediate, tangible next steps.
+
+&lt;/tool_preambles&gt;
+&lt;planning&gt;
+You have access to an `manage_todo_list` tool which tracks steps and progress and renders them to the user. Using the tool helps demonstrate that you've understood the task and convey how you're approaching it. Plans can help to make complex, ambiguous, or multi-phase work clearer and more collaborative for the user. A good plan should break the task into meaningful, logically ordered steps that are easy to verify as you go. Note that plans are not for padding out simple work with filler steps or stating the obvious. 
+Use a plan when:
+- The task is non-trivial and will require multiple actions over a long time horizon.
+- There are logical phases or dependencies where sequencing matters.
+- The work has ambiguity that benefits from outlining high-level goals.
+- You want intermediate checkpoints for feedback and validation.
+- When the user asked you to do more than one thing in a single prompt
+- The user has asked you to use the plan tool (aka &quot;TODOs&quot;)
+- You generate additional steps while working, and plan to do them before yielding to the user
+
+Skip a plan when:
+- The task is simple and direct.
+- Breaking it down would only produce literal or trivial steps.
+
+Planning steps are called &quot;steps&quot; in the tool, but really they're more like tasks or TODOs. As such they should be very concise descriptions of non-obvious work that an engineer might do like &quot;Write the API spec&quot;, then &quot;Update the backend&quot;, then &quot;Implement the frontend&quot;. On the other hand, it's obvious that you'll usually have to &quot;Explore the codebase&quot; or &quot;Implement the changes&quot;, so those are not worth tracking in your plan.
+
+It may be the case that you complete all steps in your plan after a single pass of implementation. If this is the case, you can simply mark all the planned steps as completed. The content of your plan should not involve doing anything that you aren't capable of doing (i.e. don't try to test things that you can't test). Do not use plans for simple or single-step queries that you can just do or answer immediately.
+</code></pre>
+<p>There is a lot more there! Then comes the <code>&lt;attachment&gt;</code> where I see the content of my <code>AGENTS.md</code> (i.e. instructions added to context according to settings). And then comes the skills section:</p>
+<pre><code class="language-xml">&lt;skills&gt;
+Here is a list of skills that contain domain specific knowledge on a variety of topics.
+Each skill comes with a description of the topic and a file path that contains the detailed instructions.
+When a user asks you to perform a task that falls within the domain of a skill, use the 'read_file' tool to acquire the full instructions from the file URI.
+&lt;skill&gt;
+&lt;name&gt;simplecontext&lt;/name&gt;
+&lt;description&gt;This contains information about company project code-named BigDog&lt;/description&gt;
+&lt;file&gt;c:\git\gh-copilot-demo\.github\skills\simplecontext\SKILL.md&lt;/file&gt;
+&lt;/skill&gt;
+&lt;/skills&gt;
+</code></pre>
+<p>And here is the core of how it works. The context only contains the name and description, not the full instructions or other files. For the Ping query, the model did not need to use this skill's context, so it simply responded.</p>
+<p>The body still contains other items such as folder information and user details, but then we see the simple model response.</p>
+<pre><code>pong — I'm here and ready. What would you like me to do next?
+</code></pre>
+<p>Now here it comes — I ask <code>What is inventory number for BigDog</code>. This information is <strong>not</strong> part of the context, it is not in the skill's name or description, but the model should understand from the description that it would be good to load the skill in order to answer my question. And that is exactly what it did.</p>
+<figure class="ia-figure"><a href="../../../images/2026/2026-01-06-14-09-03.png" data-ia-lightbox><img class="ia-image" src="../../../images/2026/2026-01-06-14-09-03.png" alt="Screenshot 2026-01-06-14-09-03" loading="lazy"></a><figcaption>Screenshot 2026-01-06-14-09-03</figcaption></figure>
+
+<p>We can see that the model decided to use the file reading tool, loaded the contents of <code>SKILL.md</code>, and thus knows the answer.</p>
+<figure class="ia-figure"><a href="../../../images/2026/2026-01-06-14-10-21.png" data-ia-lightbox><img class="ia-image" src="../../../images/2026/2026-01-06-14-10-21.png" alt="Screenshot 2026-01-06-14-10-21" loading="lazy"></a><figcaption>Screenshot 2026-01-06-14-10-21</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<section class="ia-group" id="skripty"><h2 class="ia-group-title">Skills as Lightweight Tools</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Skills for explaining to the model how to use your prepared scripts</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Let's look at an example with a custom script, where we explain in the skill how to work with it. Here is my <code>SKILL.md</code>:</p>
+<pre><code class="language-markdown">---
+name: json-to-xml-converter
+description: Convert JSON data to XML format with customizable root element and attribute handling
+---
+
+# JSON to XML Converter Skill
+
+## Purpose
+
+Convert JSON data structures into well-formed XML documents. Handles nested objects, arrays, and primitive types.
+
+## Usage
+
+### Command Line
+
+~~~bash
+# Basic conversion
+python .github/skills/json-to-xml-converter/scripts/json2xml.py input.json output.xml
+
+# Custom root element
+python .github/skills/json-to-xml-converter/scripts/json2xml.py input.json output.xml --root &quot;data&quot;
+
+# Pipe data
+echo '{&quot;name&quot;: &quot;test&quot;}' | python .github/skills/json-to-xml-converter/scripts/json2xml.py - -
+~~~
+
+### Parameters
+
+- `input_file`: Path to JSON file or `-` for stdin
+- `output_file`: Path to XML output file or `-` for stdout
+- `--root`: Root element name (default: &quot;root&quot;)
+
+## Example
+
+**Input JSON:**
+~~~json
+{&quot;user&quot;: {&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 30}, &quot;items&quot;: [1, 2, 3]}
+~~~
+
+**Output XML:**
+~~~xml
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;root&gt;
+  &lt;user&gt;
+    &lt;name&gt;Alice&lt;/name&gt;
+    &lt;age&gt;30&lt;/age&gt;
+  &lt;/user&gt;
+  &lt;items&gt;
+    &lt;item&gt;1&lt;/item&gt;
+    &lt;item&gt;2&lt;/item&gt;
+    &lt;item&gt;3&lt;/item&gt;
+  &lt;/items&gt;
+&lt;/root&gt;
+~~~
+
+## Agent Integration
+
+Use `run_in_terminal` to invoke the script:
+
+~~~bash
+python .github/skills/json-to-xml-converter/scripts/json2xml.py input.json output.xml --root &quot;mydata&quot;
+~~~
+
+**Important Notes:**
+- No external dependencies (Python stdlib only)
+- JSON keys with spaces are converted to underscores
+- Arrays become `&lt;item&gt;` elements
+- Handles invalid JSON with clear error messages
+</code></pre>
+<p>And in the scripts directory, in addition to <code>README.md</code> and <code>pyproject.toml</code>, there is the actual code:</p>
+<pre><code class="language-python">#!/usr/bin/env python3
+&quot;&quot;&quot;
+JSON to XML Converter
+
+Converts JSON data structures to well-formed XML documents.
+Handles nested objects, arrays, and primitive types.
+&quot;&quot;&quot;
+
+import json
+import sys
+import argparse
+import xml.etree.ElementTree as ET
+from typing import Any, Optional
+from pathlib import Path
+
+
+def sanitize_tag_name(name: str) -&gt; str:
+    &quot;&quot;&quot;
+    Sanitize a string to be a valid XML tag name.
+
+    Args:
+        name: The string to sanitize
+
+    Returns:
+        A valid XML tag name
+    &quot;&quot;&quot;
+    # Replace spaces and invalid characters with underscores
+    sanitized = name.replace(' ', '_')
+    sanitized = ''.join(c if c.isalnum() or c in ('_', '-', '.') else '_' for c in sanitized)
+
+    # Ensure it doesn't start with a digit
+    if sanitized and sanitized[0].isdigit():
+        sanitized = '_' + sanitized
+
+    # Ensure it's not empty
+    if not sanitized:
+        sanitized = 'item'
+
+    return sanitized
+
+
+def dict_to_xml(data: Any, parent: Optional[ET.Element] = None, tag_name: str = 'item') -&gt; ET.Element:
+    &quot;&quot;&quot;
+    Convert a dictionary or other data structure to XML elements.
+
+    Args:
+        data: The data to convert (dict, list, or primitive)
+        parent: The parent XML element (None for root)
+        tag_name: The tag name to use for this element
+
+    Returns:
+        An XML Element
+    &quot;&quot;&quot;
+    if parent is None:
+        element = ET.Element(sanitize_tag_name(tag_name))
+    else:
+        element = ET.SubElement(parent, sanitize_tag_name(tag_name))
+
+    if isinstance(data, dict):
+        # Handle dictionary - create child elements for each key
+        for key, value in data.items():
+            dict_to_xml(value, element, key)
+    elif isinstance(data, list):
+        # Handle list - create 'item' elements for each entry
+        for item in data:
+            dict_to_xml(item, element, 'item')
+    elif data is None:
+        # Handle null values
+        element.text = ''
+    else:
+        # Handle primitive types (str, int, float, bool)
+        element.text = str(data)
+
+    return element
+
+
+def convert_json_to_xml(json_str: str, root_name: str = 'root') -&gt; str:
+    &quot;&quot;&quot;
+    Convert a JSON string to an XML string.
+
+    Args:
+        json_str: The JSON string to convert
+        root_name: The name of the root XML element
+
+    Returns:
+        A formatted XML string
+
+    Raises:
+        json.JSONDecodeError: If the JSON is invalid
+    &quot;&quot;&quot;
+    data = json.loads(json_str)
+    root = dict_to_xml(data, tag_name=root_name)
+
+    # Pretty print the XML
+    indent_xml(root)
+
+    # Convert to string with XML declaration
+    xml_str = ET.tostring(root, encoding='utf-8', xml_declaration=True).decode('utf-8')
+
+    return xml_str
+
+
+def indent_xml(elem: ET.Element, level: int = 0) -&gt; None:
+    &quot;&quot;&quot;
+    Add indentation to XML elements for pretty printing.
+
+    Args:
+        elem: The XML element to indent
+        level: The current indentation level
+    &quot;&quot;&quot;
+    indent = &quot;\n&quot; + &quot;  &quot; * level
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = indent + &quot;  &quot;
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = indent
+        for child in elem:
+            indent_xml(child, level + 1)
+        if not child.tail or not child.tail.strip():
+            child.tail = indent
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = indent
+
+
+def json_file_to_xml_file(input_path: str, output_path: str, root_name: str = 'root') -&gt; None:
+    &quot;&quot;&quot;
+    Convert a JSON file to an XML file.
+
+    Args:
+        input_path: Path to input JSON file (or '-' for stdin)
+        output_path: Path to output XML file (or '-' for stdout)
+        root_name: The name of the root XML element
+
+    Raises:
+        FileNotFoundError: If input file doesn't exist
+        json.JSONDecodeError: If the JSON is invalid
+    &quot;&quot;&quot;
+    # Read input
+    if input_path == '-':
+        json_str = sys.stdin.read()
+    else:
+        with open(input_path, 'r', encoding='utf-8') as f:
+            json_str = f.read()
+
+    # Convert
+    xml_str = convert_json_to_xml(json_str, root_name)
+
+    # Write output
+    if output_path == '-':
+        sys.stdout.write(xml_str)
+    else:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(xml_str)
+
+
+def main() -&gt; int:
+    &quot;&quot;&quot;
+    Main entry point for the CLI.
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    &quot;&quot;&quot;
+    parser = argparse.ArgumentParser(
+        description='Convert JSON files to XML format',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=&quot;&quot;&quot;
+Examples:
+  %(prog)s input.json output.xml
+  %(prog)s input.json output.xml --root data
+  echo '{&quot;name&quot;: &quot;test&quot;}' | %(prog)s - -
+  %(prog)s - - &lt; input.json &gt; output.xml
+        &quot;&quot;&quot;
+    )
+
+    parser.add_argument(
+        'input',
+        help='Input JSON file (use &quot;-&quot; for stdin)'
+    )
+    parser.add_argument(
+        'output',
+        help='Output XML file (use &quot;-&quot; for stdout)'
+    )
+    parser.add_argument(
+        '--root',
+        default='root',
+        help='Name of the root XML element (default: root)'
+    )
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s 1.0.0'
+    )
+
+    args = parser.parse_args()
+
+    try:
+        json_file_to_xml_file(args.input, args.output, args.root)
+
+        # Print success message if not using stdout
+        if args.output != '-':
+            print(f&quot;✓ Successfully converted {args.input} to {args.output}&quot;, file=sys.stderr)
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f&quot;Error: Input file not found: {e}&quot;, file=sys.stderr)
+        return 1
+    except json.JSONDecodeError as e:
+        print(f&quot;Error: Invalid JSON: {e}&quot;, file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f&quot;Error: {e}&quot;, file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+</code></pre>
+<p>We can now simply use this skill. I took a JSON file, added it to the chat context, and said <code>convert this to xml</code>. The agent correctly determined that it would be good to use this skill for that, loaded the instructions from it, and ran the script. Excellent result!</p>
+<figure class="ia-figure"><a href="../../../images/2026/2026-01-06-14-37-04.png" data-ia-lightbox><img class="ia-image" src="../../../images/2026/2026-01-06-14-37-04.png" alt="Screenshot 2026-01-06-14-37-04" loading="lazy"></a><figcaption>Screenshot 2026-01-06-14-37-04</figcaption></figure>
+
+<p>Here is a look at the debug log.</p>
+<figure class="ia-figure"><a href="../../../images/2026/2026-01-06-14-38-34.png" data-ia-lightbox><img class="ia-image" src="../../../images/2026/2026-01-06-14-38-34.png" alt="Screenshot 2026-01-06-14-38-34" loading="lazy"></a><figcaption>Screenshot 2026-01-06-14-38-34</figcaption></figure>
+
+<p>A few more examples can be found on <a href="https://github.com/anthropics/skills/tree/main/skills">Anthropic's GitHub</a></p>
+<p>In my view, <strong>Agent Skills</strong> are not something shockingly new — a similar result could be achieved with a regular <code>AGENTS.md</code>, but you would have to maintain the list of skills yourself, store them somewhere, which is extra work and above all risks inconsistency and difficult portability between projects. Skills standardize this, and I expect it will become a standard part of fine-tuning individual models — I assume that since Anthropic came up with it, it is already baked into Claude models, and you can definitely expect the same from OpenAI CODEX and Google too. Not only will it be standardized, but LLMs will be specifically trained on it, and so it will work much more reliably too.</p>
+<p>Skills solve two things — elegant context loading only when it is truly needed, and the ability to create lightweight tools in the form of scripts without the full MCP layer and all the associated concerns (where it will run, how it will be secured, where the catalog will be). An excellent option for in-project helpers.</p>
+<aside class="ia-callout warning"><span class="ia-callout-title">Security</span>
+<p>Be careful when downloading skills from the internet: they often contain scripts that are then run locally under your user's permissions — always review them before use and do not approve execution blindly.</p>
+</aside>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>AGENTS.md</strong><p>simple instructions, but often loaded too broadly.</p></div>
+<div class="ia-summary-item"><strong>MCP</strong><p>robust protocol for tools, discovery and security, but requires software.</p></div>
+<div class="ia-summary-item"><strong>Skills</strong><p>standardized bundle of instructions and scripts loaded on demand.</p></div>
+<div class="ia-summary-item"><strong>Practical benefit</strong><p>less noise in context and an easier path to in-project helpers.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+</div></section>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>For in-project helpers, <strong>Agent Skills</strong> are in my view an excellent middle ground between a plain prompt and full-blown MCP.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

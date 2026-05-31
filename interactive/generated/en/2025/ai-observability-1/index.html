@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>Deep dive into AI agent observability with Microsoft Agent Framework - OpenTelemetry semantic conventions and using the OTEL collector</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Deep dive into AI agent observability with Microsoft Agent Framework - OpenTelemetry semantic conventions and using the OTEL collector</h1>
+<p class="ia-subtitle">OpenTelemetry semantic conventions, Microsoft Agent Framework, and why to put an OTEL Collector between app and backend.</p>
+<p class="ia-date"><time datetime="2025-10-29">2025-10-29</time></p>
+<nav class="ia-links" aria-label="Source files">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>AI agents and multi-agent workflows are more sensitive than classic CRUD APIs when it comes to debugging, cost, and security. Without good observability it is hard to understand why answers differ, where tokens disappear, or where latency grows.</p>
+<p>You can find the full solution on <a href="https://github.com/tkubica12/d-ai-maf-observability">my GitHub</a>. The goal of the series is to show how to get the most from open standards, so you do not have to rewrite code when switching backends while still keeping data well cleaned and inexpensive.</p>
+<section class="ia-group" id="uvod"><h2 class="ia-group-title">What we are building today</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Episode map</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Microsoft Agent Framework is an excellent development kit for building AI agents and multi-agent solutions - from simple scenarios through orchestration workflows all the way to a full multi-agent approach inspired by Magentic or Group Chat topologies.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-4-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Why Microsoft Agent Framework</button><div class="ia-reveal-body" id="reveal-4-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>It can use OpenAI, Foundry including non-OpenAI models, Foundry agents, external agents over A2A, and custom solutions. In this series I focus on observability, and you can of course apply the conclusions to other frameworks such as Lang Graph.</p>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-7-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Backends I will use</button><div class="ia-reveal-body" id="reveal-7-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>We will build everything on open standards. For visualization backends we will use Aspire Dashboard, LangFuse, Prometheus with Grafana, and built-in Azure platform capabilities in AI Foundry and Application Insights.</p>
+</div></div></div></div>
+<p>Today we will go step by step through code instrumentation and, most importantly, why I like placing OpenTelemetry Collector between the application and the monitoring solution.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="zaklady"><h2 class="ia-group-title">Instrumentation basics</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">OpenTelemetry and semantic conventions for genAI</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>OpenTelemetry supports adding arbitrary attributes to traces. In the past this caused confusion because OpenInference, LangFuse, and LangSmith named attributes differently. You had the standard, but ready-made reports, visualizations, and analyses did not work universally.</p>
+<p>Today there are <a href="https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai">semantic conventions for GenAI</a>. Microsoft follows them and extended them for multi-agent scenarios as well. Microsoft Agent Framework uses these conventions, making the data more portable across backends.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-16-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Example of the result in tracing</button><div class="ia-reveal-body" id="reveal-16-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-10-27-16-23-20.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-10-27-16-23-20.png" alt="Ukázka GenAI spanů podle OpenTelemetry semantic conventions" loading="lazy"></a><figcaption>Ukázka GenAI spanů podle OpenTelemetry semantic conventions</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Microsoft Agent Framework instrumentation</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Enabling observability in Microsoft Agent Framework je v základním režimu otázka jednoho importu a jednoho volání.</p>
+<p class="ia-code-label"><strong>Enabling observability in Microsoft Agent Framework</strong></p>
+
+<pre><code class="language-python">from agent_framework.observability import get_tracer, get_meter, setup_observability
+setup_observability(
+    enable_sensitive_data=enable_sensitive,
+    otlp_endpoint=otlp_endpoint,
+)
+</code></pre>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-22-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Proč k tomu v demo aplikaci přidávám víc</button><div class="ia-reveal-body" id="reveal-22-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<ul>
+<li>I want dynamic custom attributes in spans for aggregations and searches: user id, session id, roles, experiment.</li>
+<li>I want custom attributes propagated into internal spans so backend filtering is easier, even though it increases data volume.</li>
+<li>Besides tracing, I send application logs and metrics, including my own.</li>
+<li>Beyond AI components, I instrument HTTP calls and access to Redis, SQL, or PostgreSQL through autoinstrumentation.</li>
+</ul>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Adding custom attributes</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>With a baggage span processor this is not difficult. It also seems the context is sent in the HTTP header, so a called tool can pick up the attributes as well.</p>
+<p class="ia-code-label"><strong>Propagating custom attributes through baggage</strong></p>
+
+<pre><code class="language-python"># Add BaggageSpanProcessor to automatically propagate baggage to all spans
+from opentelemetry import trace as trace_api
+tracer_provider = trace_api.get_tracer_provider()
+if hasattr(tracer_provider, 'add_span_processor'):
+    baggage_processor = BaggageSpanProcessor()
+    tracer_provider.add_span_processor(baggage_processor)
+    logger.info(&quot;BaggageSpanProcessor registered for automatic context propagation&quot;)
+
+from opentelemetry import baggage, context
+
+ctx = context.get_current()
+ctx = baggage.set_baggage(&quot;user.id&quot;, user_context.get(&quot;user.id&quot;, &quot;unknown&quot;), ctx)
+ctx = baggage.set_baggage(&quot;session.id&quot;, user_context.get(&quot;session.id&quot;, &quot;unknown&quot;), ctx)
+ctx = baggage.set_baggage(&quot;organization.department&quot;, user_context.get(&quot;organization.department&quot;, &quot;unknown&quot;), ctx)
+roles = user_context.get(&quot;user.roles&quot;, [])
+if roles:
+    ctx = baggage.set_baggage(&quot;user.roles&quot;, &quot;,&quot;.join(roles), ctx)
+token = context.attach(ctx)
+</code></pre>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="kolektor"><h2 class="ia-group-title">OpenTelemetry Collector as an operational hub</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Collector: routing, anonymization, filtering, and conversion</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>This is where we will spend more time today. The OpenTelemetry SDK can export directly to backends, but OpenTelemetry Collector gives me one stable OTLP endpoint for the application and keeps operational logic outside the code.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Why the collector</span>
+<p>I build agents once. Routing, anonymization, sampling, multiple backends, and conversions are tuned through quick iterations in the collector configuration, not by releasing the application.</p>
+</aside>
+<div class="ia-steps">
+<h3 class="ia-steps-title">What I get from it</h3>
+<ol class="ia-steps-list">
+<li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Separating the application from backends</strong><p>the application container knows one OTEL endpoint, while the collector handles authentication, target backends, and cluster differences.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Multiple destinations at once</strong><p>I like Aspire Dashboard for quick troubleshooting and Application Insights for analytics and long-term retention.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Transformation and anonymization</strong><p>the collector can filter attributes, remove conversation content, and send differently cleaned data to different teams.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Performance and reliability</strong><p>the application hands telemetry to a nearby collector, which handles delivery, retries, and buffering.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">OTTL conversions and sampling</strong><p>I can rename attributes, enrich data, convert signals, and reduce costs by selecting traces intelligently.</p></div></li>
+</ol></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-37-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Three practical output categories</button><div class="ia-reveal-body" id="reveal-37-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<ul>
+<li><strong>Enterprise logs in Azure</strong> - auditability and operations, but without the actual message content.</li>
+<li><strong>AI observability logs</strong> - full conversation content only for selected users or consented scenarios, typically for evaluations.</li>
+<li><strong>Dev logs</strong> - masked identifiers, emails, IP addresses, and message content for everyday developer troubleshooting.</li>
+</ul>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-40-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>PII pseudonymization with OTTL</button><div class="ia-reveal-body" id="reveal-40-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>For PII pseudonymization, OTTL can combine <code>set</code>, <code>delete_key</code>, <code>delete_matching_keys</code>, <code>replace_all_patterns</code>, and <code>SHA256()</code> hashing. In practice I would add a SALT from an environment variable so the hash better resists dictionary attacks.</p>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-43-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Tail-based sampling as savings without blindness</button><div class="ia-reveal-body" id="reveal-43-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Sampling does not have to be just a percentage. Tail-based sampling keeps a trace in the collector for a while, looks at the outcome, and sends errors, slow requests, VIP users, and a small baseline sample. You pay less without losing the most important cases.</p>
+<p class="ia-code-label"><strong>Tail-based sampling in the collector</strong></p>
+
+<pre><code class="language-yaml">processors:
+  tail_sampling:
+    decision_wait: 30s          # jak dlouho držím buffery
+    num_traces: 50000           # cílové množství in-memory
+    expected_new_traces_per_sec: 200
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 2000    # nad 2s vždy zachovat
+      - name: vip_users
+        type: string_attribute
+        string_attribute:
+          key: user.is_vip
+          values: [&quot;true&quot;]
+      - name: baseline_sample
+        type: probabilistic
+        probabilistic:
+          hash_seed: 22
+          sampling_percentage: 5
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, batch]
+      exporters: [otlp, azuremonitor]
+</code></pre>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-46-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Full OTEL Collector Helm template sample</button><div class="ia-reveal-body" id="reveal-46-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>The great thing is that in AKS all of this can live in a ConfigMap and Kubernetes manifests. The application still sends to one OTLP endpoint, and the collector decides what goes where.</p>
+<p class="ia-code-label"><strong>OTEL Collector Helm template in AKS</strong></p>
+
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector-config
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+
+      # Transform processor for anonymization - strips PII and sensitive data
+      transform/anonymize:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              # Pseudonymize user.id using SHA256 for consistent hashing
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status - boolean flag considered PII
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department for correlation while protecting identity
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              # Pseudonymize session and thread IDs
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+              - set(attributes[&quot;thread.id&quot;], SHA256(attributes[&quot;thread.id&quot;])) where attributes[&quot;thread.id&quot;] != nil
+              # Strip tool arguments and results - may contain sensitive data
+              - delete_key(attributes, &quot;tool.arguments&quot;)
+              - delete_key(attributes, &quot;tool.result&quot;)
+              # Strip GenAI input/output messages - contains user queries and LLM responses
+              - delete_key(attributes, &quot;gen_ai.input.messages&quot;)
+              - delete_key(attributes, &quot;gen_ai.output.messages&quot;)
+              - delete_key(attributes, &quot;gen_ai.prompt&quot;)
+              - delete_key(attributes, &quot;gen_ai.completion&quot;)
+              - delete_key(attributes, &quot;gen_ai.request.model&quot;)
+              - delete_key(attributes, &quot;gen_ai.response.model&quot;)
+              # Strip any other GenAI content using pattern matching
+              - delete_matching_keys(attributes, &quot;gen_ai\\..*\\.content&quot;)
+              - delete_matching_keys(attributes, &quot;gen_ai\\..*messages.*&quot;)
+              # Redact common PII patterns in remaining string attributes
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b&quot;, &quot;EMAIL_REDACTED&quot;)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b&quot;, &quot;PHONE_REDACTED&quot;)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b&quot;, &quot;CARD_REDACTED&quot;)
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from resource
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department in resource
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              # Pseudonymize session in resource
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+
+        log_statements:
+          - context: log
+            statements:
+              # Pseudonymize user identifiers in logs
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove sensitive log attributes
+              - delete_key(attributes, &quot;user_message&quot;)
+              - delete_key(attributes, &quot;response&quot;)
+              - delete_key(attributes, &quot;tool_name&quot;)
+              - delete_key(attributes, &quot;arguments&quot;)
+              - delete_key(attributes, &quot;result&quot;)
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department and session
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+              # Redact PII patterns in log body if it's a string
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b&quot;, &quot;EMAIL_REDACTED&quot;) where IsString(body)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b&quot;, &quot;PHONE_REDACTED&quot;) where IsString(body)
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes for logs
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Pseudonymize department in resource for logs
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+
+        metric_statements:
+          - context: datapoint
+            statements:
+              # Pseudonymize user identifiers in metrics
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from metrics
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              # Pseudonymize department in metrics
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes for metrics
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from resource for metrics
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              # Pseudonymize department in resource for metrics
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+
+    exporters:
+      # Console exporter for troubleshooting
+      debug:
+        verbosity: detailed
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+      # OTLP exporter for Aspire Dashboard
+      otlp:
+        endpoint: {{ include &quot;maf-demo.fullname&quot; . }}-aspire-dashboard:18889
+        tls:
+          insecure: true
+
+      # OTLP exporter for Anonymized Aspire Dashboard
+      otlp/anonymized:
+        endpoint: {{ include &quot;maf-demo.fullname&quot; . }}-aspire-dashboard-anon:18889
+        tls:
+          insecure: true
+
+      # Azure Monitor exporter for Application Insights
+      # Supports traces and logs (metrics not supported by App Insights OTLP ingestion)
+      azuremonitor:
+        connection_string: {{ .Values.appInsights.connectionString | quote }}
+
+      # Langfuse OTLP exporter for LLM observability
+      # Exports traces to Langfuse via HTTP/protobuf protocol
+      otlphttp/langfuse:
+        endpoint: {{ .Values.langfuse.endpoint | default &quot;http://langfuse-web.langfuse.svc.cluster.local:3000/api/public/otel&quot; | quote }}
+        headers:
+          Authorization: {{ .Values.langfuse.authorization | default &quot;Basic &quot; | quote }}
+
+      # Prometheus Remote Write exporter for Azure Monitor Prometheus
+      # Uses sidecar container for Azure AD token management
+      # The sidecar listens on localhost:8081 and injects the Authorization header
+      prometheusremotewrite:
+        endpoint: &quot;http://localhost:8081/api/v1/write&quot;
+        tls:
+          insecure: true
+        resource_to_telemetry_conversion:
+          enabled: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, azuremonitor, otlphttp/langfuse]
+
+        # Anonymized trace pipeline - strips PII before sending to anonymized dashboard
+        traces/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, prometheusremotewrite]
+
+        # Anonymized metrics pipeline
+        metrics/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, azuremonitor]
+
+        # Anonymized logs pipeline
+        logs/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+    azure.workload.identity/use: &quot;true&quot;
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.agent.clientId }}
+    azure.workload.identity/tenant-id: {{ .Values.agent.tenantId }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 8 }}
+        azure.workload.identity/use: &quot;true&quot;
+    spec:
+      serviceAccountName: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:{{ .Values.otelCollector.tag }}
+        ports:
+        - containerPort: 4317  # OTLP gRPC
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318  # OTLP HTTP
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 8888  # Metrics
+          name: metrics
+          protocol: TCP
+        - containerPort: 8889  # Prometheus metrics
+          name: prometheus
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otelcol-contrib
+          readOnly: true
+        resources:
+          {{- toYaml .Values.otelCollector.resources | nindent 10 }}
+      # Sidecar container for Azure Monitor Prometheus remote write authentication
+      # This container obtains Azure AD tokens using workload identity and proxies
+      # Prometheus remote write requests with the Authorization header injected
+      - name: prom-remotewrite
+        image: mcr.microsoft.com/azuremonitor/containerinsights/ciprod/prometheus-remote-write/images:prom-remotewrite-20250814.1
+        imagePullPolicy: Always
+        ports:
+        - name: rw-port
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: INGESTION_URL
+          value: {{ .Values.prometheus.remoteWriteEndpoint | quote }}
+        - name: LISTENING_PORT
+          value: &quot;8081&quot;
+        - name: IDENTITY_TYPE
+          value: &quot;workloadIdentity&quot;
+        - name: CLUSTER
+          value: {{ .Values.clusterName | default &quot;aks-cluster&quot; | quote }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: rw-port
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: rw-port
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+    - port: 8888
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 4 }}
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Standardize attributes</strong><p>GenAI semantic conventions are the foundation for portable reports and backends.</p></div>
+<div class="ia-summary-item"><strong>Instrument sparingly but smartly</strong><p>basic MAF observability is enabled with one call; add your own context through baggage.</p></div>
+<div class="ia-summary-item"><strong>Put a collector between the application and backend</strong><p>keep routing, anonymization, sampling, and multiple outputs outside application code.</p></div>
+</div>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>In the next part we will look at how this telemetry behaves in specific backend tools and what you can practically read from it for debugging, cost, and evaluations.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

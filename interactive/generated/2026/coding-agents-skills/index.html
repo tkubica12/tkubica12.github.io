@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Nový standard Agent Skills pro vaše kódovací pracanty v GitHub Copilot</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">Agent Skills v praxi</p>
+<h1 class="ia-title">Nový standard Agent Skills pro vaše kódovací pracanty v GitHub Copilot</h1>
+<p class="ia-subtitle">Jak dát coding agentovi kontext a jednoduché nástroje bez toho, aby se utopil v AGENTS.md nebo aby kvůli každé drobnosti musel vznikat plnohodnotný MCP server.</p>
+<p class="ia-date"><time datetime="2026-01-12">12. 1. 2026</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>Jak pracovat s kontextem v AI coding nástrojích nebo naučit agenta používat vámi předem připravené skripty? Jde to řešit promptováním v <a href="https://agents.md/">AGENTS.md</a>, ale to není standardizovaný postup a chování bude hodně závislé na použitém modelu. Pro robustnější integrace existuje <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>, jenže ten už znamená napsat kus softwaru a v některých situacích je to zbytečně těžká váha. Proto se dnes zaměříme na variantu někde mezi tím: <a href="https://agentskills.io/">Agent Skills</a>.</p>
+<aside class="ia-callout verdict"><span class="ia-callout-title">Pointa</span>
+<p><strong>Agent Skills</strong> nejsou šokujícím způsobem nová myšlenka. Jsou ale dobrý standard pro dvě praktické věci: načíst kontext až ve chvíli, kdy ho agent opravdu potřebuje, a zabalit malé lokální skripty tak, aby je agent uměl bezpečně a opakovaně používat.</p>
+</aside>
+<section class="ia-group" id="mentalni-model"><h2 class="ia-group-title">Mentální model</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">AGENTS.md, MCP a Skills nejsou totéž</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Nejdřív si pojďme oddělit tři věci, které se v debatách o coding agentech často pletou dohromady.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>AGENTS.md</strong><p>projektové instrukce, styl práce, orientace v repozitáři a pravidla pro agenta.</p></div>
+<div class="ia-summary-item"><strong>MCP</strong><p>protokol pro discovery nástrojů, jejich argumentů, zabezpečení a spouštění nad lokálními i vzdálenými službami.</p></div>
+<div class="ia-summary-item"><strong>Skills</strong><p>lokální adresář s <code>SKILL.md</code>, popisem a případnými referencemi nebo skripty, který agent načítá až podle potřeby.</p></div>
+</div>
+<p>AGENTS.md je výborný na obecné instrukce. MCP je výborný na robustní nástroje a integrace. Skills jsou někde mezi: pořád jsou to obyčejné soubory v repozitáři, ale agent je nemusí celé držet v kontextu od začátku.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Proč je důležité nenačítat všechno hned</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Příliš mnoho kontextu agentovi často nepomůže. Naopak mu zhorší rozhodování, zvýší latenci a u některých nástrojů i cenu. U GitHub Copilot to platíte spíš ve formě Premium Requests, takže to nemusíte počítat po tokenech tak úzkostlivě, ale princip je stejný: co není relevantní pro aktuální úlohu, nemá modelu zbytečně překážet.</p>
+<p>Finta Skills je v tom, že se do kontextu dostane jen seznam skillů: název, popis a cesta k detailním instrukcím. Agent tak ví, že skill existuje, ale jeho plný obsah si přečte až ve chvíli, kdy podle popisu usoudí, že ho potřebuje.</p>
+<aside class="ia-callout note"><span class="ia-callout-title">Stav ve VS Code</span>
+<p>V době psaní jsou Agent Skills ve VS Code dostupné od verze 1.108 jako experimentální/preview funkce a je potřeba je zapnout nastavením <code>chat.useAgentSkills</code>.</p>
+</aside>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Jak vypadá adresář skillu</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Struktura adresáře je předepsaná. Musí obsahovat <code>SKILL.md</code> s YAML hlavičkou, názvem a popisem. V těle pak mohou být instrukce, postupy, odkazy na další soubory a popis skriptů, které má agent umět používat.</p>
+<p>Typická místa v repozitáři:</p>
+<ul>
+<li><code>.github/skills/jmenoskillu</code></li>
+<li><code>.claude/skills/jmenoskillu</code></li>
+</ul>
+<p>Do stejného adresáře můžete přidat třeba <code>scripts/</code>, <code>references/</code> nebo <code>README.md</code>. Důležité je, aby <code>SKILL.md</code> agentovi řekl, co v nich najde a kdy to má použít.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="dynamicky-kontext"><h2 class="ia-group-title">Dynamické načítání kontextu</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Nejmenší možný skill: projekt BigDog</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Začněme jednoduchým příkladem. Tohle je celý <code>SKILL.md</code>:</p>
+<p class="ia-code-label"><strong>.github/skills/simplecontext/SKILL.md</strong></p>
+
+<pre><code class="language-markdown">---
+name: simplecontext
+description: This contains information about company project code-named BigDog
+---
+
+Here are information about this project:
+- Owner: Michael Coder
+- Inventary number: 54321
+</code></pre>
+<p>Využijeme toho, že ve VS Code umíme zobrazit, co se skutečně posílá do modelu: Chat Debug view nebo log requestů. Nejdřív se jen zeptám na <code>Ping</code>.</p>
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-14-01-15.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-14-01-15.png" alt="Debug view po jednoduchém dotazu Ping" loading="lazy"></a><figcaption>Debug view po jednoduchém dotazu Ping</figcaption></figure>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Co jde do modelu při obyčejném Ping</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V requestu je toho hodně: metadata nástrojů, system prompt, instrukce agenta a další pracovní kontext. Zkráceně například definice nástroje <code>apply_patch</code>:</p>
+<p class="ia-code-label"><strong>Ukázka metadat nástrojů ve zkrácené podobě</strong></p>
+
+<pre><code class="language-json">[
+  {
+    &quot;function&quot;: {
+      &quot;name&quot;: &quot;apply_patch&quot;,
+      &quot;description&quot;: &quot;Edit text files...&quot;,
+      &quot;parameters&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;input&quot;: { &quot;type&quot;: &quot;string&quot; },
+          &quot;explanation&quot;: { &quot;type&quot;: &quot;string&quot; }
+        },
+        &quot;required&quot;: [&quot;input&quot;, &quot;explanation&quot;]
+      }
+    },
+    &quot;type&quot;: &quot;function&quot;
+  }
+]
+</code></pre>
+<p>Pak následuje zabudovaný system prompt. Opět jen krátký výsek:</p>
+<p class="ia-code-label"><strong>Výsek system promptu</strong></p>
+
+<pre><code class="language-xml">You are an expert AI programming assistant, working with a user in the VS Code editor.
+Your name is GitHub Copilot.
+&lt;coding_agent_instructions&gt;
+You are a coding agent running in VS Code. You are expected to be precise, safe, and helpful.
+&lt;/coding_agent_instructions&gt;
+</code></pre>
+<p>A pak přijde sekce Skills. Tady je jádro celé věci:</p>
+<p class="ia-code-label"><strong>Seznam skillů v kontextu</strong></p>
+
+<pre><code class="language-xml">&lt;skills&gt;
+Here is a list of skills that contain domain specific knowledge on a variety of topics.
+&lt;skill&gt;
+&lt;name&gt;simplecontext&lt;/name&gt;
+&lt;description&gt;This contains information about company project code-named BigDog&lt;/description&gt;
+&lt;file&gt;c:\git\gh-copilot-demo\.github\skills\simplecontext\SKILL.md&lt;/file&gt;
+&lt;/skill&gt;
+&lt;/skills&gt;
+</code></pre>
+<p>V kontextu je tedy pouze název, popis a cesta. Není tam vlastník projektu ani inventární číslo. Na dotaz <code>Ping</code> model skill nepotřeboval, takže odpověděl obyčejně:</p>
+<p class="ia-code-label"><strong>Odpověď bez načtení skillu</strong></p>
+
+<pre><code class="language-text">pong — I'm here and ready. What would you like me to do next?
+</code></pre>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Kdy se skill načte</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>A teď to přijde. Zeptám se:</p>
+<p class="ia-code-label"><strong>Dotaz, který vyžaduje detail skillu</strong></p>
+
+<pre><code class="language-text">What is inventory number for BigDog
+</code></pre>
+<p>Tahle informace <strong>není</strong> v kontextu, není v názvu skillu a není ani v jeho popisu. Model ale z popisu pochopí, že by měl načíst soubor <code>SKILL.md</code>.</p>
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-14-09-03.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-14-09-03.png" alt="Agent se rozhodl načíst SKILL.md" loading="lazy"></a><figcaption>Agent se rozhodl načíst SKILL.md</figcaption></figure>
+
+<p>Po načtení už ví odpověď:</p>
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-14-10-21.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-14-10-21.png" alt="Odpověď po načtení detailu skillu" loading="lazy"></a><figcaption>Odpověď po načtení detailu skillu</figcaption></figure>
+
+<p>Tohle je přesně ten rozdíl proti tomu, když všechno nacpete do <code>AGENTS.md</code>. Detailní informace existuje v repozitáři, ale model ji čte až v okamžiku, kdy je relevantní.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="skripty"><h2 class="ia-group-title">Skills jako návod k lokálním skriptům</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Druhý příklad: JSON na XML</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Skills nejsou jen na textový kontext. Dobře se hodí i na vysvětlení, jak má agent používat připravený skript. Tady je zkrácený <code>SKILL.md</code> pro konverzi JSON na XML:</p>
+<p class="ia-code-label"><strong>.github/skills/json-to-xml-converter/SKILL.md</strong></p>
+
+<pre><code class="language-markdown">---
+name: json-to-xml-converter
+description: Convert JSON data to XML format with customizable root element and attribute handling
+---
+
+# JSON to XML Converter Skill
+
+## Purpose
+
+Convert JSON data structures into well-formed XML documents.
+
+## Usage
+
+~~~bash
+python .github/skills/json-to-xml-converter/scripts/json2xml.py input.json output.xml
+python .github/skills/json-to-xml-converter/scripts/json2xml.py input.json output.xml --root &quot;data&quot;
+echo '{&quot;name&quot;: &quot;test&quot;}' | python .github/skills/json-to-xml-converter/scripts/json2xml.py - -
+~~~
+
+## Parameters
+
+- `input_file`: Path to JSON file or `-` for stdin
+- `output_file`: Path to XML output file or `-` for stdout
+- `--root`: Root element name, defaultně `root`
+</code></pre>
+<p>Pointa není v tom, že JSON na XML je světoborný problém. Pointa je v kontraktu: agent se z popisu skillu dozví, že existuje hotový skript, a z detailu skillu zjistí, jak ho správně spustit.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button><span class="ia-card-num">08</span><span class="ia-card-title">Skript je obyčejný Python</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-08" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V adresáři <code>scripts</code> je kromě dokumentace i samotný kód. Zkráceně vypadá takhle:</p>
+<p class="ia-code-label"><strong>scripts/json2xml.py</strong></p>
+
+<pre><code class="language-python">#!/usr/bin/env python3
+
+import argparse
+import json
+import sys
+import xml.etree.ElementTree as ET
+from typing import Any, Optional
+
+def sanitize_tag_name(name: str) -&gt; str:
+    sanitized = name.replace(&quot; &quot;, &quot;_&quot;)
+    sanitized = &quot;&quot;.join(c if c.isalnum() or c in (&quot;_&quot;, &quot;-&quot;, &quot;.&quot;) else &quot;_&quot; for c in sanitized)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = &quot;_&quot; + sanitized
+    return sanitized or &quot;item&quot;
+
+def dict_to_xml(data: Any, parent: Optional[ET.Element] = None, tag_name: str = &quot;item&quot;) -&gt; ET.Element:
+    element = ET.Element(sanitize_tag_name(tag_name)) if parent is None else ET.SubElement(parent, sanitize_tag_name(tag_name))
+    if isinstance(data, dict):
+        for key, value in data.items():
+            dict_to_xml(value, element, key)
+    elif isinstance(data, list):
+        for item in data:
+            dict_to_xml(item, element, &quot;item&quot;)
+    elif data is None:
+        element.text = &quot;&quot;
+    else:
+        element.text = str(data)
+    return element
+
+def convert_json_to_xml(json_str: str, root_name: str = &quot;root&quot;) -&gt; str:
+    data = json.loads(json_str)
+    root = dict_to_xml(data, tag_name=root_name)
+    return ET.tostring(root, encoding=&quot;utf-8&quot;, xml_declaration=True).decode(&quot;utf-8&quot;)
+</code></pre>
+<p>V plné verzi je ještě CLI parsing, hezčí výpis chyb a zápis do souboru nebo na stdout. Pro agenta je ale nejdůležitější to, že nemusí vymýšlet konverzi sám. Má použít připravený nástroj.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-09" data-ia-card-button><span class="ia-card-num">09</span><span class="ia-card-title">Použití v chatu</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-09" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Teď vezmu JSON soubor, přihodím ho do chatu jako kontext a řeknu:</p>
+<p class="ia-code-label"><strong>Prompt</strong></p>
+
+<pre><code class="language-text">convert this to xml
+</code></pre>
+<p>Agent správně vyhodnotí, že má použít skill, načte si instrukce a spustí skript. Výborný výsledek.</p>
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-14-37-04.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-14-37-04.png" alt="Agent použil skill a spustil skript" loading="lazy"></a><figcaption>Agent použil skill a spustil skript</figcaption></figure>
+
+<p>Tady je ještě pohled na debug log:</p>
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-14-38-34.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-14-38-34.png" alt="Debug log použití skriptu ze skillu" loading="lazy"></a><figcaption>Debug log použití skriptu ze skillu</figcaption></figure>
+
+<p>Pár dalších příkladů najdete na <a href="https://github.com/anthropics/skills/tree/main/skills">GitHubu Anthropicu</a>.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-10" data-ia-card-button><span class="ia-card-num">10</span><span class="ia-card-title">Bezpečnostní poznámka</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-10" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pozor při stahování skills z internetu. Často obsahují skripty a ty se pak spouští lokálně pod právy vašeho uživatele.</p>
+<div class="ia-arrow-list">
+<h3 class="ia-arrow-list-title">Co bych dělal před použitím cizího skillu</h3>
+<ul>
+<li>Projít <code>SKILL.md</code>, jestli nepřidává divné instrukce.</li>
+<li>Otevřít skripty a zkontrolovat, co dělají se soubory, sítí a proměnnými prostředí.</li>
+<li>Neschvalovat spouštění naslepo jen proto, že to navrhl agent.</li>
+<li>U firemních skillů preferovat centrální katalog, review a jasné vlastnictví.</li>
+</ul></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="zaver"><h2 class="ia-group-title">Závěr</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-11" data-ia-card-button><span class="ia-card-num">11</span><span class="ia-card-title">Kdy bych použil co</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-11" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Za mě se z toho skládá docela praktické pravidlo:</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Volba mechanismu</h3>
+<p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">AGENTS.md</span><span class="ia-detail-card-summary">Obecné chování agenta a orientace v repozitáři.</span></div><div class="ia-detail-content ia-prose">
+<p>Použijte ho na pravidla práce, coding standardy, testovací příkazy, mapu repozitáře a instrukce, které mají platit často. Není ideální jako skladiště dlouhých manuálů a katalog skriptů.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Agent Skills</span><span class="ia-detail-card-summary">Kontext a malé nástroje načtené až podle potřeby.</span></div><div class="ia-detail-content ia-prose">
+<p>Použijte je na doménový kontext, návody, referenční soubory a jednoduché lokální skripty. Výhoda je standardizace a menší tlak na kontext modelu.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">MCP</span><span class="ia-detail-card-summary">Robustní nástrojová vrstva a integrace.</span></div><div class="ia-detail-content ia-prose">
+<p>Použijte ho, když potřebujete skutečný protokol pro nástroje, bezpečnost, discovery operací, vzdálené služby nebo univerzální integraci napříč agenty.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">CLI nebo skript</span><span class="ia-detail-card-summary">Opakovatelný postup, který má být deterministický.</span></div><div class="ia-detail-content ia-prose">
+<p>I uvnitř skillu často skončíte u skriptu. To je dobře. Co jde měřitelně a opakovaně udělat kódem, nemá agent pokaždé znovu skládat jen promptováním.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-12" data-ia-card-button><span class="ia-card-num">12</span><span class="ia-card-title">Moje očekávání</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-12" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Skills standardizují něco, co šlo ručně udělat už dřív: v <code>AGENTS.md</code> byste mohli vést seznam dalších souborů a říkat agentovi, kdy je má číst. Jenže to je práce navíc, snadno vznikne nekonzistence a hůř se to přenáší mezi projekty.</p>
+<p>Proto čekám, že se Skills stanou běžnou součástí tuningu jednotlivých modelů. Protože s tím přišel Anthropic, dá se očekávat, že Claude modely na tento vzor budou dobře připravené; u OpenAI Codex a Google bych čekal totéž. Nejde jen o standardizaci souborů, ale i o to, že LLM bude na ten způsob práce specificky trénované a bude ho používat spolehlivěji.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Kontext až ve chvíli potřeby</strong><p>agent ví, že skill existuje, ale detail si načte až při relevantním dotazu.</p></div>
+<div class="ia-summary-item"><strong>Lehké nástroje bez MCP</strong><p>jednoduchý skript nemusí hned znamenat celý server a katalog operací.</p></div>
+<div class="ia-summary-item"><strong>Přenositelnost</strong><p>skill má jasnou strukturu a dá se sdílet mezi projekty i agenty.</p></div>
+<div class="ia-summary-item"><strong>Menší chaos v instrukcích</strong><p>dlouhé manuály nemusí bobtnat v jednom <code>AGENTS.md</code>.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Pro pomocníky v rámci projektu jsou <strong>Agent Skills</strong> výborná střední cesta: víc pořádku než volné promptování, méně režie než plnohodnotné MCP.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

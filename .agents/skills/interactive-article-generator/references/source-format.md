@@ -68,6 +68,8 @@ Use normal Markdown for paragraphs, headings, bold emphasis, links, lists, table
 
 Directives use `:::` fences. They are semantic hints for the agent, not direct HTML.
 
+Use only directives and fence attributes that are both documented here and demonstrably rendered in existing successful generated article HTML. If a conversion seems to need a new component or syntax, stop and ask the user whether to implement renderer/style support or approximate the layout with existing supported components. Never invent Markdown-plus syntax and leave it for the renderer to guess.
+
 ### Group
 
 ```markdown
@@ -84,7 +86,7 @@ Text...
 :::
 ```
 
-Recommended fields: `number`, `title`, `default`. Visible article card numbering starts at `01`; do not render a visible `00`. If the generator creates an introductory helper card that is not a source-numbered article point, leave it unnumbered.
+Recommended fields: `number`, `title`, `default`. Visible article card numbering starts at `01`; do not render a visible `00`. If the generator creates an introductory helper card that is not a source-numbered article point, leave it unnumbered. The `default="open"` hint is informational only — the renderer is required to expand ONLY the first card in the article and collapse every other card, regardless of how many sources mark `default="open"`. Sources may keep the hint for documentation, but no preview tool may expand more than the first card by default.
 
 ### Callout
 
@@ -109,6 +111,10 @@ Prompt...
 ````
 
 Use `label="..."` for file paths, commands, transcript titles, or other code-block context that should appear as a compact header attached to the block. Use `tone="good"` or `tone="bad"` only for actual comparisons.
+
+When converting legacy Jekyll posts that use `{% raw %}` / `{% endraw %}` to protect Helm or Liquid-looking templates, remove the raw wrappers in the interactive source only if the content remains inside a fenced code block. Preserve literal expressions such as `{{- include "maf-demo.labels" . | nindent 4 }}` and `{{ .Values.clusterName | default "aks-cluster" | quote }}` exactly; generated public `source.md` and HTML must show those characters, not evaluate or alter them.
+
+If generated HTML shows literal Markdown such as image syntax, bold markers, or backticks, treat that as a source-format bug first. Do not work around it with a custom renderer or template changes; make `source.md` a faithful copy of a valid `.article.md` that follows the same triple-colon directive syntax as existing successful articles.
 
 For prose transcripts or long natural-language text fences, keep a normal fence. The generator must preserve monospace layout and allow horizontal scrolling when needed. Do not request wrapping for transcript fences.
 

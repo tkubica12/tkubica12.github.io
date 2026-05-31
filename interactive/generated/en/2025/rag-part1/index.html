@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>Your own data (RAG) for your AI agent, part one - step by step with Python and PostgreSQL</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Your own data (RAG) for your AI agent, part one - step by step with Python and PostgreSQL</h1>
+<p class="ia-subtitle">From unreliable memory through full-text and embeddings to hybrid search with re-ranking.</p>
+<p class="ia-date"><time datetime="2025-03-05">2025-03-05</time></p>
+<nav class="ia-links" aria-label="Source files">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>When I ask you about factual information, perhaps something from a corporate policy, give you a question from an Azure test, or ask which movie you would recommend to someone who liked Matrix, you may try to answer from memory. You might struggle to remember exactly, you might make mistakes, get something a bit wrong, and if I ask you to cite the source (which page of which document mentions it) you often will not know where you learned it.</p>
+<p>Compare that with letting you look online before answering, leaf through notes, skim a printed policy, or click through Azure docs. Accuracy will improve significantly and you will be able to cite sources. Great. But what if instead of focused docs I dump pages from the whole library at you with no covers and no ordering? It will help, but it will take much longer, you will lose energy, and if most pages are irrelevant you will lose attention and miss the right answer somewhere in the middle.</p>
+<section class="ia-group" id="intro"><h2 class="ia-group-title">Why RAG matters</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">The problem: answering from memory is not always correct</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>If I ask you for factual information, perhaps something from company policies, a question from an Azure test, or a movie recommendation for someone who liked The Matrix and wants something similar, you can try to answer from memory.</p>
+<p>You may not remember everything precisely. You may make a mistake, mix something up a little, and if I ask you to cite the necessary sources (which page of which document says it), you often will not know where your knowledge came from.</p>
+<aside class="ia-callout note"><span class="ia-callout-title">LLMs behave the same way</span>
+<p>A large language model can formulate an answer beautifully, but its internal knowledge is not a database with citations. If you need accuracy and traceability, it must receive good supporting material.</p>
+</aside>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">A better option: look up the supporting material first</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Compare that with a situation where I tell you that before answering you may search the Internet, browse notes, skim printed policies, or click through Azure documentation. I assume that this will significantly improve the accuracy of your answers and that you will also tell me where the information is written and cite the sources.</p>
+<p>But what if, instead of pointing you to a relevant part of the documentation or policy, I give you pages from an entire library without covers, ordering, or any index of titles? Will it help? Probably yes, but it will take much longer, consume much more energy, and if most pages are irrelevant, you may lose attention and miss the correct answer somewhere in the middle.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">RAG in one sentence</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>What I have just described also applies to large language models (LLMs), and it is called <strong>Retrieval Augmented Generation (RAG)</strong>.</p>
+<p>Ideally the model receives the most precisely targeted documents where the answer is hidden, so it can produce accurate, fast, and cheap output. If we miss and give it documents that are not very relevant, the answers get worse. If we have a model with a large context window and dump the whole library into it, it will be expensive, slow, and still not as good as using well-selected reference documents.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-13-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>What I intentionally do not cover in this part</button><div class="ia-reveal-body" id="reveal-13-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Today I want to focus on finding the right supporting material for your LLM. This time we will not solve document preparation and chunking, nor more complex knowledge bases built on graphs of relationships and summaries. That is for another time.</p>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Today&#x27;s journey: from simple search to re-ranking</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>We will work with PostgreSQL because it lets me learn what is happening under the hood. For real projects, definitely consider <strong>Azure AI Search</strong> as well, because it can do all of this directly and also handles chunking and ingestion.</p>
+<div class="ia-sequence">
+<h3 class="ia-sequence-title">RAG progression in this article</h3>
+<ol class="ia-sequence-list">
+<li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Full-text</strong><p>classic search over words and their stems.</p></li>
+<li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Query rewriting</strong><p>adjusting the query so it is easier to search for.</p></li>
+<li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Embeddings</strong><p>semantic search in latent space.</p></li>
+<li class="ia-sequence-item"><span class="ia-sequence-step">4</span><strong>Hybrid search</strong><p>combining full-text and vectors.</p></li>
+<li class="ia-sequence-item"><span class="ia-sequence-step">5</span><strong>Re-ranking</strong><p>a smaller model reorders preselected results by relevance.</p></li>
+</ol></div>
+<p>We will show all techniques on a simple example with movies and their descriptions. Next time we will move to more complex techniques that require deeper data processing, hierarchical and graph approaches, and summarization.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="setup"><h2 class="ia-group-title">Preparing data in PostgreSQL</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Notebook and database basics</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>Please open the <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level1_guide.ipynb">Jupyter Notebook on my GitHub</a></strong>. It contains concrete results and outputs, and I recommend keeping it next to the article while reading.</p>
+<p>The story starts by taking documents, in this case movie descriptions, and loading them into PostgreSQL. I create a combined column with the title and overview so vectors are easier to make. The required infrastructure, such as Azure OpenAI models and Azure PostgreSQL Flexible Server, can be deployed from my Terraform in the relevant directory.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Data</strong><p>movie titles and descriptions.</p></div>
+<div class="ia-summary-item"><strong>Database</strong><p>PostgreSQL, so I can see what happens under the hood.</p></div>
+<div class="ia-summary-item"><strong>Models</strong><p>Azure OpenAI for embeddings.</p></div>
+<div class="ia-summary-item"><strong>Goal</strong><p>understand retrieval layers, not build a finished enterprise product.</p></div>
+</div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Extensions we will use</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Before importing the data, I need to add several extensions:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Why I use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>azure_ai</strong></td>
+<td>Call Azure OpenAI for embeddings, and potentially other Azure AI services, directly from PSQL.</td>
+</tr>
+<tr>
+<td><strong>pgvector</strong></td>
+<td>Store embeddings in PostgreSQL and perform vector search.</td>
+</tr>
+<tr>
+<td><strong>pg_diskann</strong></td>
+<td>Search embedding vectors faster and more efficiently.</td>
+</tr>
+</tbody>
+</table>
+<p>I create a table, add an <code>embedding</code> column with 2000 dimensions, add another <code>full_text_search</code> column for <code>tsvector</code> (statistics for full-text search, essentially word stems and their occurrences), and add a DiskANN index. Then I insert the data and add embeddings with an SQL <code>UPDATE</code> command and an <code>azure_ai</code> function, so the database calls Azure OpenAI by itself.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="techniques"><h2 class="ia-group-title">Search techniques</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Full-text: useful for exact words</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>First, let us use full-text search. PostgreSQL goes through the descriptions, identifies word stems, counts them, and stores the statistics for each movie. We ask a question, run it through full-text search, and take the first 10 nearest answers. The questions and answers are in the linked Jupyter notebook and then we feed them to an LLM to formulate the answer.</p>
+<p>The first attempt is not great. The Abby question returns only one movie, which is too little, and the others are not very good either. The issue is that full-text search is not ChatGPT, so the question <code>What movies are about Abby?</code> is poorly suited for it. We search all these words even though, except for Abby, none of them really matters.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-35-7" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Improvement: question rewriting</button><div class="ia-reveal-body" id="reveal-35-7" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Let's do question rewriting: we let a smaller language model (I use <code>gpt-4o-mini</code>) reformulate and optimize the query for full-text search. In the notebook you can see this scenario, including the rewritten query, and the Abby results are much better this time (4 movies).</p>
+<p>However, the other two queries are still bad. We are looking for movies like Star Wars, but not Star Wars, and full-text has no way to understand that, so it finds Star Wars movies we do not want. It looks like we need to search by meaning instead.</p>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button><span class="ia-card-num">08</span><span class="ia-card-title">Embeddings: meaning instead of exact words</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-08" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>In machine learning it is common to simplify a world with huge variability and complexity into a smaller number of properties - essentially compress it in a lossy way. This is not zip compression; imagine something closer to MP3.</p>
+<p>For text, imagine scores in several dimensions such as “degree of poetry” or “degree of humor”. If we use hundreds of such properties, they can represent the original text well. In machine learning we do not dictate to the AI what the dimensions should be; we let it learn them.</p>
+<p>These vectors - lists of numbers, scores for individual properties and dimensions - are embeddings. They represent the original input and are used for semantic extraction from text, images, and even diffusion models.</p>
+<aside class="ia-callout note"><span class="ia-callout-title">Latent space in practice</span>
+<p>Each text becomes a point in an n-dimensional latent space. From positions of different texts in that space we can infer relatedness and semantic similarity. Here we use cosine similarity because it can find similarity even at different scales.</p>
+</aside>
+<p>How do we search in it? First I let the model create an embedding for every movie description and store it. When a query arrives, I also place it into the latent space and look for points most similar to the query.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-09" data-ia-card-button><span class="ia-card-num">09</span><span class="ia-card-title">Semantic search and its weaknesses</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-09" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The third variant in the notebook is semantic search, meaning vector similarity search over embeddings. It fails on the first question, movies where Abby is a character. I wanted to demonstrate that vectors are usually great, but when we need a concrete short factual detail like an invoice number, they are not ideal.</p>
+<p>For the other two questions the results are definitely better, although Star Wars is still a problem. This time we do get similar sci-fi movies, but too many Star Wars movies remain. In simple scenarios there is not much we can do: the construction is too complex for the embedding alone.</p>
+<div class="ia-tabs" data-ia-tabs><div class="ia-tab-list" role="tablist"><button class="ia-tab" id="tab-rewrite" role="tab" aria-selected="true" aria-controls="panel-rewrite" type="button">Rewrite the query</button><button class="ia-tab" id="tab-hyde" role="tab" aria-selected="false" aria-controls="panel-hyde" type="button">HyDE</button></div><div class="ia-tab-panel" id="panel-rewrite" role="tabpanel" aria-labelledby="tab-rewrite"><p>As with full-text, it can make sense to rewrite the query. I again used a smaller LLM (<code>gpt-4o-mini</code>) to make the question clear, well formulated, and free of typos and grammar mistakes. For real user input this helps retrieval.</p>
+</div><div class="ia-tab-panel" id="panel-hyde" role="tabpanel" aria-labelledby="tab-hyde" hidden><p>The known HyDE technique (Hypothetical Document Embedding) lets the LLM imagine a fictional document that would be an ideal source for answering the question. We then perform vector search using that document. It sometimes works very well because documents are not usually phrased as questions.</p>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-10" data-ia-card-button><span class="ia-card-num">10</span><span class="ia-card-title">Hybrid search: the best of both worlds</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-10" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Clearly, semantic search is suitable for some questions, while classic full-text works better elsewhere. So let's use both and deploy hybrid search.</p>
+<p>The SQL query grew a bit, but nothing terrible. First I run full-text search and return 15 results, then semantic search and again get 15 results. I add a sequence number, priority, and method column to both tables. Then I union them and deduplicate by movie ID. Finally I sort the filtered results by priority and cut them to 10 rows.</p>
+<p class="ia-code-label"><strong>Hybrid search in PostgreSQL</strong></p>
+
+<pre><code class="language-sql">WITH fulltext AS (
+    SELECT 
+        id, 
+        title, 
+        overview, 
+        combined_text, 
+        ts_rank(full_text_search, plainto_tsquery('english', %s)) AS score,
+        'fulltext' AS method,
+        ROW_NUMBER() OVER (ORDER BY ts_rank(full_text_search, plainto_tsquery('english', %s)) DESC) AS index
+    FROM movies
+    ORDER BY score DESC
+    LIMIT 15
+),
+semantic AS (
+    SELECT 
+        id, 
+        title, 
+        overview, 
+        combined_text, 
+        (embedding &lt;=&gt; azure_openai.create_embeddings('text-embedding-3-large', %s, 2000, max_attempts =&gt; 5, retry_delay_ms =&gt; 500)::vector) AS score,
+        'semantic' AS method,
+        ROW_NUMBER() OVER (ORDER BY (embedding &lt;=&gt; azure_openai.create_embeddings('text-embedding-3-large', %s, 2000, max_attempts =&gt; 5, retry_delay_ms =&gt; 500)::vector)) AS index
+    FROM movies
+    ORDER BY score 
+    LIMIT 15
+),
+combined_results AS (
+    SELECT * FROM fulltext
+    UNION ALL
+    SELECT * FROM semantic
+),
+deduped_results AS (
+    SELECT DISTINCT ON (id) 
+        id, 
+        title, 
+        overview, 
+        combined_text, 
+        score, 
+        method, 
+        index
+    FROM combined_results
+)
+SELECT * FROM deduped_results
+ORDER BY index
+LIMIT 10;
+</code></pre>
+<p>The Abby results are somewhere between full-text and semantic search, which makes sense. I removed the extreme bad cases: Abby via semantics and Star Wars via full-text.</p>
+<figure class="ia-figure"><a href="../../../images/2025/2025-02-25-09-15-24.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-02-25-09-15-24.png" alt="Screenshot 2025-02-25-09-15-24" loading="lazy"></a><figcaption>Screenshot 2025-02-25-09-15-24</figcaption></figure>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-11" data-ia-card-button><span class="ia-card-num">11</span><span class="ia-card-title">Re-ranking: a second pass over relevance</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-11" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Now let us add another bit of magic: re-ranking. This is typically a small language model specifically trained to evaluate document relevance to a question.</p>
+<p>It is too large to search with O(n) complexity over everything, but fast enough to examine a few dozen or hundred preselected results. Because it is not yet available as an extension for PostgreSQL in Azure Flexible Server, I do it on the server side in Python and use a simple <a href="https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-12-v2">MultiBERT</a> model with about 33M parameters that runs comfortably on CPU.</p>
+<p>The SQL query is the same; I just take all 30 results, let MultiBERT sort them by relevance, take the top 10 again, and send them to the LLM. The results are the best.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-55-11" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Results in the notebook</button><div class="ia-reveal-body" id="reveal-55-11" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Abby is correct.</p>
+<figure class="ia-figure"><a href="../../../images/2025/2025-02-25-09-21-01.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-02-25-09-21-01.png" alt="Screenshot 2025-02-25-09-21-01" loading="lazy"></a><figcaption>Screenshot 2025-02-25-09-21-01</figcaption></figure>
+
+<p>Movies similar to Star Wars are a hard discipline, so the result is still not perfect, but compared with the other approaches it is the best.</p>
+<figure class="ia-figure"><a href="../../../images/2025/2025-02-25-09-22-07.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-02-25-09-22-07.png" alt="Screenshot 2025-02-25-09-22-07" loading="lazy"></a><figcaption>Screenshot 2025-02-25-09-22-07</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="conclusion"><h2 class="ia-group-title">Where to go next</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-12" data-ia-card-button><span class="ia-card-num">12</span><span class="ia-card-title">What we solved and what remains</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-12" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>The RAG methods we tried together are not rocket science, but it is clear that the techniques significantly improve the results. Still, several problems remain.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Aggregate queries</strong><p>not well covered because we do not have summarized data.</p></div>
+<div class="ia-summary-item"><strong>Information graph</strong><p>concrete characters, actors, directors, genres, and relationships are beyond today's simple model.</p></div>
+<div class="ia-summary-item"><strong>Pre-processed data</strong><p>next time we will need to extract attributes, connect them, and add summaries.</p></div>
+<div class="ia-summary-item"><strong>GraphRAG</strong><p>this is exactly the direction to continue in.</p></div>
+</div>
+<p>That is what we will focus on next time: take the data, extract key attributes, connect them relationally, and add summarized and aggregated views.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-13" data-ia-card-button><span class="ia-card-num">13</span><span class="ia-card-title">PostgreSQL for learning, Azure AI Search for practice</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-13" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>I should also say that I used PostgreSQL because I am fascinated by its universality and extensibility, and it is the best way to learn what is happening.</p>
+<p>However, I am somewhat reinventing the wheel. If you are in the cloud, try <strong>Azure AI Search</strong> directly. It includes not only what we did here but also other techniques. It is not only a storage and search solution, but also handles input processing such as indexing, extraction, chunking, and other RAG components we will discuss next time.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>An LLM is not a database. Quality data and a smart way to access it are not a new problem for humanity - they help people, and they will help your AI agents too.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

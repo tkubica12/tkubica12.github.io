@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Deep dive do observability AI agentů s Microsoft Agent Framework - OpenTelemetry semantic conventions a použití OTEL kolektoru</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Deep dive do observability AI agentů s Microsoft Agent Framework - OpenTelemetry semantic conventions a použití OTEL kolektoru</h1>
+<p class="ia-subtitle">OpenTelemetry semantic conventions, Microsoft Agent Framework a proč dát mezi aplikaci a backend OTEL Collector.</p>
+<p class="ia-date"><time datetime="2025-10-29">29. 10. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>AI agenti a multi-agentní workflow jsou pro debugging, nákladovost a bezpečnost citlivější než klasické CRUD API. Bez dobré observability jen těžko zjistíte, proč se odpovědi liší, kam mizí tokeny nebo kde roste latence.</p>
+<p>Celé řešení najdete na <a href="https://github.com/tkubica12/d-ai-maf-observability">mém GitHubu</a>. Cílem série je ukázat, jak dostat maximum z otevřených standardů, abyste nemuseli přepisovat kód při změně backendu a zároveň měli data kvalitně očištěná a levná.</p>
+<section class="ia-group" id="uvod"><h2 class="ia-group-title">Co dnes stavíme</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Mapa dílu</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Microsoft Agent Framework je výborný vývojový kit pro tvorbu AI agentů a multi-agentních řešení - od jednoduchých scénářů přes orchestrační workflow až po plný multiagent přístup po vzoru Magentic nebo Group Chat topologií.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-4-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Proč právě Microsoft Agent Framework</button><div class="ia-reveal-body" id="reveal-4-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Umí používat OpenAI, Foundry včetně non-OpenAI modelů, Foundry agenty, externí agenty přes A2A, ale i vlastní řešení. V této sérii se zaměřím na observabilitu a závěry z ní můžete samozřejmě aplikovat i na jiné frameworky jako Lang Graph.</p>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-7-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Backendy, které budu používat</button><div class="ia-reveal-body" id="reveal-7-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Všechno budeme stavět na otevřených standardech. Jako vizualizační backendy využijeme Aspire Dashboard, LangFuse, Prometheus s Grafanou, ale i zabudované funkce Azure platformy v AI Foundry a Application Insights.</p>
+</div></div></div></div>
+<p>Dnes si postupně probereme instrumentaci kódu a hlavně proč rád používám OpenTelemetry Collector mezi aplikací a monitorovacím řešením.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="zaklady"><h2 class="ia-group-title">Základy instrumentace</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">OpenTelemetry a sémantické konvence pro genAI</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>OpenTelemetry podporuje přidávání jakýchkoli atributů do trasování. V minulosti to vytvářelo zmatek, protože OpenInference, LangFuse nebo LangSmith pojmenovávaly atributy různě. Standard jste sice měli, ale hotové reporty, vizualizace a analýzy nefungovaly univerzálně.</p>
+<p>Dnes existují <a href="https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai">semantic conventions pro GenAI</a>. Microsoft je dodržuje a rozšířil je i pro multi-agent scénáře. Microsoft Agent Framework tyto konvence používá, takže data jsou přenositelnější mezi backendy.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-16-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Ukázka výsledku v trasování</button><div class="ia-reveal-body" id="reveal-16-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-10-27-16-23-20.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-27-16-23-20.png" alt="Ukázka GenAI spanů podle OpenTelemetry semantic conventions" loading="lazy"></a><figcaption>Ukázka GenAI spanů podle OpenTelemetry semantic conventions</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Instrumentace Microsoft Agent Frameworku</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Zapnutí observability v Microsoft Agent Framework je v základním režimu otázka jednoho importu a jednoho volání.</p>
+<p class="ia-code-label"><strong>Zapnutí observability v Microsoft Agent Framework</strong></p>
+
+<pre><code class="language-python">from agent_framework.observability import get_tracer, get_meter, setup_observability
+setup_observability(
+    enable_sensitive_data=enable_sensitive,
+    otlp_endpoint=otlp_endpoint,
+)
+</code></pre>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-22-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Proč k tomu v demo aplikaci přidávám víc</button><div class="ia-reveal-body" id="reveal-22-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<ul>
+<li>Chci do spanů integrovat vlastní dynamické atributy pro agregace a vyhledávání: user id, session id, role, experiment.</li>
+<li>Chci vlastní atributy propisovat i do vnitřních spanů, aby se mi na backendu lépe filtrovalo, i když tím zvyšuji objem dat.</li>
+<li>Kromě tracingu posílám aplikační logy a metriky, včetně vlastních.</li>
+<li>Vedle AI komponent instrumentuji HTTP volání a přístupy do Redis, SQL nebo PostgreSQL přes autoinstrumentaci.</li>
+</ul>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Rozšíření o vlastní atributy</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>S využitím baggage span procesoru to není těžké. Navíc se zdá, že kontext odchází i v HTTP headeru, takže se atributů lze chytit například v zavolaném nástroji.</p>
+<p class="ia-code-label"><strong>Propisování vlastních atributů přes baggage</strong></p>
+
+<pre><code class="language-python"># Add BaggageSpanProcessor to automatically propagate baggage to all spans
+from opentelemetry import trace as trace_api
+tracer_provider = trace_api.get_tracer_provider()
+if hasattr(tracer_provider, 'add_span_processor'):
+    baggage_processor = BaggageSpanProcessor()
+    tracer_provider.add_span_processor(baggage_processor)
+    logger.info(&quot;BaggageSpanProcessor registered for automatic context propagation&quot;)
+
+from opentelemetry import baggage, context
+
+ctx = context.get_current()
+ctx = baggage.set_baggage(&quot;user.id&quot;, user_context.get(&quot;user.id&quot;, &quot;unknown&quot;), ctx)
+ctx = baggage.set_baggage(&quot;session.id&quot;, user_context.get(&quot;session.id&quot;, &quot;unknown&quot;), ctx)
+ctx = baggage.set_baggage(&quot;organization.department&quot;, user_context.get(&quot;organization.department&quot;, &quot;unknown&quot;), ctx)
+roles = user_context.get(&quot;user.roles&quot;, [])
+if roles:
+    ctx = baggage.set_baggage(&quot;user.roles&quot;, &quot;,&quot;.join(roles), ctx)
+token = context.attach(ctx)
+</code></pre>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="kolektor"><h2 class="ia-group-title">OpenTelemetry kolektor jako provozní rozbočovač</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Kolektor: routing, anonymizace, filtrace a konverze</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tady se dnes zastavíme déle. OpenTelemetry SDK umí exportéry přímo do backendů, ale OpenTelemetry Collector mi dává jeden stabilní OTLP endpoint pro aplikaci a provozní logiku mimo kód.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Proč kolektor</span>
+<p>Buildím agenty jednou. Routing, anonymizaci, sampling, více backendů i převody ladím rychle iteracemi v konfiguraci collectoru, ne releasem aplikace.</p>
+</aside>
+<div class="ia-steps">
+<h3 class="ia-steps-title">Co tím získám</h3>
+<ol class="ia-steps-list">
+<li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Oddělení aplikace od backendů</strong><p>kontejner aplikace zná jeden OTEL endpoint a kolektor řeší autentizaci, cílové backendy i rozdíly mezi clustery.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Více destinací najednou</strong><p>pro rychlý troubleshooting mám rád Aspire Dashboard, pro analytiku a dlouhodobé uložení třeba Application Insights.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Transformace a anonymizace</strong><p>kolektor umí filtrovat atributy, odstraňovat obsah konverzací a posílat rozdílně očištěná data různým týmům.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Výkon a spolehlivost</strong><p>aplikace odloží telemetrii blízkému kolektoru a ten řeší doručení, retry i bufferování.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">OTTL konverze a sampling</strong><p>umím přejmenovávat atributy, obohacovat data, převádět signály a snižovat náklady chytrým výběrem trace.</p></div></li>
+</ol></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-37-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Tři praktické kategorie výstupů</button><div class="ia-reveal-body" id="reveal-37-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<ul>
+<li><strong>Enterprise logy v Azure</strong> - auditovatelnost a provoz, ale bez samotného obsahu zpráv.</li>
+<li><strong>AI observability logy</strong> - plný obsah konverzací jen pro vybrané uživatele nebo souhlasy, typicky pro evaluace.</li>
+<li><strong>Dev logy</strong> - zamaskované identifikátory, emaily, IP adresy i obsah zpráv pro běžný vývojářský troubleshooting.</li>
+</ul>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-40-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>PII pseudonymizace přes OTTL</button><div class="ia-reveal-body" id="reveal-40-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Pro PII pseudonymizaci umí OTTL kombinovat <code>set</code>, <code>delete_key</code>, <code>delete_matching_keys</code>, <code>replace_all_patterns</code> a hashování <code>SHA256()</code>. V praxi bych přidal SALT z env proměnné, aby hash lépe odolával slovníkovým útokům.</p>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-43-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Tail-based sampling jako úspora bez slepoty</button><div class="ia-reveal-body" id="reveal-43-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Sampling nemusí být jen procento. Tail-based sampling drží trace chvíli v kolektoru, podívá se na výsledek a pošle například chyby, pomalé požadavky, VIP uživatele a malý baseline vzorek. Platíte méně, ale neztratíte nejdůležitější případy.</p>
+<p class="ia-code-label"><strong>Tail-based sampling v kolektoru</strong></p>
+
+<pre><code class="language-yaml">processors:
+  tail_sampling:
+    decision_wait: 30s          # jak dlouho držím buffery
+    num_traces: 50000           # cílové množství in-memory
+    expected_new_traces_per_sec: 200
+    policies:
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: slow
+        type: latency
+        latency:
+          threshold_ms: 2000    # nad 2s vždy zachovat
+      - name: vip_users
+        type: string_attribute
+        string_attribute:
+          key: user.is_vip
+          values: [&quot;true&quot;]
+      - name: baseline_sample
+        type: probabilistic
+        probabilistic:
+          hash_seed: 22
+          sampling_percentage: 5
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, batch]
+      exporters: [otlp, azuremonitor]
+</code></pre>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-46-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Celá ukázka Helm šablony OTEL kolektoru</button><div class="ia-reveal-body" id="reveal-46-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Výborné je, že tohle všechno lze v AKS držet v ConfigMap a Kubernetes manifestech. Aplikace pak stále posílá na jeden OTLP endpoint a kolektor rozhoduje, co kam odejde.</p>
+<p class="ia-code-label"><strong>Helm šablona OTEL kolektoru v AKS</strong></p>
+
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector-config
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+
+      # Transform processor for anonymization - strips PII and sensitive data
+      transform/anonymize:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              # Pseudonymize user.id using SHA256 for consistent hashing
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status - boolean flag considered PII
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department for correlation while protecting identity
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              # Pseudonymize session and thread IDs
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+              - set(attributes[&quot;thread.id&quot;], SHA256(attributes[&quot;thread.id&quot;])) where attributes[&quot;thread.id&quot;] != nil
+              # Strip tool arguments and results - may contain sensitive data
+              - delete_key(attributes, &quot;tool.arguments&quot;)
+              - delete_key(attributes, &quot;tool.result&quot;)
+              # Strip GenAI input/output messages - contains user queries and LLM responses
+              - delete_key(attributes, &quot;gen_ai.input.messages&quot;)
+              - delete_key(attributes, &quot;gen_ai.output.messages&quot;)
+              - delete_key(attributes, &quot;gen_ai.prompt&quot;)
+              - delete_key(attributes, &quot;gen_ai.completion&quot;)
+              - delete_key(attributes, &quot;gen_ai.request.model&quot;)
+              - delete_key(attributes, &quot;gen_ai.response.model&quot;)
+              # Strip any other GenAI content using pattern matching
+              - delete_matching_keys(attributes, &quot;gen_ai\\..*\\.content&quot;)
+              - delete_matching_keys(attributes, &quot;gen_ai\\..*messages.*&quot;)
+              # Redact common PII patterns in remaining string attributes
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b&quot;, &quot;EMAIL_REDACTED&quot;)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b&quot;, &quot;PHONE_REDACTED&quot;)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b&quot;, &quot;CARD_REDACTED&quot;)
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from resource
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department in resource
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              # Pseudonymize session in resource
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+
+        log_statements:
+          - context: log
+            statements:
+              # Pseudonymize user identifiers in logs
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove sensitive log attributes
+              - delete_key(attributes, &quot;user_message&quot;)
+              - delete_key(attributes, &quot;response&quot;)
+              - delete_key(attributes, &quot;tool_name&quot;)
+              - delete_key(attributes, &quot;arguments&quot;)
+              - delete_key(attributes, &quot;result&quot;)
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              - delete_key(attributes, &quot;user.roles&quot;)
+              # Pseudonymize department and session
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+              - set(attributes[&quot;session.id&quot;], SHA256(attributes[&quot;session.id&quot;])) where attributes[&quot;session.id&quot;] != nil
+              # Redact PII patterns in log body if it's a string
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b&quot;, &quot;EMAIL_REDACTED&quot;) where IsString(body)
+              - replace_all_patterns(attributes, &quot;value&quot;, &quot;\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b&quot;, &quot;PHONE_REDACTED&quot;) where IsString(body)
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes for logs
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Pseudonymize department in resource for logs
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+
+        metric_statements:
+          - context: datapoint
+            statements:
+              # Pseudonymize user identifiers in metrics
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from metrics
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              # Pseudonymize department in metrics
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+          - context: resource
+            statements:
+              # Pseudonymize user.id in resource attributes for metrics
+              - set(attributes[&quot;user.id&quot;], SHA256(attributes[&quot;user.id&quot;])) where attributes[&quot;user.id&quot;] != nil
+              # Remove VIP status from resource for metrics
+              - delete_key(attributes, &quot;user.is_vip&quot;)
+              # Pseudonymize department in resource for metrics
+              - set(attributes[&quot;organization.department&quot;], SHA256(attributes[&quot;organization.department&quot;])) where attributes[&quot;organization.department&quot;] != nil
+
+    exporters:
+      # Console exporter for troubleshooting
+      debug:
+        verbosity: detailed
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+      # OTLP exporter for Aspire Dashboard
+      otlp:
+        endpoint: {{ include &quot;maf-demo.fullname&quot; . }}-aspire-dashboard:18889
+        tls:
+          insecure: true
+
+      # OTLP exporter for Anonymized Aspire Dashboard
+      otlp/anonymized:
+        endpoint: {{ include &quot;maf-demo.fullname&quot; . }}-aspire-dashboard-anon:18889
+        tls:
+          insecure: true
+
+      # Azure Monitor exporter for Application Insights
+      # Supports traces and logs (metrics not supported by App Insights OTLP ingestion)
+      azuremonitor:
+        connection_string: {{ .Values.appInsights.connectionString | quote }}
+
+      # Langfuse OTLP exporter for LLM observability
+      # Exports traces to Langfuse via HTTP/protobuf protocol
+      otlphttp/langfuse:
+        endpoint: {{ .Values.langfuse.endpoint | default &quot;http://langfuse-web.langfuse.svc.cluster.local:3000/api/public/otel&quot; | quote }}
+        headers:
+          Authorization: {{ .Values.langfuse.authorization | default &quot;Basic &quot; | quote }}
+
+      # Prometheus Remote Write exporter for Azure Monitor Prometheus
+      # Uses sidecar container for Azure AD token management
+      # The sidecar listens on localhost:8081 and injects the Authorization header
+      prometheusremotewrite:
+        endpoint: &quot;http://localhost:8081/api/v1/write&quot;
+        tls:
+          insecure: true
+        resource_to_telemetry_conversion:
+          enabled: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, azuremonitor, otlphttp/langfuse]
+
+        # Anonymized trace pipeline - strips PII before sending to anonymized dashboard
+        traces/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, prometheusremotewrite]
+
+        # Anonymized metrics pipeline
+        metrics/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp, azuremonitor]
+
+        # Anonymized logs pipeline
+        logs/anonymized:
+          receivers: [otlp]
+          processors: [memory_limiter, transform/anonymize, batch]
+          exporters: [otlp/anonymized]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+    azure.workload.identity/use: &quot;true&quot;
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.agent.clientId }}
+    azure.workload.identity/tenant-id: {{ .Values.agent.tenantId }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 8 }}
+        azure.workload.identity/use: &quot;true&quot;
+    spec:
+      serviceAccountName: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:{{ .Values.otelCollector.tag }}
+        ports:
+        - containerPort: 4317  # OTLP gRPC
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 4318  # OTLP HTTP
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 8888  # Metrics
+          name: metrics
+          protocol: TCP
+        - containerPort: 8889  # Prometheus metrics
+          name: prometheus
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otelcol-contrib
+          readOnly: true
+        resources:
+          {{- toYaml .Values.otelCollector.resources | nindent 10 }}
+      # Sidecar container for Azure Monitor Prometheus remote write authentication
+      # This container obtains Azure AD tokens using workload identity and proxies
+      # Prometheus remote write requests with the Authorization header injected
+      - name: prom-remotewrite
+        image: mcr.microsoft.com/azuremonitor/containerinsights/ciprod/prometheus-remote-write/images:prom-remotewrite-20250814.1
+        imagePullPolicy: Always
+        ports:
+        - name: rw-port
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: INGESTION_URL
+          value: {{ .Values.prometheus.remoteWriteEndpoint | quote }}
+        - name: LISTENING_PORT
+          value: &quot;8081&quot;
+        - name: IDENTITY_TYPE
+          value: &quot;workloadIdentity&quot;
+        - name: CLUSTER
+          value: {{ .Values.clusterName | default &quot;aks-cluster&quot; | quote }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: rw-port
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: rw-port
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include &quot;maf-demo.fullname&quot; . }}-otel-collector
+  labels:
+    {{- include &quot;maf-demo.labels&quot; . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+      name: otlp-grpc
+    - port: 4318
+      targetPort: otlp-http
+      protocol: TCP
+      name: otlp-http
+    - port: 8888
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    {{- include &quot;maf-demo.otelCollectorSelectorLabels&quot; . | nindent 4 }}
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Standardizujte atributy</strong><p>GenAI semantic conventions jsou základ pro přenositelné reporty a backendy.</p></div>
+<div class="ia-summary-item"><strong>Instrumentujte málo, ale chytře</strong><p>základní MAF observability zapnete jedním voláním, vlastní kontext přidejte přes baggage.</p></div>
+<div class="ia-summary-item"><strong>Dejte mezi aplikaci a backend kolektor</strong><p>routing, anonymizaci, sampling a více výstupů držte mimo aplikační kód.</p></div>
+</div>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>V dalším díle se podíváme, jak se taková telemetrie chová v konkrétních backendových nástrojích a co z ní jde prakticky vyčíst pro debugging, náklady a evaluace.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

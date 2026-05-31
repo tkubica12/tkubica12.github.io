@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Deep dive do observability AI agentů s Microsoft Agent Framework - metriky a logy, konverze na managed Prometheus a Grafana v Azure</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">AI observability, díl 2</p>
+<h1 class="ia-title">Deep dive do observability AI agentů s Microsoft Agent Framework - metriky a logy, konverze na managed Prometheus a Grafana v Azure</h1>
+<p class="ia-subtitle">Metriky, logy, dashboardy a backendy pro observabilitu AI agentů bez zbytečného přikrášlování.</p>
+<p class="ia-date"><time datetime="2025-11-05">5. 11. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<aside class="ia-callout verdict"><span class="ia-callout-title">Pointa</span>
+<p>Observabilita AI agentů není jeden dashboard. Potřebujete metriky pro trend, logy pro provozní realitu, trasování pro detail a rozumné rozhodnutí, kam která data posílat.</p>
+</aside>
+<section class="ia-group" id="orientace"><h2 class="ia-group-title">Orientace v datech</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Co vlastně u agentů pozorovat</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V tomhle díle beru původní text z legacy článku a skládám ho do praktičtější cesty: nejdřív signály, potom dashboardy a nakonec volba backendu. Nejde o akademickou taxonomii, ale o to, co mi reálně pomáhá při ladění agentů.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Metriky</strong><p>rychlý přehled o spotřebě, latenci, chybách a objemu práce.</p></div>
+<div class="ia-summary-item"><strong>Logy</strong><p>provozní kontext, události a věci, které nechci agregovat do časové řady.</p></div>
+<div class="ia-summary-item"><strong>Trasy</strong><p>vysvětlení konkrétního běhu, volání modelu, nástroje a orchestrace.</p></div>
+<div class="ia-summary-item"><strong>Backendy</strong><p>kompromis mezi rychlým vývojem, dlouhodobou retencí, cenou a governance.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="pro-druh-d-l"><h2 class="ia-group-title">Proč druhý díl</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Proč druhý díl</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tracing je pro AI agenty nejdůležitější disciplínou, ale logy a metriky také mají svoje místo. Klasické logy lze doručovat přes OpenTelemetry a konečně tak krásně sjednotit logovací cesty případně je korelovat s trasováním. No a metriky? Hloubkové analýzy, složité query a skvělé možnosti filtrací a agregací v UI jsou fajn, ale často uvítáte jednoduchou vizualizaci v Grafaně. Žádné složitosti - klíčové metriky přes základní dimenze. I to jste dnes schopni řešit přes OpenTelemetry s kolektorem.
+V prvním dílu série jsme se zaměřili na sémantické konvence GenAI v OpenTelemetry a základní instrumentaci Microsoft Agent Frameworku včetně důvodů použití kolektoru. Na to nyní navazujeme praktičtější částí o metrikách a logování.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="pro-e-it-metriky-a-ne-jen-trasov-n"><h2 class="ia-group-title">Proč řešit metriky a ne jen trasování</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Proč řešit metriky a ne jen trasování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Jak už jsem naznačoval trasování a logování jsou poměrně hutné disciplíny o to jak co do vyhodnocení výsledků, tak co do ceny cloudové služby nebo prostoru ve storage. Metriky jsou jednodušší z několika pohledů.
+Backend používá typicky nějakou time-series databázi a to je případ jak slavného Promethea, tak třeba Mimir od Grafana nebo Azure Monitoru. Tyto databáze jsou optimalizované na časové řady s dimenzemi a jsou tak velmi rychlé a ve finále levné. Je to díky tomu, že uložení jako log se budou často opakovat metadata a databáze bude řádkově orientovaná (optimalizovaná na přidávání, filtrace, tedy operace přes řádky). Metriky jsou uspořádané jinak a dokonce i hodnoty samotné se komprimují například přes XOR - časové řady jsou si často podobné (např. o něco rostou nebo oscilují kolem nějaké hodnoty), takže velká bitová část odečtu (čísla) se opakuje a lze ji vynechat (říká se, že samotné metriky lze běžně komprimovat 8x - a k tomu přidejme to efektivní uložení, kde se neopakují metadata).
+Dotazovací jazyky jsou podle mě taky jednodušší. Když srovnám PromQL (zlatý standard, který umí jak samotný Prometheus tak i Azure Monitor for Prometheus nebo Mimir) s jazyky pro logy či trasování (KQL v Azure, QL u Elastic, SPL u Splunk, LogQL u Loki), metriky pochopím o dost rychleji. Navíc v grafických nástrojích si většinu věcí jednoduše naklikáte (například Grafana dashboard), což u logovadel snadné není (tam snadno filtrujete, ale agregační dotazy jsou složitější).</p>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Proč řešit metriky a ne jen trasování: pokračování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Ve finále tedy Metriky chci!
+Pro AI agenty se nejčastěji osvědčuje mít counter pro vstupní/výstupní tokeny (odvození nákladů přes cenu na token v dashboardu), histogram pro latenci požadavků kvůli p95/p99 tail analýze a counter pro chyby s dimenzí typu chyby. Vyhýbejte se ukládání plných promptů nebo volných textů do metrik – patří do trasování nebo řízených logů s anonymizací. Sledujte kardinalitu: model version, scénář a uživatelská role jsou většinou bezpečné, zatímco per-user či per-session metriky rychle rostou.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="instrumentace"><h2 class="ia-group-title">Instrumentace</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Instrumentace</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Microsoft Agent Framework emituje nejjednodušší metriky v rámci své instrumentace, takže se na ně stačí jen koukat.
+Tady jsou zabudované dimenze, podle kterých lze snadno filtrovat a měnit vizualizaci. Například vstupní a výstupní tokeny, použitý LLM model, provider, endpoint.
+Dobré ale je, že mohu poměrně snadno přidat svoje vlastní metriky a jejich dimenze. Typicky to budou byznys metriky jako je počet zpracovaných objednávek a tak podobně. Já jsem se rozhodl udělat si vlastní metriku na počet tokenů. Rozšířit ty stávající se mi zdálo hodně komplikované (na rozdíl od možnosti přidat atributy do trasování), tak jsem si udělal svoje a přidal k nim další dimenze.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-25-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshoty: zabudované a vlastní metriky</button><div class="ia-reveal-body" id="reveal-25-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-10-27-19-50-14.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-27-19-50-14.png" alt="Zabudované metriky Microsoft Agent Frameworku" loading="lazy"></a><figcaption>Zabudované metriky Microsoft Agent Frameworku</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-10-27-19-50-48.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-27-19-50-48.png" alt="Filtrace metrik podle dimenzí modelu a provideru" loading="lazy"></a><figcaption>Filtrace metrik podle dimenzí modelu a provideru</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-10-27-19-51-42.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-27-19-51-42.png" alt="Vlastní metrika pro počet agentických volání" loading="lazy"></a><figcaption>Vlastní metrika pro počet agentických volání</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-10-27-19-52-36.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-27-19-52-36.png" alt="Vizualizace vlastní metriky v dashboardu" loading="lazy"></a><figcaption>Vizualizace vlastní metriky v dashboardu</figcaption></figure>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-28-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Konfigurace nebo výstup</button><div class="ia-reveal-body" id="reveal-28-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-python">metric_resource = Resource(attributes={
+    SERVICE_NAME: os.getenv(&quot;OTEL_SERVICE_NAME&quot;, &quot;agent&quot;)
+})
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(endpoint=otlp_endpoint, insecure=True),
+    export_interval_millis=5000,  # Export every 5 seconds for testing
+)
+meter_provider = MeterProvider(resource=metric_resource, metric_readers=[metric_reader])
+otel_metrics.set_meter_provider(meter_provider)
+
+is_vip = &quot;vip&quot; in user_context.get(&quot;user.roles&quot;, [])
+self.agent_call_counter.add(
+    demo_value,
+    attributes={
+        &quot;service.name&quot;: os.getenv(&quot;OTEL_SERVICE_NAME&quot;, &quot;agent&quot;),
+        &quot;user.id&quot;: user_context.get(&quot;user.id&quot;, &quot;unknown&quot;),
+        &quot;user.is_vip&quot;: str(is_vip).lower(),
+        &quot;organization.department&quot;: user_context.get(&quot;organization.department&quot;, &quot;unknown&quot;),
+        &quot;session.id&quot;: user_context.get(&quot;session.id&quot;, &quot;unknown&quot;),
+        &quot;scenario_id&quot;: &quot;local-maf-multiagent&quot;,
+        &quot;scenario_type&quot;: &quot;multi-agent&quot;,
+        &quot;orchestration&quot;: &quot;magentic&quot;,
+    }
+)
+print(f&quot;📊 Custom metric recorded: custom_agent_call_count={demo_value}&quot;)
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Instrumentace: pokračování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Vidíme tam i moje přidané dimenze, podle kterých lze snadno filtrovat a vizualizovat.
+Poznámka ke kardinalitě: dimenze jako <code>user.id</code> a <code>session.id</code> jsou vysoce kardinalitní a u metrik mohou výrazně zvýšit náklady i zátěž backendu – u metrik proto raději agregujte na úroveň rolí, scénáře nebo VIP flagu; v trasování si tyto identifikátory ponechejte, protože tam jsou pro analýzu a korelaci užitečné.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="jak-nastavit-opentelemetry-metriky-do-azure-managed-slu-eb"><h2 class="ia-group-title">Jak nastavit OpenTelemetry metriky do Azure managed služeb</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Jak nastavit OpenTelemetry metriky do Azure managed služeb</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V předchozím odstavci jsme používali Aspire Dashboard a ten přímo podporuje metriky. Většina z vás ale asi bude spíše znát Prometheus. Pod ním se skrývají tři věci - SDK pro aplikace a mechanismus vystavování metrik (v podstatě přes webovou stránku, kam dá aplikace své metriky k odečtu), databáze pro uložení metrik a dotazovací jazyk PromQL. V našem případě odstraníme Prometheus SDK - nebudeme používat, chceme jít cestou OpenTelemetry a push. Z druhé strany si určitě chceme ponechat PromQL, protože ten je velmi používaný a příjemný. OpenTelemetry kolektor dokáže vzít OTEL metriky a poslat je dál ve formátu Prometheus použitím tzv. remote-write. V mém případě to ale nebude skutečný Prometheus, ale s ním kompatibilní jiná technologie. Tak jak Grafana Mimir dokáže nahradit Prometheus a přitom být plně kompatibilní, tak Azure Monitor for Prometheus dělá něco podobného.
+Bohužel Azure Monitor for Prometheus vyžaduje přísné enterprise zabezpečení a to se špatně nastavuje přímo v kontejneru kolektoru, ale dá se to vyřešit sidecar - v té běží Prometheus bez zabezpečení, kolektor to do něj posílá přes remote-write a sidecar pak má autentizaci přes Managed Identity a remote-write do Azure Monitoru. Popsáno je to v <a href="https://learn.microsoft.com/en-us/azure/azure-monitor/containers/prometheus-remote-write-managed-identity">dokumentaci</a>
+Kolektor pak vypadá nějak takhle:</p>
+<figure class="ia-figure"><a href="../../images/2025/2025-10-28-11-11-28.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-28-11-11-28.png" alt="Schéma nebo ukázka nastavení remote-write přes sidecar" loading="lazy"></a><figcaption>Schéma nebo ukázka nastavení remote-write přes sidecar</figcaption></figure>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-39-7" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Konfigurace nebo výstup</button><div class="ia-reveal-body" id="reveal-39-7" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-yaml">    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 512
+
+    exporters:
+      # Prometheus Remote Write exporter for Azure Monitor Prometheus
+      # Uses sidecar container for Azure AD token management
+      # The sidecar listens on localhost:8081 and injects the Authorization header
+      prometheusremotewrite:
+        endpoint: &quot;http://localhost:8081/api/v1/write&quot;
+        tls:
+          insecure: true
+        resource_to_telemetry_conversion:
+          enabled: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [prometheusremotewrite]
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button><span class="ia-card-num">08</span><span class="ia-card-title">Jak nastavit OpenTelemetry metriky do Azure managed služeb: pokračování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-08" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Následně mám nad tím Azure Managed Grafana a už se lze pustit do tvorby dashboardů.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="logov-n-p-es-opentelemetry"><h2 class="ia-group-title">Logování přes OpenTelemetry</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-09" data-ia-card-button><span class="ia-card-num">09</span><span class="ia-card-title">Logování přes OpenTelemetry</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-09" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Klasický způsob logování je buď sběr obrazovky (stdout) nebo nástroje jako je Logstash, Fluentd nebo nativní nástroje konkrétního řešení jako je Graylog nebo Loki. OpenTelemetry ale přináší sjednocení a standardizaci, takže jednotné otevřené SDK můžete použít na trasování, metriky i logy. Bohužel v době psaní tohoto článku Azure Monitor ještě logy přes OpenTelemetry nepodporuje (ale prý se na tom pracuje), protože pod kapotou je Kusto ingestion pipeline a její enterprise nadstavby (např. RBAC podle zdroje) a není to triviální předělat. Nicméně pro účely mého zkoumání observability AI agentů jsem OpenTelemetry použil v kombinaci s Aspire Dashboard pro rychlý náhled.
+Takhle to vypadá v dashboardu.
+Dnes jsme se zaměřili na metriky a logy a příště se můžeme vrhnout do našeho hlavního tématu, do toho, co je pro observabilitu AI agentů nejdůležitější - trasování. Začneme s open source nástroji Aspire Dashboard a LangFuse, pak přidáme Azure AI Foundry a App Insights.</p>
+<figure class="ia-figure"><a href="../../images/2025/2025-10-28-11-01-54.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-28-11-01-54.png" alt="Screenshot" loading="lazy"></a><figcaption>Screenshot</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-10-28-11-02-23.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-10-28-11-02-23.png" alt="Screenshot" loading="lazy"></a><figcaption>Screenshot</figcaption></figure>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-50-9" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Konfigurace nebo výstup</button><div class="ia-reveal-body" id="reveal-50-9" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-python"># Configure OTLP logging
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
+from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry._logs import set_logger_provider
+
+# Create log provider with resource
+log_resource = Resource(attributes={
+    SERVICE_NAME: os.getenv(&quot;OTEL_SERVICE_NAME&quot;, &quot;agent&quot;)
+})
+logger_provider = LoggerProvider(resource=log_resource)
+set_logger_provider(logger_provider)
+
+# Add OTLP log exporter
+otlp_log_exporter = OTLPLogExporter(endpoint=otlp_endpoint, insecure=True)
+logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_log_exporter))
+
+# Attach OTLP handler to root logger for telemetry collection
+otlp_handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+
+# Configure root logger: NO console handlers, only OTLP
+root_logger = logging.getLogger()
+root_logger.handlers.clear()  # Remove all console handlers
+root_logger.addHandler(otlp_handler)  # Only OTLP handler
+root_logger.setLevel(logging.INFO)
+
+# Also configure our app logger
+logger.addHandler(otlp_handler)
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="shrnuti"><h2 class="ia-group-title">Shrnutí</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-10" data-ia-card-button><span class="ia-card-num">10</span><span class="ia-card-title">Co si z toho odnést</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-10" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Nešetřete na datech při vývoji</strong><p>, ale pro produkci rozlišujte plný, filtrovaný a agregovaný pohled.</p></div>
+<div class="ia-summary-item"><strong>Metriky jsou mapa</strong><p>, ne pitva konkrétního problému.</p></div>
+<div class="ia-summary-item"><strong>Logy a trasy patří k sobě</strong><p>, protože agentické chování bez kontextu rychle přestane dávat smysl.</p></div>
+<div class="ia-summary-item"><strong>Backend vybírejte podle práce</strong><p>, ne podle toho, který má nejhezčí screenshot.</p></div>
+</div>
+<div class="ia-arrow-list">
+<h3 class="ia-arrow-list-title">Praktický checklist</h3>
+<ul>
+<li>Nejdřív sjednoťte signály přes OpenTelemetry.</li>
+<li>Oddělte citlivý obsah od technické telemetrie.</li>
+<li>Pro dashboardy používejte agregace, pro ladění konkrétní běhy.</li>
+<li>Dlouhé konfigurace a výstupy držte schované v revealech, ale dostupné.</li>
+</ul></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Za mě je klíčové neskončit u jednoho hezkého grafu: u AI agentů potřebujete kombinaci metrik, logů, trasování a backendů, která sedí vašemu provoznímu riziku.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

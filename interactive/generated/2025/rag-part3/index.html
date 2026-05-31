@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Vlastní data (RAG) pro vašeho AI agenta část třetí - AI samo volí strategii, jak se dostat k datům</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">RAG část 3</p>
+<h1 class="ia-title">Vlastní data (RAG) pro vašeho AI agenta část třetí - AI samo volí strategii, jak se dostat k datům</h1>
+<p class="ia-subtitle">Od hrubé síly k agentovi, který přeformuluje dotaz, navrhne SQL strategii přes fulltext, vektory a graf, opraví chyby, vybere nejlepší cestu a až potom skládá finální odpověď.</p>
+<p class="ia-date"><time datetime="2025-03-18">18. 3. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>V první díle jsem dával dohromady základní techniky pro práci se znalostní bází v AI agentech a řešili jsme sémantické, fulltextové a hybridní vyhledávání. Abychom lépe adresovali komplexnější problémy a agregační dotazy, použili jsme v druhém díle AI pro extrakci kritických konceptů z dat, vytvořili jejich sumarizace a vše propojili do znalostního grafu. Následně jsme použili několik technik vstupu do grafu a pohybu po grafu, ale šlo o předem dané postupy, které jsem otiskl do kódu. Dnes to bude jinak - <strong>plánovat strategii bude přímo AI, bude ji exekuovat, samo vytvářet potřebná query a opravovat se</strong>, když se mu to nepovede. U problematiky filmů zůstáváme i dnes.</p>
+<aside class="ia-callout verdict"><span class="ia-callout-title">Co dnes stavíme</span>
+<p>AI nebude jen odpovídat nad předem vybranými výsledky. Necháme ji nejdřív rozmyslet cestu k datům: přeformulovat dotaz, navrhnout několik SQL strategií, spustit je, opravit chyby, vybrat nejlepší stopu a tu rozšířit.</p>
+</aside>
+<section class="ia-group" id="plan"><h2 class="ia-group-title">Od dotazu ke strategii</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Celý postup v šesti krocích</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V tomto článku zkusím implementovat následující postup:</p>
+<div class="ia-steps">
+<h3 class="ia-steps-title">Agentický RAG workflow</h3>
+<ol class="ia-steps-list">
+<li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Uživatel vznese dotaz</strong><p>začínáme normální otázkou, žádnou ruční volbou strategie.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">AI vytvoří reformulace</strong><p>zeptá se jinak, abychom měli variabilitu v textu.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">AI vytvoří query plány</strong><p>včetně SQL dotazů kombinujících fulltext, sémantické vyhledávání a pohyb po grafu.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Kód dotazy provede</strong><p>pokud některý spadne na syntaxi, chybovou zprávu pošleme zpět AI k opravě.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">AI vyhodnotí relevance</strong><p>vybere nejslibnější strategii a vyškáluje ji tak, aby vrátila víc výsledků.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">6</span><div><strong class="ia-step-title">AI složí finální odpověď</strong><p>až teď dostane posbírané podklady a formuluje odpověď uživateli.</p></div></li>
+</ol></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Přechod na Azure SQL a příprava dat</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Po uveřejnění druhého dílu seriálu mi kolega ukázal, jak lze různé formy vyhledávání dělat v Microsoft SQL, konkrétně v <strong>Azure SQL Serverless</strong>. Vyšlo najevo, že funkce tradičního hledání, fulltext hledání, vektorového hledání i pohyb po grafu je těsně integrovaná do jazyka. To z něj dělá velmi univerzální řešení, což se mi pro dnešní díl náramně hodí, protože SQL dotazy bude dnes generovat AI a chci mu to co nejvíc zjednodušit.</p>
+<p>Pro dnešní díl jsem tedy přešel na Azure SQL a definoval Node a Edge tabulky, fulltext index přes <code>CONTAINS</code>, vektorový sloupeček přes <code>vector_distance</code> a pohyb po grafu přes <code>MATCH</code> v query.</p>
+<ul>
+<li>Konkrétní postup najdete <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level3_preparation.ipynb">v mém notebooku</a>.</li>
+<li>Referenční query pro srovnání jsou v <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level3_query_reference.ipynb">tomto notebooku</a>.</li>
+</ul>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Referenční query: dobré, ale pořád hrubá síla</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V dnešním díle budeme do modelu posílat výrazně víc filmů, takže je fér udělat srovnání s jednoduchým RAG přístupem: sémantické hledání a do LLM poslat 200 nejbližších filmů. Výsledky jsou za mě velmi dobré. Nicméně je cítit, že přestože samotný seznam filmů je relevantní a poměrně úplný, odpověď nemá kontext a nadhled. Nemluví o ságách, archetypech hlavních postav, nevysvětluje tak dobře, jak konkrétně tento film zapadá do otázky uživatele.</p>
+<p>Nutno také vzít v úvahu, že datová sada je velmi malá, asi 8500 filmů, takže do LLM aktuálně posílám nějaké 2 % veškerých dat. Pokud by znalostní báze byla o několik řádů větší, tak tento přístup hrubou silou bude fungovat dramaticky hůř.</p>
+<aside class="ia-callout note"><span class="ia-callout-title">Důležitý kontext</span>
+<p>U malé datové sady bude chytřejší vyhledávání často vracet podobné konkrétní filmy jako hrubá síla. U velké datové sady ale bude mít inteligentnější strategie mnohem větší efekt.</p>
+</aside>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="reformulace"><h2 class="ia-group-title">Reformulace dotazu</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Necháme AI zeptat se víckrát jinak</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level3_query_sql.ipynb">notebooku</a> začínám tím, že uživatelský dotaz nechám přeformulovat na víc variant nebo podotázek. Jde o to, že někdy uživatel má v otázce překlepy nebo se vyjádří nejasně a vyhledávání tím pak může trpět. Navíc jiná formulace otázky může zásadním způsobem vylepšit šance na správné vyhledávání.</p>
+<p>Výborně je to vidět u <strong>Star Wars</strong> otázky, která je myslím přesně ta, kde jsme v předchozích dílech nejvíce trpěli a inteligentní RAG se tu osvědčuje.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-22-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Výstup reformulace pro Star Wars otázku</button><div class="ia-reveal-body" id="reveal-22-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-text">Question: I have seen all Star Wars movies and would like tips for something similar I can watch next.
+Generating sub-questions.
+  -&gt; Sub-question: What are some science fiction movies similar to Star Wars?
+  -&gt; Sub-question: Can you suggest movies or shows with epic space battles and adventures?
+  -&gt; Sub-question: What are some recommendations for movies with themes of rebellion against tyranny?
+  -&gt; Sub-question: Are there any film series with iconic characters and expansive universes like Star Wars?
+  -&gt; Sub-question: What are other popular franchises that mix science fiction and fantasy elements?
+</code></pre>
+</div></div></div></div>
+<p>Všimněte si, že hned několik variant konečně neobsahuje slovo Star Wars, které nám dělalo takové potíže v hledání, protože nám vracelo hlavně ty Star Wars.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-26-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Prompt pro reformulaci</button><div class="ia-reveal-body" id="reveal-26-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-markdown">Your task is to rephrase the user's question to improve retrieval accuracy in a Retrieval Augmented Generation system, following a ReSP pattern (retrieve, summarize, plan).
+
+Keep the following in mind:
+- Preserve all essential details from the original question.
+- Do not introduce new information or context.
+- Improve phrasing to be concise and clear.
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="query-planning"><h2 class="ia-group-title">Příprava query plánu</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">LLM vybírá, jestli použít vektory, fulltext nebo graf</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>To hlavní kouzlo se odehrává v přípravě query strategie přímo v LLM. Celý <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/prompts/query_strategy_sql.jinja2">prompt najdete tady</a>, ale podstatné je, že po modelu chceme, aby vymyslel jak nejlépe formulovat SQL dotazy tak, aby získal data relevantní pro uživatelský dotaz.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-34-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Zkrácená ukázka instrukcí pro query strategii</button><div class="ia-reveal-body" id="reveal-34-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-markdown">Your task is to create a query strategy for a Retrieval Augmented Generation system. The strategy should:
+
+# Instructions
+- Analyze the user query and decide whether to use semantic search, full_text search or graph search.
+- Identify one or more traits (e.g., Movie, Genre, Character, Setting, Theme, Series) to target.
+- Rewrite the user query:
+    - For keyword search, extract ONLY the essential identifying terms (names, entities, specific descriptors) from the user's question.
+    - For semantic search, rewrite the user query to semantically match articles that might be in the knowledge base.
+- Provide one, preferably two or more strategies. Make sure each strategy is distinct.
+- All SQL searches must return no more than 20 results.
+- For graph search, use the MATCH clause to find related nodes and edges.
+- For keyword search, use CONTAINS clause to find related nodes and edges.
+- Use TOP 20 in the final result to limit the number of results returned.
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Datový model musí být pro model explicitní</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Aby model negeneroval SQL naslepo, dostane jednoduchý, ale přesný kontrakt datového modelu. Má node tabulky <code>Movie</code>, <code>Character</code>, <code>Setting</code>, <code>Theme</code>, <code>Series</code> a <code>Genre</code>, všude stejné sloupce <code>Id</code>, <code>Name</code>, <code>Content</code> a <code>Embedding</code>. Edge tabulky jsou <code>IN_GENRE</code>, <code>SET_IN</code>, <code>INCLUDES_THEME</code>, <code>FEATURES_CHARACTER</code> a <code>PART_OF_SERIES</code>.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Jaké strategie tím model může skládat</h3>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Sémantika</span><span class="ia-detail-card-summary"></span></div><div class="ia-detail-content ia-prose">
+<p>Vektorové hledání přes <code>vector_distance</code>, typicky nad <code>Movie</code>, <code>Character</code>, <code>Theme</code> nebo <code>Series</code>.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Fulltext</span><span class="ia-detail-card-summary"></span></div><div class="ia-detail-content ia-prose">
+<p>Přes <code>CONTAINS</code>, ideálně s extrahovanými klíčovými slovy místo dlouhé přirozené věty.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Graf</span><span class="ia-detail-card-summary"></span></div><div class="ia-detail-content ia-prose">
+<p>Přes <code>MATCH</code>, když je potřeba jít od tématu, postavy, žánru nebo série k souvisejícím filmům.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Kombinace</span><span class="ia-detail-card-summary"></span></div><div class="ia-detail-content ia-prose">
+<p>Například fulltext zúží kandidáty a vektorové skóre je seřadí, nebo sémantika najde témata a graf dohledá filmy.</p>
+</div></article>
+</div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-54-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Příklad SQL dotazů z promptu</button><div class="ia-reveal-body" id="reveal-54-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-sql">-- Similarity search on Movie
+SELECT TOP 10 Id, Content, vector_distance('cosine', Embedding, @q) AS Similarity
+FROM [dbo].[Movie]
+WHERE Embedding IS NOT NULL AND Content IS NOT NULL
+ORDER BY Similarity ASC
+
+-- Fulltext search on Movie together with semantic search on results
+SELECT TOP 10 Id, Content, vector_distance('cosine', Embedding, @q) AS Similarity
+FROM [dbo].[Movie]
+WHERE CONTAINS (Content, '&quot;Indiana Jones&quot; AND &quot;Temple&quot;')
+ORDER BY Similarity ASC
+
+-- Semantic search on Character, graph search to find related Movie
+WITH topcharacters AS (
+    SELECT TOP 50 Id, vector_distance('cosine', Embedding, @q) AS Similarity
+    FROM [dbo].[Character]
+    WHERE Embedding IS NOT NULL AND Content IS NOT NULL
+    ORDER BY Similarity ASC
+),
+MovieMatches AS (
+    SELECT TOP 10 m.Content as Content, COUNT(c.Id) AS MatchedCharacterCount
+    FROM [dbo].[Movie] m, [dbo].[FEATURES_CHARACTER] fc, [dbo].[Character] c
+    WHERE MATCH (m-(fc)-&gt;c)
+    AND c.Id IN (SELECT Id FROM topcharacters)
+    GROUP BY m.Content
+)
+SELECT TOP 10 Content
+FROM MovieMatches
+ORDER BY MatchedCharacterCount DESC;
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Structured Outputs: aby se strategie dala spustit</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Abych to mohl dobře zpracovávat, využívám Structured Outputs, tedy předepisuji modelu strukturu odpovědi včetně popisu políček. To lze dělat Pydantic způsobem a výstupní struktura drží zprávu pro uživatele, embedding query a SQL příkaz.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-60-7" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Pydantic struktura pro query strategie</button><div class="ia-reveal-body" id="reveal-60-7" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-python">class QueryStrategy(BaseModel):
+    id: str = Field(
+        description=&quot;Unique random identifier for this strategy&quot;
+    )
+    message_to_user: str = Field(
+        description=&quot;Message to be displayed to the user, explaining the purpose of this query. Include type of each query step and its relation to other steps. Wording should be about what you are doing, example: 'Searching Movie using keyword search for Star Wars followed by graph query to get related genres and semantic movie search among results.&quot;
+    )
+    query: str = Field(
+        description=&quot;Rewrite query to better match knowledge base using semantic search. This field is used to create embedding and store as @q variable for command to use.&quot;
+    )
+    command: str = Field(
+        description=&quot;Command to be executed in the database. This should be a SQL query that can be executed directly against the database. All text-based queries should be hardcoded, just vector will be referenced as %q.&quot;
+    )
+
+class QueryStrategies(BaseModel):
+    strategies: List[QueryStrategy] = Field(
+        description=&quot;List of strategies, each containing a series of steps to be executed sequentially. Each strategy is a sequence of steps, where each step depends on the results of previous steps.&quot;
+    )
+</code></pre>
+</div></div></div></div>
+<p>Funguje to překvapivě dobře a LLM servíruje docela dobré nápady, jak se k datům dostat.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="execution"><h2 class="ia-group-title">Exekuce, opravy a škálování</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-08" data-ia-card-button><span class="ia-card-num">08</span><span class="ia-card-title">Když SQL spadne, agent ho zkusí opravit</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-08" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V následujícím kroku pošlu jednotlivé dotazy do SQL databáze, ale občas se stane, že je tam syntaktická chyba. To řeším tak, že ji vezmu a znovu zavolám LLM s žádostí o opravu a dám tomu pět pokusů, jestli se to nepovede. Většinou pokud tam nějakou chybu měl, tak při první opravě už to dá.</p>
+<p>Celý <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/prompts/fix_query.jinja2">prompt na opravu</a> si můžete prohlédnout, je v něm znovu SQL schéma a příklady, ale jeho začátek vypadá takto:</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-69-8" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Prompt pro opravu SQL</button><div class="ia-reveal-body" id="reveal-69-8" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-markdown">Your task is to fix a Microsoft SQL query that is failing with syntax errors.
+
+# Instructions
+- Analyze the query and errors
+- All SQL searches must return no more than 20 results. Use various techniques to select best ones if query matches more, eg. reorder results using semantic search (vector similarity).
+- For graph search, use the MATCH clause to find related nodes and edges. Use WITH clause to create temporary tables for intermediate results.
+- Use TOP 20 in the final result to limit the number of results returned.
+
+# Original query
+{{query}}
+
+# Error
+{{error}}
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-09" data-ia-card-button><span class="ia-card-num">09</span><span class="ia-card-title">Star Wars běh: deset strategií, několik oprav</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-09" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Zůstaňme u Star Wars otázky. Agent zkusil kombinaci přímého sémantického hledání, fulltextu, pohybu přes témata, série i postavy. Několik strategií spadlo na syntaxi, ale oprava přes LLM je dotáhla.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-75-9" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Transcript exekuce strategií</button><div class="ia-reveal-body" id="reveal-75-9" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-text">Generating query strategies.
+ -&gt; Using semantic search to find science fiction movies similar to Star Wars.
+    -&gt; Found 20 records
+ -&gt; Performing keyword search for science fiction movies and Star Wars, followed by semantic search within results.
+    -&gt; Trying to fix error in query
+    -&gt; Fixed query successful on attempt 1.
+    -&gt; Found 20 records
+ -&gt; Searching for Movies and Series using semantic search to match the theme of epic space battles and adventures.
+    -&gt; Found 20 records
+ -&gt; Searching for Movies and Series using semantic search to match the theme of epic space battles and adventures.
+    -&gt; Found 20 records
+ -&gt; Searching for themes related to rebellion against tyranny using semantic search, followed by a graph query to retrieve associated movies.
+    -&gt; Trying to fix error in query
+    -&gt; Fixed query successful on attempt 4.
+    -&gt; Found 20 records
+ -&gt; Performing a semantic search directly on movies to find content matching the theme of rebellion against tyranny.
+    -&gt; Found 20 records
+ -&gt; Performing semantic search for expansive film series with iconic characters and universes.
+    -&gt; Found 20 records
+ -&gt; Using keyword search for iconic series and characters, followed by graph search to explore related movies.
+    -&gt; Found 18 records
+ -&gt; Performing semantic search on the Series table to identify franchises blending science fiction and fantasy elements.
+    -&gt; Found 20 records
+ -&gt; Using a keyword-based search on the Theme table to find themes combining science fiction and fantasy, followed by graph search to identify related franchises.
+    -&gt; Trying to fix error in query
+    -&gt; Fixed query successful on attempt 1.
+    -&gt; Found 20 records
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-10" data-ia-card-button><span class="ia-card-num">10</span><span class="ia-card-title">Volba nejlepší strategie a její vyškálování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-10" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Poté co opravíme některé dotazy, držím si seznam exekucí: připravené a opravené strategie a výsledky, které to vrátilo. V dalším kroku požádáme AI o vyhodnocení strategií a identifikaci té, která byla nejlepší a přinesla nejužitečnější výsledky. Tuto strategii pak vyškálujeme, tedy necháme model ji vybrat a SQL dotaz přeformulovat tak, aby vracel víc výstupů, protože jde nadějným směrem.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-81-10" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Prompt pro výběr nejlepší strategie</button><div class="ia-reveal-body" id="reveal-81-10" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-markdown"># Role
+Your task is to review JSON with executions of different query strategies each identified by unique ID, assess results of each strategy and select the one that is most useful for answering the user question. Based on the selected strategy, you will tak winning SQL query and modify it capture larger set of results by increasing TOP value to 60.
+
+# Instructions
+- Review the JSON with query strategy executions and their results. JSON will be provided to you in the next user message.
+- User question will be provided to you in the last user message as a string.
+- Assess quality of results for each strategy. Consider the following:
+  - Are the results relevant to the user question?
+  - Are there any missing or incomplete results?
+  - Is the number of results appropriate?
+- Based on your assessment, select the best strategy.
+- Modify the winning SQL query to increase the TOP value to 60.
+- Provide the modified SQL query as output.
+</code></pre>
+</div></div></div></div>
+<p>Model to skutečně udělal.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-85-10" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Výsledek škálování nejlepší strategie</button><div class="ia-reveal-body" id="reveal-85-10" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-text">Selecting the best strategy based on the results.
+Expanding results of the best strategy.
+ -&gt; This query is designed to find film series that are similar to Star Wars in their blending of science fiction, fantasy, and epic storytelling. It aims to identify options for viewers seeking engaging narratives and expansive universes.
+    -&gt; Found 60 records
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="answer"><h2 class="ia-group-title">Kompilace závěrečné odpovědi</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-11" data-ia-card-button><span class="ia-card-num">11</span><span class="ia-card-title">Teprve teď skládáme odpověď pro uživatele</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-11" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Teď už je to stejné jako ve všech ostatních příkladech. LLM naservírujeme otázku a všechny posbírané podklady. Tady je výsledek pro Star Wars otázku.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-93-11" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Ukázka finální odpovědi</button><div class="ia-reveal-body" id="reveal-93-11" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-markdown">If you've watched all the &quot;Star Wars&quot; movies and are seeking something similar, here are recommendations based on themes, world-building, and narrative structures akin to the &quot;Star Wars&quot; saga:
+
+### 1. &quot;Star Trek&quot; Movie Series
+
+- Why Similar: Like &quot;Star Wars,&quot; the &quot;Star Trek&quot; series explores interstellar conflicts, diplomacy, and the moral complexities of leadership and humanity's place in the universe. It features compelling ensemble casts, advanced technology, and philosophical undertones.
+- Highlights: Iconic characters like Captain Kirk and Spock navigate moral dilemmas and thrilling adventures across the galaxy. Key films include Star Trek II: The Wrath of Khan and the 2009 reboot Star Trek, which reintroduce classic elements with modern storytelling.
+
+### 2. &quot;Battlestar Galactica&quot; Series
+
+- Why Similar: This series delves into the survival of humanity against an AI-driven race, the Cylons, blending space-based action with moral struggles and complex interpersonal dynamics. It mirrors &quot;Star Wars&quot; themes of rebellion and redemption.
+- Highlights: The movies Battlestar Galactica: Razor and Battlestar Galactica: The Plan provide deeper insights into character backstories and philosophical questions about existence and war.
+
+### 3. &quot;Guardians of the Galaxy&quot; Series
+
+- Why Similar: With its mix of humor, heartfelt character dynamics, and intergalactic adventures, &quot;Guardians of the Galaxy&quot; mirrors the camaraderie and action-packed escapades of &quot;Star Wars.&quot;
+- Highlights: The films Guardians of the Galaxy and Guardians of the Galaxy Vol. 2 focus on a ragtag group of misfits who band together to confront cosmic threats, offering both emotional depth and humor.
+
+### 4. &quot;Pacific Rim&quot; Series
+
+- Why Similar: Lush visuals, teamwork, and humanity's battle against towering alien threats resonate with the larger-than-life battles in &quot;Star Wars.&quot;
+- Highlights: Pilots join forces to control giant robots in Pacific Rim and Pacific Rim: Uprising, blending epic battles with themes of sacrifice and resilience.
+
+### 5. &quot;Dune Saga&quot;
+
+- Why Similar: &quot;Dune&quot; shares the epic scale and political intrigue of &quot;Star Wars,&quot; with a focus on power and rebellion in a world driven by mystical elements similar to the Force.
+</code></pre>
+</div></div></div></div>
+<p>Tady je podle mě vidět rozdíl: nejde jen o seznam nejbližších embeddingů. Odpověď už má oporu ve více typech signálů a umí lépe vysvětlit, proč návrhy dávají smysl.</p>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-12" data-ia-card-button><span class="ia-card-num">12</span><span class="ia-card-title">Co si z toho odnést</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-12" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Za mě je tohle hezký příklad posunu od RAG jako jednoho dotazu do vektorové databáze k RAG jako malému agentickému procesu. Důležité není jen, že máme vektory, fulltext a graf. Důležité je, že model dostane dostatečně jasný kontrakt, aby mohl sám rozhodovat, kdy kterou techniku použít.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Reformulace pomáhá</strong><p>už samotné odstranění problematického slova <code>Star Wars</code> z části podotázek zlepší šanci na relevantní retrieval.</p></div>
+<div class="ia-summary-item"><strong>SQL jako společný jazyk</strong><p>fulltext, vektory i graf v jednom dotazovacím rozhraní výrazně zjednodušují plánování.</p></div>
+<div class="ia-summary-item"><strong>Opravy chyb jsou součást workflow</strong><p>generované SQL občas spadne, ale chybová zpráva je dobrý vstup pro další LLM krok.</p></div>
+<div class="ia-summary-item"><strong>Nejlepší strategie se dá škálovat</strong><p>místo aby se rozšiřovalo všechno, rozšíříme jen stopu, která se v datech osvědčila.</p></div>
+</div>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-13" data-ia-card-button><span class="ia-card-num">13</span><span class="ia-card-title">Praktický checklist</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-13" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pokud bych to převáděl do produkčnějšího řešení, hlídal bych hlavně tyhle věci:</p>
+<div class="ia-arrow-list">
+<h3 class="ia-arrow-list-title">Checklist pro agentický RAG nad vlastními daty</h3>
+<ul>
+<li>Dejte modelu přesné schéma dat, příklady query a tvrdé limity na počet výsledků.</li>
+<li>Oddělte reformulaci dotazu, návrh strategie, exekuci, opravu a finální odpověď jako samostatné kroky.</li>
+<li>Logujte každou strategii, opravenou query i počet vrácených záznamů.</li>
+<li>Nechte model hodnotit kvalitu výsledků, ale držte si možnost auditovat, proč strategii vybral.</li>
+<li>U velkých datových sad počítejte s tím, že hrubá síla přestane fungovat a plánování retrievalu začne být zásadní.</li>
+</ul></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>RAG není jen o tom najít nejbližší chunk; u složitějších dotazů je často cennější nechat agenta nejdřív naplánovat, kudy se k datům vůbec dostat.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

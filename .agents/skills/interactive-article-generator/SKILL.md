@@ -15,6 +15,11 @@ This skill is self-contained:
 
 - `references\source-format.md` explains the Markdown-plus source format.
 - `references\design-contract.md` defines the visual and interaction contract.
+- `references\rendered-html-contract.md` lists the exact HTML markup the shared
+  CSS/JS expect for every directive, the page shell, the controls bar, and the
+  article navigation. Treat it as the binding output contract for any agent
+  that produces article HTML; deviations cause unstyled controls, broken
+  reveals/tabs/detail grids, or hidden closing takeaways.
 - `references\writing-style.md` captures Tomas's blog voice for preservation during conversion.
 - `references\caveman-compression.md` defines the compact agent-friendly output.
 - `assets\interactive-article.css` is the shared public stylesheet.
@@ -73,7 +78,7 @@ Copy public assets from this skill folder:
 - Include visible top links to `./source.md` and `./caveman.md`.
 - Include the same links in the footer.
 - Article pages should also include a generated link back to the root interactive index and a generated `Doporučeno dál` related-article block based on `interactive\article-index.json`.
-- Generated article pages should start with only the first main card expanded; later cards should be collapsed for a predictable reading start.
+- Generated article pages MUST start with ONLY the first main card expanded; every later card is collapsed regardless of any `default="open"` hint in the source. The official site generator enforces this via `normalize_article_card_defaults` and any custom renderer used for preview MUST do the same. Predictable reading start beats per-card author hints.
 - The root landing page should lead with recent articles, keep search collapsed behind a compact search control, keep theme cards collapsed by default, and use relative links for local preview.
 - Article labels stay in `interactive\article-index.json` for search and recommendations; do not show them as non-clickable pills on index cards.
 - Exclude `presenter-note` and `agent-note` content from public HTML.
@@ -85,6 +90,10 @@ All generated article HTML, including English translations, must use the same cu
 - Theme state is controlled by the first head script using `localStorage` key `interactive-article-theme` and `document.documentElement.dataset.theme`.
 - The inline variable block uses the shared `--cp-*` tokens from `references\design-contract.md`; do not emit legacy `--ia-*` variables or one-off palettes.
 - The page body uses `.ia-controls`, `.ia-page`, `.ia-header`, `.ia-links`, `.ia-card`, `.ia-card-head`, `.ia-card-num`, `.ia-card-toggle`, `data-ia-card-panel`, `.ia-card-body-clip`, and `.ia-card-content.ia-prose`.
+- The `.ia-controls` bar MUST include the three buttons with `class="ia-control"` and attributes `data-expand-all`, `data-collapse-all`, `data-theme-toggle`. Without them the dark-mode and expand/collapse-all controls disappear or render unstyled.
+- The article `.ia-links` nav MUST include, in this order: the back link to the interactive index (`../../` for CZ, `../../../` for EN), the CZ/EN language switcher, and the `source.md` / `caveman.md` links. The current language link has `aria-current="page"`.
+- The `closing` directive MUST render as a top-level `<section class="ia-closing">` AFTER the last group, never inside a card. Inside a card the final takeaway is hidden in a collapsible.
+- See `references\rendered-html-contract.md` for the exact markup for every directive, including the required wrappers for `.ia-detail-grid-items`, `.ia-summary-item`, `.ia-tab-list`, `.ia-reveal-body-clip`, etc. Renderers that skip these wrappers produce visibly broken pages.
 - Do not emit legacy or foreign shell classes such as `.ia-hero`, `.ia-hero-inner`, `.ia-main`, `.ia-group-heading`, `.ia-group-kicker`, `.ia-card-number`, or `.ia-card-badge`.
 - Do not add a visible skip link such as `Skip to content` or `.ia-skip` unless the shared stylesheet defines its hidden-until-focused behavior.
 

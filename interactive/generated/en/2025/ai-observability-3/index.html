@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<title>Deep dive into AI agent observability with Microsoft Agent Framework - tracing with open-source tools Aspire Dashboard and Langfuse</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Deep dive into AI agent observability with Microsoft Agent Framework - tracing with open-source tools Aspire Dashboard and Langfuse</h1>
+<p class="ia-subtitle">Tracing AI agents via Aspire Dashboard and Langfuse: a quick developer view, anonymization through the collector, and specialized AI observability.</p>
+<p class="ia-date"><time datetime="2025-11-27">2025-11-27</time></p>
+<nav class="ia-links" aria-label="Source files">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>In the first part we covered the basic architecture and reasons why I like to use the OpenTelemetry collector, so that last time we could focus on metrics and their use in Azure Monitor for Prometheus and Azure Managed Grafana. Today we dive into tracing, the most important discipline for AI agent observability, and we start with open-source tools: Aspire Dashboard for a quick developer view and Langfuse.</p>
+<section class="ia-group" id="open-source-tracing"><h2 class="ia-group-title">Open-source tracing for AI agents</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Aspire Dashboard: quick developer view</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>OpenTelemetry is eating the observability world and I am a huge fan. After many years of combining proprietary tools and approaches with an alternative open-source SDK zoo, OpenTelemetry arrived with an ambition to unify metrics, logs, and tracing under a single protocol, single SDK and API. There are numerous backends that provide visualizations and data persistence, but for quick developer assessments they are all cumbersome, slow, expensive, or consume too many resources. That is why the .NET team developed <strong>Aspire Dashboard</strong>, a simple solution running in a single lightweight container where you can visualize OpenTelemetry quickly and nearly in real time.</p>
+<p>Here we can see tracing from a multi-tenant Magentic-style solution in Microsoft Agent Framework.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-4-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: trace overview in Aspire</button><div class="ia-reveal-body" id="reveal-4-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-24-40.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-24-40.png" alt="Trace overview in Aspire Dashboard" loading="lazy"></a><figcaption>Trace overview in Aspire Dashboard</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Aspire: full telemetry vs. anonymized view</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>In my case I also enabled logging of individual messages and responses.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-10-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: texts and responses in a trace</button><div class="ia-reveal-body" id="reveal-10-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-26-08.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-26-08.png" alt="Texts and responses in an Aspire trace" loading="lazy"></a><figcaption>Texts and responses in an Aspire trace</figcaption></figure>
+</div></div></div></div>
+<p>I also collect custom attributes, such as session ID, logged-in user, user roles, department, and so on.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-14-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: custom attributes in spans</button><div class="ia-reveal-body" id="reveal-14-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-26-56.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-26-56.png" alt="Custom attributes in Aspire Dashboard spans" loading="lazy"></a><figcaption>Custom attributes in Aspire Dashboard spans</figcaption></figure>
+</div></div></div></div>
+<p>As you can verify in the first part of this series, my OpenTelemetry collector is configured to filter certain fields and hash others, thereby masking the original information. I have created another Aspire instance to which the OTEL collector sends filtered and anonymized information. Notice that I have no conversation content at all, the user ID is masked, but I still have the necessary technical information such as timings and token consumption.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-18-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: anonymized Aspire view</button><div class="ia-reveal-body" id="reveal-18-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-29-12.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-29-12.png" alt="Anonymized Aspire view without conversation content" loading="lazy"></a><figcaption>Anonymized Aspire view without conversation content</figcaption></figure>
+</div></div></div></div>
+<aside class="ia-callout verdict"><span class="ia-callout-title">The power of the collector</span>
+<p>That is the enormous strength - I have one stream from the agent and in the OTEL collector I fan it out to various systems: full-fidelity Aspire, anonymized Aspire, Langfuse, AI Foundry, etc.</p>
+</aside>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Aspire: detail of a tool call</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>This is what a tool call looks like.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-27-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: tool call in a trace</button><div class="ia-reveal-body" id="reveal-27-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-32-24.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-32-24.png" alt="Tool call detail in an Aspire trace" loading="lazy"></a><figcaption>Tool call detail in an Aspire trace</figcaption></figure>
+</div></div></div></div>
+<p>For quick monitoring data snapshots, Aspire Dashboard is excellent - simple, tiny, fast.</p>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Langfuse: specialized AI tracing</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Looking for a tracing tool that is open-source and specifically specialized for AI scenarios? Langfuse is very popular, but unfortunately even it is not fully open in terms of project governance (it is not under CNCF, Apache Foundation, or Linux Foundation) and is more of an MIT core. Nevertheless it is a very good solution, so let's take a look.</p>
+<p>Right from the home screen you can see that Langfuse is not only about observability but also touches on the area of evaluation, which we will cover later in this series.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-34-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshots: Langfuse opening screens</button><div class="ia-reveal-body" id="reveal-34-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-40-17.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-40-17.png" alt="Langfuse project overview" loading="lazy"></a><figcaption>Langfuse project overview</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-40-37.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-40-37.png" alt="Langfuse navigation to tracing and evaluations" loading="lazy"></a><figcaption>Langfuse navigation to tracing and evaluations</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-40-53.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-40-53.png" alt="Langfuse observability and datasets view" loading="lazy"></a><figcaption>Langfuse observability and datasets view</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Langfuse: concrete trace and token economics</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>This is what a specific trace looks like - the same as what we saw in Aspire. Graphically it is different, but in principle the basic information is the same.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-40-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: concrete trace in Langfuse</button><div class="ia-reveal-body" id="reveal-40-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-41-59.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-41-59.png" alt="Concrete trace in Langfuse" loading="lazy"></a><figcaption>Concrete trace in Langfuse</figcaption></figure>
+</div></div></div></div>
+<p>However, some things are not directly in the data but are derived - the calculation of token consumption in monetary terms is excellent.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-44-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: costs and tokens</button><div class="ia-reveal-body" id="reveal-44-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-42-40.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-42-40.png" alt="Cost and token calculation in Langfuse" loading="lazy"></a><figcaption>Cost and token calculation in Langfuse</figcaption></figure>
+</div></div></div></div>
+<p>Of course we can again nicely see the conversation itself.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-48-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshots: conversation content</button><div class="ia-reveal-body" id="reveal-48-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-43-21.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-43-21.png" alt="Conversation in a Langfuse trace" loading="lazy"></a><figcaption>Conversation in a Langfuse trace</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-43-39.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-43-39.png" alt="Message detail in a Langfuse trace" loading="lazy"></a><figcaption>Message detail in a Langfuse trace</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Langfuse: users, sessions, and evaluations</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Langfuse directly parses some well-known parameters, for example user ID. This allows it to immediately provide an overview of users and their token consumption.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-54-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: user overview</button><div class="ia-reveal-body" id="reveal-54-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-44-49.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-44-49.png" alt="User overview and token consumption" loading="lazy"></a><figcaption>User overview and token consumption</figcaption></figure>
+</div></div></div></div>
+<p>From there you can drill down and see individual traces, sessions, and so on.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-58-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshots: sessions and individual traces</button><div class="ia-reveal-body" id="reveal-58-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-45-18.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-45-18.png" alt="User detail and sessions in Langfuse" loading="lazy"></a><figcaption>User detail and sessions in Langfuse</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-45-28.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-45-28.png" alt="Individual traces in a session" loading="lazy"></a><figcaption>Individual traces in a session</figcaption></figure>
+</div></div></div></div>
+<p>Langfuse also goes into evaluations, but we will discuss that later. You can take a captured conversation, add it to some dataset, annotate it, try it in a simulator, and so on.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-62-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: dataset and evaluation</button><div class="ia-reveal-body" id="reveal-62-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../../images/2025/2025-11-27-10-47-15.png" data-ia-lightbox><img class="ia-image" src="../../../images/2025/2025-11-27-10-47-15.png" alt="Langfuse datasets and evaluation" loading="lazy"></a><figcaption>Langfuse datasets and evaluation</figcaption></figure>
+</div></div></div></div>
+<p>For me, Langfuse is the best tracing tool specifically focused on AI in the open-source category. Even though it is not fully open in terms of governance, it is my first choice when I have to stay in the self-managed world. Its evaluation capabilities we will discuss later and it has its place there too, even though projects like DeepEval are strong, albeit somewhat differently focused, competition.</p>
+<p>Today we dove into open-source options - Aspire for quick developer snapshots, Langfuse as an open-source specialized AI solution. Further alternatives lie in using non-specialized developer tools and in hosted solutions focused on AI scenarios. We will look at those next time - Azure Monitor and Azure AI Foundry.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Aspire Dashboard</strong><p>small, fast, and excellent for a developer view nearly in real time.</p></div>
+<div class="ia-summary-item"><strong>Anonymization</strong><p>the same telemetry stream can be sent via the OTEL collector once fully and once sanitized.</p></div>
+<div class="ia-summary-item"><strong>Langfuse</strong><p>specialized AI observability tool with tracing, token economics, and a link to evaluations.</p></div>
+<div class="ia-summary-item"><strong>Tool choice</strong><p>Aspire for quick troubleshooting, Langfuse as a self-managed AI tracing option.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>The next step is to look at service-based variants - Azure Monitor and Azure AI Foundry.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

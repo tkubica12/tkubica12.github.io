@@ -29,6 +29,36 @@
         "spiralni-cteni",
         "token-saving-cz"
       ]
+    },
+    {
+      "id": "rag-a-vyhledavani",
+      "title": "RAG and search",
+      "summary": "Retrieval, vector search, knowledge graphs, and strategies for getting the right data into AI answers.",
+      "featured_slugs": [
+        "rag-part1",
+        "rag-part2",
+        "rag-part3"
+      ]
+    },
+    {
+      "id": "prakticka-ai-data",
+      "title": "Practical AI over data",
+      "summary": "Concrete patterns for using AI over text, data, agents, and operational telemetry.",
+      "featured_slugs": [
+        "ai-sentiment-varianty",
+        "rag-part1",
+        "ai-observability-1"
+      ]
+    },
+    {
+      "id": "ai-observability",
+      "title": "AI observability",
+      "summary": "OpenTelemetry, metrics, logs, and tracing for AI agents in Microsoft Agent Framework.",
+      "featured_slugs": [
+        "ai-observability-1",
+        "ai-observability-2",
+        "ai-observability-3"
+      ]
     }
   ],
   "articles": [
@@ -170,6 +200,220 @@
       ],
       "source_slug": "3-cesty-k-genui",
       "translated_from_hash": "55a145f069659705920e21966ee7a600dd22307f40845d39dd33c2d88dfa00e7",
+      "translation_status": "current"
+    },
+    {
+      "slug": "coding-agents-skills",
+      "year": 2026,
+      "date": "2026-01-12",
+      "title": "New Agent Skills Standard for Your Coding Workers in GitHub Copilot",
+      "eyebrow": "Agent Skills for coding agents",
+      "subtitle": "How Agent Skills fill the space between AGENTS.md and MCP: context loaded on demand, project instructions and lightweight scripts without the full protocol overhead.",
+      "url": "/en/2026/coding-agents-skills/",
+      "summary": "A practical explanation of Agent Skills as the middle ground between AGENTS.md and MCP for coding agents.",
+      "labels": [
+        "Agent Skills",
+        "GitHub Copilot",
+        "AGENTS.md",
+        "MCP",
+        "coding agents"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani"
+      ],
+      "source_slug": "coding-agents-skills",
+      "translated_from_hash": "2B42E23FBC81AD5D1A7E56AA1FCB04C532233D9CC126A4EE474F5724FFC733AC",
+      "translation_status": "current"
+    },
+    {
+      "slug": "coding-agent-background-tasks",
+      "year": 2026,
+      "date": "2026-01-06",
+      "title": "Coding agents — parallel agent work on your tasks",
+      "eyebrow": "Parallel local agents",
+      "subtitle": "How to use GitHub Copilot CLI, git worktree and background agents in VS Code when you want to run multiple agents locally without them overwriting each other's files.",
+      "url": "/en/2026/coding-agent-background-tasks/",
+      "summary": "How to run multiple coding agents in parallel with Copilot CLI, background tasks, and git worktree.",
+      "labels": [
+        "coding agents",
+        "Copilot CLI",
+        "git worktree",
+        "VS Code",
+        "background tasks"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani"
+      ],
+      "source_slug": "coding-agent-background-tasks",
+      "translated_from_hash": "7BC13B908D660E72E0759DA4ADBBA4AA0E232399E17D2B94DD8F0F8129E84EC1",
+      "translation_status": "current"
+    },
+    {
+      "slug": "ai-observability-3",
+      "year": 2025,
+      "date": "2025-11-27",
+      "title": "Deep dive into AI agent observability with Microsoft Agent Framework - tracing with open-source tools Aspire Dashboard and Langfuse",
+      "eyebrow": "Tracing AI agents",
+      "subtitle": "Tracing AI agents via Aspire Dashboard and Langfuse: a quick developer view, anonymization through the collector, and specialized AI observability.",
+      "url": "/en/2025/ai-observability-3/",
+      "summary": "Tracing AI agents with Aspire Dashboard and Langfuse, including anonymization and specialized AI observability.",
+      "labels": [
+        "observability",
+        "tracing",
+        "Aspire Dashboard",
+        "Langfuse",
+        "OpenTelemetry"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "ai-observability-3",
+      "translated_from_hash": "9385E187CE86A52D8570C1DA6296A852935856C4C4ABE5BE993D9FAAC7426878",
+      "translation_status": "current"
+    },
+    {
+      "slug": "ai-observability-2",
+      "year": 2025,
+      "date": "2025-11-05",
+      "title": "Deep dive into observability for AI agents - metrics, logs and dashboards with Azure Monitor, Grafana and Application Insights",
+      "eyebrow": "Metrics and logs for AI agents",
+      "subtitle": "Metrics, logs, dashboards and backend choices for AI agent observability without unnecessary decoration.",
+      "url": "/en/2025/ai-observability-2/",
+      "summary": "A practical deep dive into AI agent metrics and logs with OpenTelemetry, Prometheus, and Grafana in Azure.",
+      "labels": [
+        "observability",
+        "Prometheus",
+        "Grafana",
+        "Azure Monitor",
+        "OpenTelemetry"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "ai-observability-2",
+      "translated_from_hash": "97A3E580D579985EFD3F63E6658A75C5D603BBD75376E5E87C649EFE3CB5B2FF",
+      "translation_status": "current"
+    },
+    {
+      "slug": "ai-observability-1",
+      "year": 2025,
+      "date": "2025-10-29",
+      "title": "Deep dive into AI agent observability with Microsoft Agent Framework - OpenTelemetry semantic conventions and using the OTEL collector",
+      "eyebrow": "AI observability and OpenTelemetry",
+      "subtitle": "OpenTelemetry semantic conventions, Microsoft Agent Framework, and why to put an OTEL Collector between app and backend.",
+      "url": "/en/2025/ai-observability-1/",
+      "summary": "OpenTelemetry semantic conventions for AI agents and the OTEL collector between the app and backends.",
+      "labels": [
+        "observability",
+        "OpenTelemetry",
+        "Microsoft Agent Framework",
+        "OTEL Collector",
+        "Helm"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "ai-observability-1",
+      "translated_from_hash": "E29A0858D3C2DE828D1B1AED9A6B7FE61B86ACB315DD64C9436D1BAC4A8203A1",
+      "translation_status": "current"
+    },
+    {
+      "slug": "ai-sentiment-varianty",
+      "year": 2025,
+      "date": "2025-07-08",
+      "title": "How to do simple AI text analysis? LLM, fine-tuning, BERT, or embeddings?",
+      "eyebrow": "Sentiment analysis in practice",
+      "subtitle": "Using short-text sentiment, I compare quality, cost, latency, and practicality across four approaches.",
+      "url": "/en/2025/ai-sentiment-varianty/",
+      "summary": "Comparison of four sentiment analysis paths: LLM prompting, LLM fine-tuning, BERT, and embeddings with logistic regression across quality, cost, latency, and flexibility.",
+      "labels": [
+        "AI",
+        "LLM",
+        "fine-tuning",
+        "embeddings",
+        "NLP"
+      ],
+      "themes": [
+        "prakticka-ai-data",
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "ai-sentiment-varianty",
+      "translated_from_hash": "2529476DF1D8021C6BB197EF980DCAB9416DF65D6BA146B1EE6E5F04C90B90F7",
+      "translation_status": "current"
+    },
+    {
+      "slug": "rag-part3",
+      "year": 2025,
+      "date": "2025-03-18",
+      "title": "Your own data (RAG) for your AI agent, part three - AI chooses the strategy for getting to data itself",
+      "eyebrow": "The agent chooses a data strategy",
+      "subtitle": "AI plans reformulations and SQL strategies, fixes errors, and chooses the best path to the data.",
+      "url": "/en/2025/rag-part3/",
+      "summary": "How an AI agent plans queries, reformulations, and SQL strategies for retrieval over private data.",
+      "labels": [
+        "RAG",
+        "AI agent",
+        "SQL",
+        "Azure SQL",
+        "query planning"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "rag-part3",
+      "translated_from_hash": "F208DE6FDF0494604EECFF664937C1E0BE4076CDE3058469C9A88BF273B9BD6A",
+      "translation_status": "current"
+    },
+    {
+      "slug": "rag-part2",
+      "year": 2025,
+      "date": "2025-03-12",
+      "title": "Your own data (RAG) for your AI agent, part two - knowledge graph and advanced methods",
+      "eyebrow": "RAG and knowledge graph",
+      "subtitle": "Knowledge graph, concept extraction, summarization, and breath-first/depth-first strategies without framework magic.",
+      "url": "/en/2025/rag-part2/",
+      "summary": "More advanced RAG with a knowledge graph, concept extraction, summarization, and traversal strategies.",
+      "labels": [
+        "RAG",
+        "knowledge graph",
+        "summarization",
+        "GraphRAG",
+        "AI agent"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "rag-part2",
+      "translated_from_hash": "00E57C9C6EA65F67F3DF801B11BF0C93373285107E2FCD6343169089CBF3590A",
+      "translation_status": "current"
+    },
+    {
+      "slug": "rag-part1",
+      "year": 2025,
+      "date": "2025-03-05",
+      "title": "Your own data (RAG) for your AI agent, part one - step by step with Python and PostgreSQL",
+      "eyebrow": "RAG from the basics",
+      "subtitle": "From unreliable memory through full-text and embeddings to hybrid search with re-ranking.",
+      "url": "/en/2025/rag-part1/",
+      "summary": "Step by step through full-text, embeddings, hybrid search, and re-ranking in PostgreSQL.",
+      "labels": [
+        "RAG",
+        "PostgreSQL",
+        "embeddings",
+        "hybrid search",
+        "re-ranking"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
+      ],
+      "source_slug": "rag-part1",
+      "translated_from_hash": "884DA5EB51D9FE3D41A77C026F52AA7359120635B8F19648162492F11E9D52BB",
       "translation_status": "current"
     }
   ]

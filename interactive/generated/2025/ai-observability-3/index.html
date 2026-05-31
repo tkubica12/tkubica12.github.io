@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Deep dive do observability AI agentů s Microsoft Agent Framework - tracing s open source nástroji Aspire Dashboard a Langfuse</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Deep dive do observability AI agentů s Microsoft Agent Framework - tracing s open source nástroji Aspire Dashboard a Langfuse</h1>
+<p class="ia-subtitle">Tracing AI agentů přes Aspire Dashboard a Langfuse: rychlý vývojářský pohled, anonymizace přes kolektor a specializovaná AI observability.</p>
+<p class="ia-date"><time datetime="2025-11-27">27. 11. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>V prvním díle jsme probrali základní architekturu a důvody proč rád používám OpenTelemetry kolektor, abychom se minule mohli věnovat metrikám a jejich použití v Azure Monitor for Prometheus a Azure Managed Grafana. Dnes se ponoříme do trasování, nejdůležijší disciplíny pro observabilitu AI agentů, a začneme open source nástroji: Aspire Dashboard pro rychlý vývojářský pohled a Langfuse.</p>
+<section class="ia-group" id="open-source-tracing"><h2 class="ia-group-title">Open source tracing pro AI agenty</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Aspire Dashboard: rychlý vývojářský pohled</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>OpenTelemetry požírá svět observability a já mu nesmírně fandím. Po mnoha letech kombinace proprietárních nástrojů a přístupů s alternativní zoologickou open source SDK přišlo OpenTelemetry a má ambici pod jeden protokol, jedno SDK a API, sjednotit metriky, logy i trasovaní. Existuje řada backendů, které dělají vizualizace a mají datovou perzistenci, ale pro rychlé vývojářské zhodnocení situace jsou všechny těžkopádné, pomalé a drahé nebo požírající příliš mnoho zdrojů. Proto .NET tým vyvinul <strong>Aspire Dashboard</strong>, jednoduché řešení běžící v jediné odlehčeném kontejneru, kde můžete rychle a téměř v reálném čase vizualizovat OpenTelemetry.</p>
+<p>Tady vidíme trasování z multi-tenant řešení ve stylu Magentic v Microsoft Agent Framework. </p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-4-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: přehled trace v Aspire</button><div class="ia-reveal-body" id="reveal-4-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-24-40.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-24-40.png" alt="Přehled trace v Aspire Dashboard" loading="lazy"></a><figcaption>Přehled trace v Aspire Dashboard</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Aspire: plná telemetrie vs. anonymizovaný pohled</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V mém případě jsem zapnul i logování jednotlivých textů a odpovědí.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-10-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: texty a odpovědi v trace</button><div class="ia-reveal-body" id="reveal-10-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-26-08.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-26-08.png" alt="Texty a odpovědi v Aspire trace" loading="lazy"></a><figcaption>Texty a odpovědi v Aspire trace</figcaption></figure>
+</div></div></div></div>
+<p>Sbírám i vlastní atributy, například session ID, přihlášený uživatel, role uživatele, oddělení a tak podobně.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-14-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: vlastní atributy ve spanech</button><div class="ia-reveal-body" id="reveal-14-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-26-56.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-26-56.png" alt="Vlastní atributy ve spanech Aspire Dashboardu" loading="lazy"></a><figcaption>Vlastní atributy ve spanech Aspire Dashboardu</figcaption></figure>
+</div></div></div></div>
+<p>Jak se ale můžete přesvědčit v prvním díle tohoto seriálu, můj Open Telemetry kolektor mám nastaven tak, že je schopen filtrovat některá pole a pro jiná udělat hash a tím zamaskovat původní informaci. Mám vytvořenou další instanci Aspire, do které z OTEL kolektoru posílám filtrované a anonymizované informace. Všimněte si, že obsah konverzace vůbec nemám, user ID je zamaskované, ale stále mám potřebné technické informace jako jsou časy a spotřeba tokenů.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-18-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: anonymizovaný Aspire pohled</button><div class="ia-reveal-body" id="reveal-18-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-29-12.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-29-12.png" alt="Anonymizovaný Aspire pohled bez obsahu konverzace" loading="lazy"></a><figcaption>Anonymizovaný Aspire pohled bez obsahu konverzace</figcaption></figure>
+</div></div></div></div>
+<aside class="ia-callout verdict"><span class="ia-callout-title">Síla kolektoru</span>
+<p>V tom je obrovská síla - mám jeden proud z agenta a v OTEL kolektoru ho rozposílám na různé systémy - Aspire v plné palbě, Aspire anonymizované, Langfuse, AI Foundry apod.</p>
+</aside>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Aspire: detail volání nástroje</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Takhle třeba vypadá volání nástroje.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-27-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: tool call v trace</button><div class="ia-reveal-body" id="reveal-27-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-32-24.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-32-24.png" alt="Detail volání nástroje v Aspire trace" loading="lazy"></a><figcaption>Detail volání nástroje v Aspire trace</figcaption></figure>
+</div></div></div></div>
+<p>Pro rychlé  náhledy na monitoring data je Aspire Dashboard výborný - jednoduchý, malinkatý, rychlý.</p>
+</div></div></div></article>
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Langfuse: specializovaný AI tracing</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Hledáte nástroj na trasování, který by byl open source a přímo specializovaný na AI scénáře? Langfuse je velmi populární, ale bohužel ani ten není plně otevřený co do governance projektu (není pod CNCF ani Apache Foundation ani Linux Foundation) a jde spíše o MIT core (nemáte tedy garanci, že vývoj půjde směrem vyhovujícím komunitě ani že nemůže dojít ke změně licence k méně otevřené - viz co se stalo s MongoDB, MySQL, Elastic, Redis, CentOS, Terraform apod.). Nicméně řešení je to velmi dobré a pojďme se na něj podívat.</p>
+<p>Hned z úvodní obrazovky je vidět, že Langfuse není jen observabilita, ale zasahuje i do oblasti evaluace, které se v tomto seriálu dotkneme později.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-34-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshoty: úvodní Langfuse obrazovky</button><div class="ia-reveal-body" id="reveal-34-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-40-17.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-40-17.png" alt="Langfuse přehled projektu" loading="lazy"></a><figcaption>Langfuse přehled projektu</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-40-37.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-40-37.png" alt="Langfuse navigace k tracingu a evaluacím" loading="lazy"></a><figcaption>Langfuse navigace k tracingu a evaluacím</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-40-53.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-40-53.png" alt="Langfuse pohled na observability a datasets" loading="lazy"></a><figcaption>Langfuse pohled na observability a datasets</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Langfuse: konkrétní trace a tokenová ekonomika</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Takhle vypadá konkrétní trasování - totéž, co jsme viděli u Aspire. Graficky je to jiné, ale principiálně základní informace jsou tam stejné.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-40-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: konkrétní trace v Langfuse</button><div class="ia-reveal-body" id="reveal-40-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-41-59.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-41-59.png" alt="Konkrétní trace v Langfuse" loading="lazy"></a><figcaption>Konkrétní trace v Langfuse</figcaption></figure>
+</div></div></div></div>
+<p>Nicméně některé věci už nejsou přímo v datech, ale jsou odvozené - výborná je kalkulace spotřeby tokenů v penězích.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-44-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: náklady a tokeny</button><div class="ia-reveal-body" id="reveal-44-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-42-40.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-42-40.png" alt="Kalkulace nákladů a tokenů v Langfuse" loading="lazy"></a><figcaption>Kalkulace nákladů a tokenů v Langfuse</figcaption></figure>
+</div></div></div></div>
+<p>Samozřejmě opět můžeme hezky vidět samotnou konverzaci.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-48-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshoty: obsah konverzace</button><div class="ia-reveal-body" id="reveal-48-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-43-21.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-43-21.png" alt="Konverzace v Langfuse trace" loading="lazy"></a><figcaption>Konverzace v Langfuse trace</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-43-39.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-43-39.png" alt="Detail zprávy v Langfuse trace" loading="lazy"></a><figcaption>Detail zprávy v Langfuse trace</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Langfuse: uživatelé, session a evaluace</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Langfuse napřímo parsuje některé známé parametry, například ID uživatele. Díky tomu rovnou dokáže dávat přehled uživatelů a jejich spotřeby tokenů.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-54-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: přehled uživatelů</button><div class="ia-reveal-body" id="reveal-54-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-44-49.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-44-49.png" alt="Přehled uživatelů a tokenové spotřeby" loading="lazy"></a><figcaption>Přehled uživatelů a tokenové spotřeby</figcaption></figure>
+</div></div></div></div>
+<p>To potom rozklikneme a vidíme jednotlivá trasování, session apod.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-58-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshoty: session a jednotlivé traces</button><div class="ia-reveal-body" id="reveal-58-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-45-18.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-45-18.png" alt="Detail uživatele a sessions v Langfuse" loading="lazy"></a><figcaption>Detail uživatele a sessions v Langfuse</figcaption></figure>
+
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-45-28.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-45-28.png" alt="Jednotlivé traces v session" loading="lazy"></a><figcaption>Jednotlivé traces v session</figcaption></figure>
+</div></div></div></div>
+<p>Langfuse jde i do evaluací, ale to si rozebereme později. Můžete tak zachycenou konverzaci vzít, přidat ji do nějaké datové sady, anotovat, zkoušet v simulátoru a tak podobně.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-62-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: dataset a evaluace</button><div class="ia-reveal-body" id="reveal-62-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2025/2025-11-27-10-47-15.png" data-ia-lightbox><img class="ia-image" src="../../images/2025/2025-11-27-10-47-15.png" alt="Langfuse datasets a evaluace" loading="lazy"></a><figcaption>Langfuse datasets a evaluace</figcaption></figure>
+</div></div></div></div>
+<p>Za mě je Langfuse nejlepší trasovací nástroj zaměřený specificky na AI z kategorie těch open source. Přestože není plně otevřený co do governance, je to moje první volba pokud musím zůstat v self-managed světě. Jeho evaluační schopnosti rozebereme později a má taky svoje místo, byť projekty jako je DeepEval mu jsou velkou, byť trochu jinak zaměřenou, konkurencí.</p>
+<p>Dnes jsme se tedy ponořili do open source variant - Aspire pro rychlý vývojářský náhled, Langfuse jako open source specializované řešení na AI. Další alternativy jsou v použití ne-specializovaných řešení určených pro vývojáře (univerzální systémy typu Azure Monitor Application Insights, Grafana Tempo, Dynatrace apod.) a v hostovaných řešeních zaměřených na AI scénáře. Na ty se podíváme příště - Azure Monitor a Azure AI Foundry. Co nabízí ve formě služby?</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Aspire Dashboard</strong><p>malý, rychlý a výborný pro vývojářský pohled téměř v reálném čase.</p></div>
+<div class="ia-summary-item"><strong>Anonymizace</strong><p>stejný proud telemetrie lze přes OTEL kolektor poslat jednou plně a jednou očištěně.</p></div>
+<div class="ia-summary-item"><strong>Langfuse</strong><p>specializovaný AI observability nástroj s tracingem, tokenovou ekonomikou a vazbou na evaluace.</p></div>
+<div class="ia-summary-item"><strong>Volba nástroje</strong><p>Aspire na rychlý troubleshooting, Langfuse jako self-managed AI tracing varianta.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Další krok je podívat se na službové varianty - Azure Monitor a Azure AI Foundry.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

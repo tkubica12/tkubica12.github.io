@@ -29,6 +29,36 @@
         "spiralni-cteni",
         "token-saving-cz"
       ]
+    },
+    {
+      "id": "rag-a-vyhledavani",
+      "title": "RAG a vyhledávání",
+      "summary": "Retrieval, vektorové hledání, knowledge graph a strategie, jak dostat správná data do AI odpovědi.",
+      "featured_slugs": [
+        "rag-part1",
+        "rag-part2",
+        "rag-part3"
+      ]
+    },
+    {
+      "id": "prakticka-ai-data",
+      "title": "Praktická AI nad daty",
+      "summary": "Konkrétní postupy pro AI nad texty, daty, agenty a provozní telemetrií.",
+      "featured_slugs": [
+        "ai-sentiment-varianty",
+        "rag-part1",
+        "ai-observability-1"
+      ]
+    },
+    {
+      "id": "ai-observability",
+      "title": "AI observability",
+      "summary": "OpenTelemetry, metriky, logy a tracing pro AI agenty v Microsoft Agent Frameworku.",
+      "featured_slugs": [
+        "ai-observability-1",
+        "ai-observability-2",
+        "ai-observability-3"
+      ]
     }
   ],
   "articles": [
@@ -152,6 +182,193 @@
       ],
       "themes": [
         "ai-produkt-a-byznys"
+      ]
+    },
+    {
+      "slug": "coding-agents-skills",
+      "year": 2026,
+      "date": "2026-01-12",
+      "title": "Nový standard Agent Skills pro vaše kódovací pracanty v GitHub Copilot",
+      "eyebrow": "Agent Skills pro coding agenty",
+      "subtitle": "Jak dát coding agentovi kontext a jednoduché nástroje bez toho, aby se utopil v AGENTS.md nebo aby kvůli každé drobnosti musel vznikat plnohodnotný MCP server.",
+      "url": "/2026/coding-agents-skills/",
+      "summary": "Praktické vysvětlení Agent Skills jako mezistupně mezi AGENTS.md a MCP pro kódovací agenty.",
+      "labels": [
+        "Agent Skills",
+        "GitHub Copilot",
+        "AGENTS.md",
+        "MCP",
+        "coding agents"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani"
+      ]
+    },
+    {
+      "slug": "coding-agent-background-tasks",
+      "year": 2026,
+      "date": "2026-01-06",
+      "title": "Coding agenti - paralelní práce agentů na vašich úkolech",
+      "eyebrow": "Paralelní lokální agenti",
+      "subtitle": "Jak použít GitHub Copilot CLI, git worktree a background agenty ve VS Code, když chcete lokálně rozběhnout víc agentů bez toho, aby si navzájem přepisovali soubory.",
+      "url": "/2026/coding-agent-background-tasks/",
+      "summary": "Jak rozběhnout víc coding agentů paralelně pomocí Copilot CLI, background tasks a git worktree.",
+      "labels": [
+        "coding agents",
+        "Copilot CLI",
+        "git worktree",
+        "VS Code",
+        "background tasks"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani"
+      ]
+    },
+    {
+      "slug": "ai-observability-3",
+      "year": 2025,
+      "date": "2025-11-27",
+      "title": "Deep dive do observability AI agentů s Microsoft Agent Framework - tracing s open source nástroji Aspire Dashboard a Langfuse",
+      "eyebrow": "Tracing AI agentů",
+      "subtitle": "Tracing AI agentů přes Aspire Dashboard a Langfuse: rychlý vývojářský pohled, anonymizace přes kolektor a specializovaná AI observability.",
+      "url": "/2025/ai-observability-3/",
+      "summary": "Tracing AI agentů přes Aspire Dashboard a Langfuse včetně anonymizace a specializované AI observability.",
+      "labels": [
+        "observability",
+        "tracing",
+        "Aspire Dashboard",
+        "Langfuse",
+        "OpenTelemetry"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ]
+    },
+    {
+      "slug": "ai-observability-2",
+      "year": 2025,
+      "date": "2025-11-05",
+      "title": "Deep dive do observability AI agentů s Microsoft Agent Framework - metriky a logy, konverze na managed Prometheus a Grafana v Azure",
+      "eyebrow": "Metriky a logy pro AI agenty",
+      "subtitle": "Metriky, logy, dashboardy a backendy pro observabilitu AI agentů bez zbytečného přikrášlování.",
+      "url": "/2025/ai-observability-2/",
+      "summary": "Praktický deep dive do metrik a logů AI agentů přes OpenTelemetry, Prometheus a Grafanu v Azure.",
+      "labels": [
+        "observability",
+        "Prometheus",
+        "Grafana",
+        "Azure Monitor",
+        "OpenTelemetry"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ]
+    },
+    {
+      "slug": "ai-observability-1",
+      "year": 2025,
+      "date": "2025-10-29",
+      "title": "Deep dive do observability AI agentů s Microsoft Agent Framework - OpenTelemetry semantic conventions a použití OTEL kolektoru",
+      "eyebrow": "AI observability a OpenTelemetry",
+      "subtitle": "OpenTelemetry semantic conventions, Microsoft Agent Framework a proč dát mezi aplikaci a backend OTEL Collector.",
+      "url": "/2025/ai-observability-1/",
+      "summary": "OpenTelemetry semantic conventions pro AI agenty a role OTEL kolektoru mezi aplikací a backendy.",
+      "labels": [
+        "observability",
+        "OpenTelemetry",
+        "Microsoft Agent Framework",
+        "OTEL Collector",
+        "Helm"
+      ],
+      "themes": [
+        "ai-observability",
+        "prakticka-ai-data"
+      ]
+    },
+    {
+      "slug": "ai-sentiment-varianty",
+      "year": 2025,
+      "date": "2025-07-08",
+      "title": "Jak na jednoduchou AI analýzu textu? LLM, fine-tuning, BERT nebo embeddingy?",
+      "eyebrow": "Sentiment analýza prakticky",
+      "subtitle": "Na sentimentu krátkých textů porovnávám kvalitu, cenu, latenci a praktičnost čtyř cest.",
+      "url": "/2025/ai-sentiment-varianty/",
+      "summary": "Srovnání čtyř cest pro sentiment analýzu: LLM prompt, fine-tuning LLM, BERT a embeddingy s logistickou regresí podle kvality, ceny, latence a flexibility.",
+      "labels": [
+        "AI",
+        "LLM",
+        "fine-tuning",
+        "embeddingy",
+        "NLP"
+      ],
+      "themes": [
+        "prakticka-ai-data",
+        "ai-produkt-a-byznys"
+      ]
+    },
+    {
+      "slug": "rag-part3",
+      "year": 2025,
+      "date": "2025-03-18",
+      "title": "Vlastní data (RAG) pro vašeho AI agenta část třetí - AI samo volí strategii, jak se dostat k datům",
+      "eyebrow": "Agent volí datovou strategii",
+      "subtitle": "Od hrubé síly k agentovi, který přeformuluje dotaz, navrhne SQL strategii přes fulltext, vektory a graf, opraví chyby, vybere nejlepší cestu a až potom skládá finální odpověď.",
+      "url": "/2025/rag-part3/",
+      "summary": "Ukázka, jak AI agent plánuje dotazy, reformulace a SQL strategie pro hledání ve vlastních datech.",
+      "labels": [
+        "RAG",
+        "AI agent",
+        "SQL",
+        "Azure SQL",
+        "query planning"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
+      ]
+    },
+    {
+      "slug": "rag-part2",
+      "year": 2025,
+      "date": "2025-03-12",
+      "title": "Vlastní data (RAG) pro vašeho AI agenta část druhá - graf znalostí a pokročilé metody",
+      "eyebrow": "RAG a knowledge graph",
+      "subtitle": "Knowledge graph, sumarizace konceptů a průchod grafem bez frameworkové magie. Pořád Python, PostgreSQL a filmová data.",
+      "url": "/2025/rag-part2/",
+      "summary": "Pokročilejší RAG přes knowledge graph, extrakci konceptů, sumarizace a traversal strategie.",
+      "labels": [
+        "RAG",
+        "knowledge graph",
+        "sumarizace",
+        "GraphRAG",
+        "AI agent"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
+      ]
+    },
+    {
+      "slug": "rag-part1",
+      "year": 2025,
+      "date": "2025-03-05",
+      "title": "Vlastní data (RAG) pro vašeho AI agenta část první - krok za krokem s Python a PostgreSQL",
+      "eyebrow": "RAG od základů",
+      "subtitle": "Od nepřesné paměti přes full-text a embeddingy až k hybridnímu hledání s re-rankingem.",
+      "url": "/2025/rag-part1/",
+      "summary": "Krok za krokem přes full-text, embeddingy, hybridní hledání a re-ranking v PostgreSQL.",
+      "labels": [
+        "RAG",
+        "PostgreSQL",
+        "embeddingy",
+        "hybrid search",
+        "re-ranking"
+      ],
+      "themes": [
+        "rag-a-vyhledavani",
+        "prakticka-ai-data"
       ]
     }
   ]

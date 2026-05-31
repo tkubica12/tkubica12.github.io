@@ -35,6 +35,12 @@ Keep this skill separate from `interactive-article-generator`: authoring is for 
 6. Keep research citations close to the claims they support.
 7. Use `references\quality-review.md` when reviewing facts, flow, style, links, missing areas, or typos.
 8. When Czech source content is added or materially changed, offer to regenerate the optional English machine translation under `interactive\translations\en\...`; Czech remains the source of truth.
+9. When converting legacy Jekyll posts, remove `{% raw %}` / `{% endraw %}` wrappers only after confirming their contents are inside fenced code blocks; preserve literal Helm/Liquid templates such as `{{- include "..." . }}` exactly so GitHub Pages cannot interpret them.
+10. Do not fix rendering problems by inventing a custom HTML renderer or changing shared templates. First fix the `.article.md` source so `source.md` is a faithful copy in the canonical triple-colon directive format used by existing successful articles.
+11. Before using any directive, fence attribute, or component pattern, verify it is supported by the current repo by checking this source-format reference plus an existing successful `.article.md` and its generated HTML. If the needed element is not demonstrably implemented, do not invent syntax; ask whether to implement support or approximate it with existing components.
+12. When converting a legacy article, wrap every top-level section (the parts the reader would otherwise see as `## h2`) in a `::: card` inside a `::: group`. Articles whose body uses only Markdown headings render as one giant non-collapsible page; the expandable card flow is the entire point of the format.
+13. Put the final takeaway in a `::: closing` block placed AFTER the last group, never inside the last card.
+14. The renderer always opens only the very first card in an article and collapses every other card. The `default="open"` hint in a source is documentation only and does not override this rule; never structure an article so the reader needs multiple cards open at once.
 
 ## Good interactive candidates
 

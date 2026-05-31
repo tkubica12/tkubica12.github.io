@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Jak na jednoduchou AI analýzu textu? LLM, fine-tuning, BERT nebo embeddingy?</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Jak na jednoduchou AI analýzu textu? LLM, fine-tuning, BERT nebo embeddingy?</h1>
+<p class="ia-subtitle">Na sentimentu krátkých textů porovnávám kvalitu, cenu, latenci a praktičnost čtyř cest.</p>
+<p class="ia-date"><time datetime="2025-07-08">8. 7. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>Před desetiletími byl svět práce s jazykem, tedy NLP, hlavně o specializovaných modelech pro relativně jednoduché úlohy. Byly malé, levné na provoz a člověk musel vědět, co dělá. Dneska máme velké jazykové modely, které umí následovat instrukce a často zvládnou totéž bez trénování vlastního modelu.</p>
+<p>Pojďme si to ukázat na sentimentu. Vezmu krátký příspěvek ze sociální sítě a chci ho zařadit do tří tříd: <strong>pozitivní</strong>, <strong>negativní</strong>, <strong>neutrální</strong>. Nejde mi o akademický benchmark, ale o praktickou otázku: co použít, jak dobré to bude, jak rychlé a kolik to stojí?</p>
+<aside class="ia-callout note"><span class="ia-callout-title">Data a kód</span>
+<p>Používám datovou sadu s přibližně 25 tisíci ručně označenými trénovacími příklady, 6 tisíci validačními a 5 tisíci testovacími. Všechny detaily včetně kódu na testování a trénování najdete na mém <a href="https://github.com/tkubica12/d-ai-sentiment/tree/main">GitHubu</a>.</p>
+</aside>
+<section class="ia-group" id="uvod"><h2 class="ia-group-title">Úvod do srovnání</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Čtyři varianty vedle sebe</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pro stejnou klasifikační úlohu mám čtyři praktické cesty. V dalších kartách projdu každou samostatně, ale tady je rychlý přehled toho, co budu porovnávat.</p>
+<div class="ia-tabs" data-ia-tabs><div class="ia-tab-list" role="tablist"><button class="ia-tab" id="tab-llm" role="tab" aria-selected="true" aria-controls="panel-llm" type="button">LLM bez trénování</button><button class="ia-tab" id="tab-ft" role="tab" aria-selected="false" aria-controls="panel-ft" type="button">Fine-tuned LLM</button><button class="ia-tab" id="tab-bert" role="tab" aria-selected="false" aria-controls="panel-bert" type="button">BERT encoder</button><button class="ia-tab" id="tab-emb" role="tab" aria-selected="false" aria-controls="panel-emb" type="button">Embeddingy + LR</button></div><div class="ia-tab-panel" id="panel-llm" role="tabpanel" aria-labelledby="tab-llm"><p>Modelu řeknu instrukcí, že má vrátit jednu třídu. Zkouším skoro zero-shot a few-shot s 100 nebo 1000 příklady. Nejjednodušší varianta, ale cena a latence rostou s délkou kontextu.</p>
+</div><div class="ia-tab-panel" id="panel-ft" role="tabpanel" aria-labelledby="tab-ft" hidden><p>Vezmu GPT-4.1 nano nebo mini a dotrénuji ho na 25 tisících příkladech. Pořád je to generativní model, ale už je výrazně specializovaný na naši úlohu.</p>
+</div><div class="ia-tab-panel" id="panel-bert" role="tabpanel" aria-labelledby="tab-bert" hidden><p>Klasický encoder-only transformer je na klasifikaci textu vlastně velmi přirozený. Není generativní, dívá se obousměrně na celý vstup a vrací třídu.</p>
+</div><div class="ia-tab-panel" id="panel-emb" role="tabpanel" aria-labelledby="tab-emb" hidden><p>Text převedu embedding modelem do vektoru a nad ním natrénuji obyčejnou logistickou regresi. Cloud udělá univerzální reprezentaci, lokální malý model rozhodne třídu.</p>
+</div></div>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Nejvyšší přesnost</strong><p>fine-tuned GPT-4.1-mini, 80,0 %.</p></div>
+<div class="ia-summary-item"><strong>Nejnižší cena</strong><p>embeddingy + logistická regrese, asi 0,0005 USD na 1000 vzorků.</p></div>
+<div class="ia-summary-item"><strong>Nejnižší latence</strong><p>BERT, asi 0,09 sekundy na vzorek.</p></div>
+<div class="ia-summary-item"><strong>Nejjednodušší změny</strong><p>obyčejný LLM, protože měním prompt a ne model.</p></div>
+</div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Výsledky: přesnost, cena a rychlost</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Přesnost nevypadá na první pohled ohromně. Je to ale i tím, že hranice mezi pozitivním a neutrálním sentimentem bývá neostrá. Některé příspěvky prostě člověk označí jinak než jiný člověk.</p>
+<p><strong>Kvalita klasifikace</strong></p>
+<table>
+<thead>
+<tr>
+<th>Skupina</th>
+<th style="text-align: right;">Experiment</th>
+<th>Model / přístup</th>
+<th>Strategie</th>
+<th style="text-align: right;">Accuracy</th>
+<th style="text-align: right;">Cena běhu</th>
+<th style="text-align: right;">Čas</th>
+<th style="text-align: right;">Vzorků/s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_ZEROSHOT</td>
+<td>GPT-4.1-nano</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">67,7 %</td>
+<td style="text-align: right;">$0.13</td>
+<td style="text-align: right;">3306,7 s</td>
+<td style="text-align: right;">1,56</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_FEWSHOT_100</td>
+<td>GPT-4.1-nano</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">68,6 %</td>
+<td style="text-align: right;">$1.45 (~$0.87 cached)</td>
+<td style="text-align: right;">4215,4 s</td>
+<td style="text-align: right;">1,23</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_NANO_FEWSHOT_1000</td>
+<td>GPT-4.1-nano</td>
+<td>Few-shot 1000</td>
+<td style="text-align: right;">68,4 %</td>
+<td style="text-align: right;">$13.39 (~$8.03 cached)</td>
+<td style="text-align: right;">9160,4 s</td>
+<td style="text-align: right;">0,56</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_ZEROSHOT</td>
+<td>GPT-4.1-mini</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">69,3 %</td>
+<td style="text-align: right;">$0.55</td>
+<td style="text-align: right;">3919,9 s</td>
+<td style="text-align: right;">1,38</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_FEWSHOT_100</td>
+<td>GPT-4.1-mini</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">69,4 %</td>
+<td style="text-align: right;">$5.88 (~$3.53 cached)</td>
+<td style="text-align: right;">5565,6 s</td>
+<td style="text-align: right;">0,94</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td style="text-align: right;">LLM_MINI_FEWSHOT_1000</td>
+<td>GPT-4.1-mini</td>
+<td>Few-shot 1000</td>
+<td style="text-align: right;">68,4 %</td>
+<td style="text-align: right;">$55.53 (~$33.32 cached)</td>
+<td style="text-align: right;">16084,1 s</td>
+<td style="text-align: right;">0,33</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_NANO_ZEROSHOT</td>
+<td>GPT-4.1-nano FT</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">79,0 %</td>
+<td style="text-align: right;">$0.26</td>
+<td style="text-align: right;">1907,0 s</td>
+<td style="text-align: right;">2,71</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_NANO_FEWSHOT_100</td>
+<td>GPT-4.1-nano FT</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">78,4 %</td>
+<td style="text-align: right;">$2.90 (~$1.74 cached)</td>
+<td style="text-align: right;">1940,0 s</td>
+<td style="text-align: right;">2,66</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_MINI_ZEROSHOT</td>
+<td>GPT-4.1-mini FT</td>
+<td>Zero-shot</td>
+<td style="text-align: right;">80,0 %</td>
+<td style="text-align: right;">$1.04</td>
+<td style="text-align: right;">1564,2 s</td>
+<td style="text-align: right;">3,30</td>
+</tr>
+<tr>
+<td>Fine-tuned LLM</td>
+<td style="text-align: right;">LLM_FT_MINI_FEWSHOT_100</td>
+<td>GPT-4.1-mini FT</td>
+<td>Few-shot 100</td>
+<td style="text-align: right;">79,3 %</td>
+<td style="text-align: right;">$11.58 (~$6.95 cached)</td>
+<td style="text-align: right;">1918,4 s</td>
+<td style="text-align: right;">2,69</td>
+</tr>
+<tr>
+<td>Embeddingy + ML</td>
+<td style="text-align: right;">LR_100</td>
+<td>OpenAI Embeddings + LR</td>
+<td>100 vzorků</td>
+<td style="text-align: right;">60,9 %</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">963,2 s</td>
+<td style="text-align: right;">5,40</td>
+</tr>
+<tr>
+<td>Embeddingy + ML</td>
+<td style="text-align: right;">LR_1000</td>
+<td>OpenAI Embeddings + LR</td>
+<td>1000 vzorků</td>
+<td style="text-align: right;">67,1 %</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">951,7 s</td>
+<td style="text-align: right;">5,47</td>
+</tr>
+<tr>
+<td>Embeddingy + ML</td>
+<td style="text-align: right;">LR_ALL</td>
+<td>OpenAI Embeddings + LR</td>
+<td>celá sada</td>
+<td style="text-align: right;">73,2 %</td>
+<td style="text-align: right;">$0.0025</td>
+<td style="text-align: right;">932,1 s</td>
+<td style="text-align: right;">5,58</td>
+</tr>
+<tr>
+<td>Transformer encoder</td>
+<td style="text-align: right;">BERT_SENTIMENT</td>
+<td>BERT-base FT</td>
+<td>celá sada</td>
+<td style="text-align: right;">74,5 %</td>
+<td style="text-align: right;">$0.028</td>
+<td style="text-align: right;">465,4 s</td>
+<td style="text-align: right;">11,19</td>
+</tr>
+</tbody>
+</table>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-12-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Plná měření tokenů a dokončených predikcí</button><div class="ia-reveal-body" id="reveal-12-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<table>
+<thead>
+<tr>
+<th>Experiment</th>
+<th style="text-align: right;">Dokončeno</th>
+<th style="text-align: right;">Selhalo</th>
+<th style="text-align: right;">Total tokens</th>
+<th style="text-align: right;">Input tokens</th>
+<th style="text-align: right;">Output tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99,3 %)</td>
+<td style="text-align: right;">39 (0,7 %)</td>
+<td style="text-align: right;">1 289 946</td>
+<td style="text-align: right;">1 284 780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">5165 (99,2 %)</td>
+<td style="text-align: right;">40 (0,8 %)</td>
+<td style="text-align: right;">14 470 776</td>
+<td style="text-align: right;">14 465 611</td>
+<td style="text-align: right;">5165</td>
+</tr>
+<tr>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">5166 (99,3 %)</td>
+<td style="text-align: right;">39 (0,7 %)</td>
+<td style="text-align: right;">133 890 834</td>
+<td style="text-align: right;">133 885 668</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">5076 (97,5 %)</td>
+<td style="text-align: right;">129 (2,5 %)</td>
+<td style="text-align: right;">1 351 565</td>
+<td style="text-align: right;">1 346 144</td>
+<td style="text-align: right;">5421</td>
+</tr>
+<tr>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">5140 (98,8 %)</td>
+<td style="text-align: right;">65 (1,2 %)</td>
+<td style="text-align: right;">14 688 863</td>
+<td style="text-align: right;">14 683 620</td>
+<td style="text-align: right;">5243</td>
+</tr>
+<tr>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">5088 (97,8 %)</td>
+<td style="text-align: right;">117 (2,2 %)</td>
+<td style="text-align: right;">138 814 519</td>
+<td style="text-align: right;">138 809 163</td>
+<td style="text-align: right;">5356</td>
+</tr>
+<tr>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99,3 %)</td>
+<td style="text-align: right;">39 (0,7 %)</td>
+<td style="text-align: right;">1 289 946</td>
+<td style="text-align: right;">1 284 780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">5166 (99,3 %)</td>
+<td style="text-align: right;">39 (0,7 %)</td>
+<td style="text-align: right;">14 473 578</td>
+<td style="text-align: right;">14 468 412</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">5166 (99,3 %)</td>
+<td style="text-align: right;">39 (0,7 %)</td>
+<td style="text-align: right;">1 289 946</td>
+<td style="text-align: right;">1 284 780</td>
+<td style="text-align: right;">5166</td>
+</tr>
+<tr>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">5165 (99,2 %)</td>
+<td style="text-align: right;">40 (0,8 %)</td>
+<td style="text-align: right;">14 470 685</td>
+<td style="text-align: right;">14 465 520</td>
+<td style="text-align: right;">5165</td>
+</tr>
+<tr>
+<td>LR_100</td>
+<td style="text-align: right;">5205 (100 %)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>LR_1000</td>
+<td style="text-align: right;">5205 (100 %)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>LR_ALL</td>
+<td style="text-align: right;">5205 (100 %)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">124 123</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">5205 (100 %)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">N/A</td>
+<td style="text-align: right;">N/A</td>
+<td style="text-align: right;">N/A</td>
+</tr>
+</tbody>
+</table>
+</div></div></div></div>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-15-2" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Náklady na 1000 vzorků a latence</button><div class="ia-reveal-body" id="reveal-15-2" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p><strong>Náklady na 1000 vzorků</strong></p>
+<table>
+<thead>
+<tr>
+<th>Kategorie</th>
+<th>Experiment</th>
+<th style="text-align: right;">Cena na 1000 vzorků</th>
+<th style="text-align: right;">Pořadí</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nejlevnější</td>
+<td>LR_100</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Nejlevnější</td>
+<td>LR_1000</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Nejlevnější</td>
+<td>LR_ALL</td>
+<td style="text-align: right;">$0.0005</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>Nízké</td>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">$0.025</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td>Nízké</td>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">$0.028</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>Nízké</td>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">$0.050</td>
+<td style="text-align: right;">6</td>
+</tr>
+<tr>
+<td>Nízké</td>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">$0.106</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr>
+<td>Nízké</td>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">$0.202</td>
+<td style="text-align: right;">8</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">$0.280 ($0.168 cached)</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">$0.562 ($0.337 cached)</td>
+<td style="text-align: right;">10</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">$1.130 ($0.678 cached)</td>
+<td style="text-align: right;">11</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">$2.242 ($1.345 cached)</td>
+<td style="text-align: right;">12</td>
+</tr>
+<tr>
+<td>Drahé</td>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">$2.590 ($1.554 cached)</td>
+<td style="text-align: right;">13</td>
+</tr>
+<tr>
+<td>Drahé</td>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">$10.670 ($6.402 cached)</td>
+<td style="text-align: right;">14</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Latence</strong></p>
+<table>
+<thead>
+<tr>
+<th>Kategorie</th>
+<th>Experiment</th>
+<th style="text-align: right;">Čas na vzorek</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nejrychlejší</td>
+<td>BERT_SENTIMENT</td>
+<td style="text-align: right;">0,09 s</td>
+</tr>
+<tr>
+<td>Rychlé</td>
+<td>LR_ALL</td>
+<td style="text-align: right;">0,18 s</td>
+</tr>
+<tr>
+<td>Rychlé</td>
+<td>LR_1000</td>
+<td style="text-align: right;">0,18 s</td>
+</tr>
+<tr>
+<td>Rychlé</td>
+<td>LR_100</td>
+<td style="text-align: right;">0,19 s</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_MINI_ZEROSHOT</td>
+<td style="text-align: right;">0,30 s</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">0,37 s</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_NANO_ZEROSHOT</td>
+<td style="text-align: right;">0,37 s</td>
+</tr>
+<tr>
+<td>Střední</td>
+<td>LLM_FT_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">0,38 s</td>
+</tr>
+<tr>
+<td>Pomalejší</td>
+<td>LLM_NANO_ZEROSHOT</td>
+<td style="text-align: right;">0,64 s</td>
+</tr>
+<tr>
+<td>Pomalejší</td>
+<td>LLM_MINI_ZEROSHOT</td>
+<td style="text-align: right;">0,72 s</td>
+</tr>
+<tr>
+<td>Pomalejší</td>
+<td>LLM_NANO_FEWSHOT_100</td>
+<td style="text-align: right;">0,81 s</td>
+</tr>
+<tr>
+<td>Pomalejší</td>
+<td>LLM_MINI_FEWSHOT_100</td>
+<td style="text-align: right;">1,06 s</td>
+</tr>
+<tr>
+<td>Mimo</td>
+<td>LLM_NANO_FEWSHOT_1000</td>
+<td style="text-align: right;">1,77 s</td>
+</tr>
+<tr>
+<td>Mimo</td>
+<td>LLM_MINI_FEWSHOT_1000</td>
+<td style="text-align: right;">3,00 s</td>
+</tr>
+</tbody>
+</table>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="varianty"><h2 class="ia-group-title">Čtyři varianty do hloubky</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Velký jazykový model bez trénování</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>LLM dokáže následovat instrukce, takže mu můžeme jednoduše říct: klasifikuj text a vrať jen jeden výstupní token. V mém případě číslo <code>0</code>, <code>1</code> nebo <code>2</code>. Kdybych model nechal dlouze uvažovat a vysvětlovat se, možná by byl přesnější, ale zároveň násobně dražší. Tady mě zajímá praktický provoz.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Co se u LLM ukázalo</h3>
+<p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Kvalita</span><span class="ia-detail-card-summary">Mini je o něco lepší než nano, ale žádný zázrak se nekoná.</span></div><div class="ia-detail-content ia-prose">
+<p>Few-shot se 100 příklady trochu pomůže. Few-shot s 1000 příklady už malé modely spíš mate a prodlužuje kontext tak moc, že výsledek nedává smysl.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cena</span><span class="ia-detail-card-summary">Rozhodují hlavně vstupní tokeny.</span></div><div class="ia-detail-content ia-prose">
+<p>Proto je few-shot 1000 prakticky nesmysl: dramaticky dražší a přitom horší. U few-shot scénářů může pomoct cache input tokenů, ale pravidla hry to nemění.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latence</span><span class="ia-detail-card-summary">Krátký kontext je rychlejší, nano je rychlejší.</span></div><div class="ia-detail-content ia-prose">
+<p>Sekvenční zpracování vychází zhruba od 0,64 do 1,06 sekundy na vzorek. Varianta s 1000 příklady je úplně mimo, u mini modelu tři sekundy na vzorek.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibilita</span><span class="ia-detail-card-summary">Tady LLM vyhrává.</span></div><div class="ia-detail-content ia-prose">
+<p>Bez trénování, bez pipeline, bez specializovaného modelu. Změním prompt a mám jiné chování. Jeden endpoint, jedny knihovny, jeden provozní model.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Fine-tuning velkého jazykového modelu</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tady vezmu opět mini a nano model a ukážu mu 25 000 trénovacích příkladů. Pak ho zkusím použít zero-shot i s few-shot 100 příklady.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Fine-tuned LLM v praxi</h3>
+<p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Kvalita</span><span class="ia-detail-card-summary">Nejlepší výsledek celého testu.</span></div><div class="ia-detail-content ia-prose">
+<p>Fine-tuning dramaticky pomohl. GPT-4.1-mini se dostal na 80,0 %. Zajímavé je, že few-shot už nepomáhá, spíš zhoršuje. Tipuji, že náhodně vybraných 100 příkladů není reprezentativních proti 25 000 příkladům z učení.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cena</span><span class="ia-detail-card-summary">Inferencing není celý příběh.</span></div><div class="ia-detail-content ia-prose">
+<p>Fine-tuning samotný stál 40 USD. U Azure OpenAI Service má model stejnou cenu tokenů jako běžná verze, ale platí se hosting hodinovou sazbou 1,7 USD/h. U OpenAI se hosting neúčtuje, ale tokeny jsou dražší. Někdy vyjde lépe jedno, někdy druhé.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latence</span><span class="ia-detail-card-summary">V mém měření výrazně lepší.</span></div><div class="ia-detail-content ia-prose">
+<p>Testoval jsem v Azure, kde platíte hosting. Nemá to být oficiální garance, ale naměřil jsem 2× až 3× nižší latenci než u běžné varianty.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibilita</span><span class="ia-detail-card-summary">Pořád jde trochu ohýbat promptem.</span></div><div class="ia-detail-content ia-prose">
+<p>Je to specializovaný model, ale pořád generativní. Drobné korekce instrukcí nebo příklady v kontextu fungují. Větší změny znamenají nové trénování.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Dotrénovaný transformer encoder (BERT)</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>BERT je starší, ale pro klasifikaci textu se hodí skvěle. Generativní modely jsou decoder-only a učí se predikovat další token. Encoder-only model negeneruje text, ale umí dobře zpracovat celý vstup a dát mu třídu.</p>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">BERT: starší věc, pořád silná</h3>
+<p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Kvalita</span><span class="ia-detail-card-summary">Velmi dobrá, ale fine-tuned LLM je výš.</span></div><div class="ia-detail-content ia-prose">
+<p>Jednoduchá a krátce trénovaná varianta dopadla výrazně nad neupravenými LLM a podobně jako logistická regrese nad embeddingy. Věřím, že s BERTem by se dalo ještě zapracovat.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cena</span><span class="ia-detail-card-summary">Model je zadarmiko, provoz ne.</span></div><div class="ia-detail-content ia-prose">
+<p>Potřebujeme GPU stroj. Počítal jsem dva starší NVIDIA T4 nody z Azure VM za 0,56 USD/h. Trénování běželo 500 sekund, takže skoro nic. Inferencing ale stojí compute, a tím se BERT dostává někam do vod GPT-4.1-nano.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latence</span><span class="ia-detail-card-summary">Nejlepší v testu.</span></div><div class="ia-detail-content ia-prose">
+<p>BERT běžel lokálně na Azure VM, takže neměl stejný cloudový round trip jako ostatní varianty. I kdyby místo 0,09 s vycházel 0,12 s, pořád je to výborné.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibilita</span><span class="ia-detail-card-summary">Největší slabina.</span></div><div class="ia-detail-content ia-prose">
+<p>Musíte do kódu nebo AutoML, model je jednoúčelový a promptem ho nedoladíte. Navíc vycházím z BERTu, který neumí česky, takže české a vícejazyčné scénáře budou náročnější.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Embeddingy a logistická regrese</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tohle je kombinace moderního pre-trainingu a prehistoricky jednoduché klasifikace. Embedding model převede text do latentního prostoru, zhruba 1500 dimenzí, a logistická regrese z toho udělá tři třídy.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-74-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Proč mi tahle kombinace přijde zajímavá</button><div class="ia-reveal-body" id="reveal-74-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Embeddingy samy o sobě nejsou klasifikátor. Neřeknou „pozitivní" nebo „negativní". Jsou ale univerzální reprezentací významu textu. Nad ní můžu postavit malý model, který se trénuje rychle, běží na CPU a skoro nic nestojí. Inferencing je pak cloudové získání embeddingu plus lokální výpočet klasifikace.</p>
+</div></div></div></div>
+<div class="ia-detail-grid">
+<div class="ia-detail-grid-head">
+<h3 class="ia-detail-grid-title">Embeddingy + LR</h3>
+<p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p>
+</div>
+<div class="ia-detail-grid-items">
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Kvalita</span><span class="ia-detail-card-summary">S celou sadou překvapivě dobrá.</span></div><div class="ia-detail-content ia-prose">
+<p>Při trénování na celé sadě je výsledek výrazně nad neupraveným LLM a blíží se BERTu.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Cena</span><span class="ia-detail-card-summary">Řádově nejnižší.</span></div><div class="ia-detail-content ia-prose">
+<p>Náklady na logistickou regresi jsou zanedbatelné. Rozhoduje cena embedding tokenů a ta je velmi nízká.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Latence</span><span class="ia-detail-card-summary">Velmi dobrá.</span></div><div class="ia-detail-content ia-prose">
+<p>Embeddingy se z cloudu vrací rychle a lokální LR model je hotový v mžiku.</p>
+</div></article>
+<article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Flexibilita</span><span class="ia-detail-card-summary">Jednoúčelové, ale jazykově praktické.</span></div><div class="ia-detail-content ia-prose">
+<p>Stejně jako BERT je výsledný klasifikátor fixní. Na rozdíl od BERTu ale moderní embeddingy typicky umí česky i další jazyky, což je velká praktická výhoda.</p>
+</div></article>
+</div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="zaver"><h2 class="ia-group-title">Co bych tedy vybral</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Moje praktické doporučení</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Žádná z variant není absolutní vítěz. Záleží na úloze, objemu, jazyce a tom, kolik flexibility chcete do budoucna.</p>
+<table>
+<thead>
+<tr>
+<th>Scénář</th>
+<th>Volba</th>
+<th>Proč</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jsem nerd a šetřílek</td>
+<td>LR + embeddingy</td>
+<td>Nejnižší náklady, skvělá rychlost, složitější a jednoúčelové.</td>
+</tr>
+<tr>
+<td>Chci něco univerzálního a laditelného v čase</td>
+<td>LLM</td>
+<td>Základní kvalita, vyšší cena a latence, ale extrémní jednoduchost.</td>
+</tr>
+<tr>
+<td>Chci nejlepší kvalitu a relativně snadný provoz</td>
+<td>Fine-tuned LLM</td>
+<td>Nejlepší kvalita, hostované řešení, ale specializace a vyšší náklady.</td>
+</tr>
+<tr>
+<td>Jsem nerd, nechci cloud, mluvím anglicky a mám GPU nazmar</td>
+<td>BERT fine-tuning</td>
+<td>Velmi dobrá kvalita, nízké náklady při dobrém vytížení, nejlepší latence, nejméně flexibility.</td>
+</tr>
+</tbody>
+</table>
+<div class="ia-arrow-list">
+<h3 class="ia-arrow-list-title">Moje praktická zkratka</h3>
+<ul>
+<li>Pokud úloha ještě není stabilní, začal bych obyčejným LLM a promptem.</li>
+<li>Pokud jde o velký objem a jasně definovanou třídu, vyzkoušel bych embeddingy + jednoduchý klasifikátor.</li>
+<li>Pokud honím kvalitu a chci hostovaný provoz, sáhl bych po fine-tuningu LLM.</li>
+<li>Pokud mám silný ML tým a vlastní compute, dává smysl encoder model.</li>
+</ul></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Samozřejmě, tohle je můj příklad; ve vašem to může dopadnout jinak. Důležité je nepřemýšlet jen o přesnosti, ale zároveň o ceně, latenci, provozu a budoucích změnách zadání.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

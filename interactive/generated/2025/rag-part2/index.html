@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Vlastní data (RAG) pro vašeho AI agenta část druhá - graf znalostí a pokročilé metody</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow">RAG bez magie, část 2</p>
+<h1 class="ia-title">Vlastní data (RAG) pro vašeho AI agenta část druhá - graf znalostí a pokročilé metody</h1>
+<p class="ia-subtitle">Knowledge graph, sumarizace konceptů a průchod grafem bez frameworkové magie. Pořád Python, PostgreSQL a filmová data.</p>
+<p class="ia-date"><time datetime="2025-03-12">12. 3. 2025</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>V minulém díle jsme šli bez magie do vyzkoušení technik jako je full-textové a sémantické vyhledávání, query rewriting, reranking a hybridní search, takže jsme se neschovávali za nějaký framework nebo službu a ponořili se do Pythonu a PostgreSQL. Tím jsme dokázali našeho AI agenta obohatit o cílená data a odpovídat na zvídavé filmové otázky uživatelů.</p>
+<p>Dnes budeme pokračovat pokročilejšími metodami a přestože se necháme inspirovat technikami jako je GraphRAG, uplácáme si to opět ze studijních důvodů sami.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Problém</strong><p>některé otázky nejsou o jednom dokumentu, ale o agregaci, tématech, žánrech a vztazích.</p></div>
+<div class="ia-summary-item"><strong>Nápad</strong><p>k filmům přidáme koncepty, hrany a sumarizace konceptů. Tedy malý knowledge graph.</p></div>
+<div class="ia-summary-item"><strong>Experiment</strong><p>porovnám breath-first a depth-first varianty s průchodem grafu.</p></div>
+<div class="ia-summary-item"><strong>Pointa</strong><p>pevně daný postup nestačí. Další meta-úroveň je plánování strategie přes LLM.</p></div>
+</div>
+<section class="ia-group" id="mentalni-model"><h2 class="ia-group-title">Proč tabulka přestává stačit</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Od dokumentů ke konceptům</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Minule jsme viděli, že základní přístup k RAGu je velmi úspěšný zejména u dotazů, pro jejichž zodpovězení je potřeba mít specifický detailní kontext. Typicky například dotaz na název filmu, na který si uživatel nemůže vzpomenout, ale je schopen říct o čem to bylo a přidat pár takových detailů.</p>
+<p>Nicméně jsou otázky, pro jejichž odpovězení nestačí kontext jen několika filmů, ale jsou třeba o agregacích, konceptech, žánrech, scenériích a tak podobně. Pro jejich odpovězení je tak ideální mít jednak sumarizovaný pohled a dále představu o nějakých vlastnostech, kategoriích, jejich zástupcích a vzájemných vztazích.</p>
+<p>Technicky řečeno nestačí nám tabulka, ale graf uzlů (node) a propojení podle různých vztahů (edge, hrana) s tím, že u každého konceptu (typu nodu) potřebujeme ještě sumarizaci a vysvětlení tohoto konceptu. Tedy chceme <strong>knowledge graph</strong>.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-5-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Co bude v mém grafu</button><div class="ia-reveal-body" id="reveal-5-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<ul>
+<li>uzly typu <strong>Movie</strong>,</li>
+<li>koncepty <strong>Genre</strong>, <strong>Character</strong>, <strong>Theme</strong>, <strong>Setting</strong> a <strong>Series</strong>,</li>
+<li>hrany jako <code>IN_GENRE</code>, <code>FEATURES_CHARACTER</code>, <code>INCLUDES_THEME</code>, <code>SET_IN</code>, <code>PART_OF_SERIES</code>,</li>
+<li>sumarizace konceptů vytvořené LLM nad filmy, které k nim patří.</li>
+</ul>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Inspirace GraphRAG, ale pořád bez magie</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V následující ukázce se budu volně inspirovat metodou <a href="https://microsoft.github.io/graphrag/">GraphRAG</a>, ale určitě se odchýlím, zjednoduším, abychom si to mohli postavit skutečně sami bez magie.</p>
+<p>Vycházejme z předpokladu, že u filmů máme opět jen název a popisek, nic dalšího. V realitě filmů bychom některé graph informace měli v datové sadě vytažené rovnou - herce, režiséra apod. Podobně jako v GraphRAG použijme jazykový model (LLM) k extrakci konceptů jako je prostředí, postava, žánr, téma a série.</p>
+<p>Na základě toho potom sestavíme celkový graf a pro každý tento koncept vezmeme filmy, které k němu patří a použijeme LLM k vytvoření sumarizace této vlastnosti.</p>
+<aside class="ia-callout">
+<p>Tato přípravná fáze je velmi náročná na čas a spotřebované tokeny LLM. Navíc pokud se k datům něco přidá, musí se pro ně postup spustit také. Objevují se proto i varianty, které část těch volání LLM odkládají ad-hoc až na chvíli, kdy je to potřeba - například <a href="https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/">LazyGraphRAG</a>.</p>
+</aside>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Jak se na graf ptát</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Základním konceptem je vyhledání vstupních uzlů do grafu (nody jsou filmy, žánry a podobné koncepty) a pak nějaké procházení grafu (jdeme po hranách, spojnicích), kde objevujeme další uzly a případně kombinujeme s nějakým snížením počtu nalezených uzlů přes reranking nebo sémantickou podobnost z minulého dílu.</p>
+<p>Otázka je, na jaké vstupní body se zaměřit.</p>
+<table>
+<thead>
+<tr>
+<th>Strategie</th>
+<th>Kde začnu</th>
+<th>Co tím získám</th>
+<th>Co riskuji</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Depth-first</strong></td>
+<td>konkrétní filmy</td>
+<td>detail a konkrétní příklady</td>
+<td>chybí globálnější kontext</td>
+</tr>
+<tr>
+<td><strong>Breath-first</strong></td>
+<td>koncepty a jejich sumarizace</td>
+<td>nadhled, témata, agregace</td>
+<td>méně vazby na konkrétní filmy</td>
+</tr>
+<tr>
+<td><strong>Traversal</strong></td>
+<td>pohyb po hranách</td>
+<td>propojení konceptů a filmů</td>
+<td>může explodovat počet kandidátů</td>
+</tr>
+<tr>
+<td><strong>Reranking</strong></td>
+<td>redukce kandidátů</td>
+<td>menší a relevantnější kontext</td>
+<td>pořád nemusí pochopit záměr otázky</td>
+</tr>
+</tbody>
+</table>
+<p>Tím to pro dnešek skončí, ale ještě chci připravit další díl, ve kterém budeme s využitím LLM plánovat a iterativně procházet celým procesem podobně, jako je to u metody DRIFT (Dynamic Reasoning and Inference with Flexible Traversal). Tohle, i když ve značně vylepšené a komplikovanější formě, je pod kapotou <strong>Deep Research</strong> na platformách jako je Perplexity, Google Gemini nebo ChatGPT.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="pipeline"><h2 class="ia-group-title">Jak graf postavím</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Notebooky a celý postup</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Jako minule, <strong>otevřete si prosím k článku patřičný <a href="https://github.com/tkubica12/azure-workshops/tree/main/d-ai-rag">notebook</a></strong> - odkaz na konkrétní dám do každé kapitolky.</p>
+<div class="ia-steps">
+<ol class="ia-steps-list">
+<li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Extrakce konceptů</strong><p>z popisu filmu vytáhneme žánry, postavy, témata, prostředí a série.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Uložení grafu</strong><p>v PostgreSQL přes Apache AGE založíme nody a hrany.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Sumarizace konceptů</strong><p>pro každý koncept necháme LLM shrnout, co znamená v rámci naší kolekce filmů.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Vektorizace</strong><p>filmy i koncepty dostanou embedding pro sémantické hledání.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">Dotazování</strong><p>kombinujeme semantic search, traversal a reranking.</p></div></li>
+</ol></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Extrakce konceptů</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Nejprve musíme extrahovat koncepty z popisu filmů. <strong>Tady je <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level2_step1_extract.ipynb">notebook</a></strong>.</p>
+<p>Víceméně jednoduše jdeme film po filmu s jednoduchým promptem:</p>
+<pre><code class="language-text">Extract structured information from the following movie title and overview.
+
+Title: {{title}}
+Overview: {{overview}}
+
+Please extract the following information in JSON format:
+- genres: [list of genres]
+- characters: [list of character names]
+- themes: [list of thematic elements]
+- setting: [time periods and/or locations]
+- series: [list of series or saga names]
+
+If there are no relevant details for a category, return an empty array.
+</code></pre>
+<p>doplněným o structure output, tedy o předvídatelný formát výstupu:</p>
+<pre><code class="language-python">class EnhancedMovie(BaseModel):
+    genres: List[str]
+    characters: List[str]
+    themes: List[str]
+    setting: List[str]
+    series: List[str]
+</code></pre>
+<p>Všechno naházím do JSON souborů a nakonec z něj vytvořím jeden velký. Výsledek je <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/data/movies_graph.json">tady</a>.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Uložení grafu do PostgreSQL</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>Uložení do PostgreSQL hledejte v tomto <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level2_step2_store.ipynb">notebooku</a></strong>.</p>
+<p>PostgreSQL má k dispozici speciální extension, která z klasické relační databáze udělá grafovou podporující rozšířený dotazovací jazyk cypher. Alternativou je Gremlin jazyk, ale to tato extension nepodporuje. Místo nějaké specializované databáze typu Neo4J tak můžeme použít Apache AGE, která je kompatibilní s Azure Database for PostgreSQL Flexible Server.</p>
+<p>Nejdřív pozakládáme nody typu Movie a následně nody typu Genre, Character, Theme, Setting a Series. Zatím v nich nebude víc, než jméno, například horor nebo Harry Potter. Pak přidáme jejich hrany.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-29-6" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Co mě na AGE trochu trápilo</button><div class="ia-reveal-body" id="reveal-29-6" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Trochu nepříjemné pro mě je, že cypher query se musí uzavřít do SQL query, čímž mi nefungovalo použití parametrů v psycopg2, takže jsem musel jít přes f-stringy a escapovat jednoduché uvozovky.</p>
+<p>Jak se zjistí později tahle "rozdvojenost" je nepříjemným limitem jazyka, kdy bude obtížné kombinovat sémantické vyhledávání (vyžaduje klasické PostgreSQL tabulky) s grafovým - jak uvidíte, budu to lepit v Pythonu. Což ale vzhledem k potřebě rerankingu nakonec nevadilo.</p>
+<p>Rozhodně se plánuji podívat na využití Cosmos DB a jeho schopnost vektorového hledání v kombinaci s graf dotazy, jestli to tam není lepší.</p>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Sumarizace konceptů</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>Jdeme do <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level2_step3_summarize.ipynb">notebooku pro sumarizaci</a></strong>.</p>
+<p>V dalším kroku potřebuji pro jednotlivé nalezené koncepty (Sci-Fi, 13. století, Star Wars, Praha, Rytíř, Albert Einstein) udělat sumarizaci, tedy shrnout, co to je. LLM naservíruji seznam příslušných filmů.</p>
+<p>U některých konceptů, třeba žánr drama, vyteču z kontextového okna - to jsem pro jednoduchou ukázku nechtěl řešit, tak to prostě oříznu. Ono jich zas tak moc co se nevejdou není.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-35-7" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Prompt pro sumarizaci archetypu postavy</button><div class="ia-reveal-body" id="reveal-35-7" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<pre><code class="language-text">TASK:
+Create a comprehensive summary of the &quot;{{name}}&quot; character archetype based on movies featuring this type of character. Make sure all information is based on the movies in the collection and not on external knowledge.
+
+Instructions:
+1. Define essential traits, motivations, and narrative functions of the &quot;{{name}}&quot; archetype.
+2. Provide examples of at least 5 movies prominently featuring this archetype.
+3. Describe typical audience expectations and emotional responses associated with this archetype.
+4. Highlight common narrative arcs and character development patterns involving this archetype.
+5. Explain how this archetype typically interacts with specific genres, settings, or themes.
+6. Include aggregated data from the movie collection to support your summary.
+</code></pre>
+</div></div></div></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button><span class="ia-card-num">08</span><span class="ia-card-title">Vektorizace mimo grafové properties</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-08" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p><strong>Vektorizaci uděláme v <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level2_step4_index.ipynb">notebooku</a></strong>.</p>
+<p>Tady bylo nutné vyřešit jeden zádrhel. AGE pod kapotou funguje tak, že v PostgreSQL vytvoří tabulku nodů s unikátním ID a atributem properties. Když potom u nodů uložím nějaké jejich parametry, například popis filmu nebo sumarizace konceptu, ukládá to do properties sloupečku jako JSON.</p>
+<p>Pokud bych do toho přidal embedding jako vlastnost nodu, skončí to někde uvnitř JSON a nebude možné použít pgvector pro hledání podobností. To je nepříjemný limit, který jsem vyřešil tak, že držím separátní standardní tabulky čistě pro embedding - id a vektor per film nebo koncepty.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="dotazovani"><h2 class="ia-group-title">Velké finále: ptáme se přes graf</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-09" data-ia-card-button><span class="ia-card-num">09</span><span class="ia-card-title">Sada otázek pro porovnání</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-09" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Teď přichází velké finále a jdeme odpovídat na otázky. Hledejte <strong>v tomto <a href="https://github.com/tkubica12/azure-workshops/blob/main/d-ai-rag/rag_level2_step5_query.ipynb">notebooku</a></strong>.</p>
+<p>Rozšířil jsem okruh otázek, ať je to zajímavější:</p>
+<pre><code class="language-python">questions = [
+    &quot;What movies are about Abby?&quot;,
+    &quot;I have seen all Star Wars movies and would like tips for something similar I can watch next.&quot;,
+    &quot;What is the most common genre of the movies where one of key figures is called Mark?&quot;,
+    &quot;Are there any movies where Prague takes major role and present city as mysterious and ancient?&quot;,
+    &quot;When movies about drugs are concerned, is it usually rather serious or funny?&quot;,
+    &quot;What are some movies featuring a strong female lead that also involve adventure?&quot;,
+    &quot;Which Western films feature outlaws riding to their doom in the American Southwest?&quot;
+]
+</code></pre>
+<p>Ty otázky schválně nejsou všechny stejného typu. Některé hledají konkrétní film, jiné podobnost, jiné agregaci a jiné atmosféru.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-10" data-ia-card-button><span class="ia-card-num">10</span><span class="ia-card-title">Čtyři strategie vedle sebe</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-10" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<table>
+<thead>
+<tr>
+<th>Otázka</th>
+<th>Pozorování</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abby</td>
+<td>Setrvalý stav.</td>
+</tr>
+<tr>
+<td>Star Wars</td>
+<td>Méně filmů, ale zdá se mi přesnější. Stále se nám to nedaří plně cracknout.</td>
+</tr>
+<tr>
+<td>Mark</td>
+<td>Asi lepší, globální kontext pomohl. Nicméně tady bych potřeboval asi jít a ručně to rozsoudit.</td>
+</tr>
+<tr>
+<td>Praha</td>
+<td>Zajímavá změna filmu. Pokud vím Iluzionista se odehrává ve Vídni, ale film se točil hlavně v Praze. Tady se nám do extrakce evidentně vloudila implicitní znalost LLM, které ji dělalo.</td>
+</tr>
+<tr>
+<td>Drogy</td>
+<td>Tradičně dobré, trochu více kontextu okolo.</td>
+</tr>
+<tr>
+<td>Silná žena + adventure</td>
+<td>Kupodivu spíše zhoršení, dané asi menším množstvím filmů v kroku 1.</td>
+</tr>
+<tr>
+<td>Westerny</td>
+<td>Také spíše zhoršení.</td>
+</tr>
+</tbody>
+</table>
+<div class="ia-tabs" data-ia-tabs><div class="ia-tab-list" role="tablist"><button class="ia-tab" id="tab-tab-3" role="tab" aria-selected="true" aria-controls="panel-tab-3" type="button">Breath-first</button><button class="ia-tab" id="tab-tab-3" role="tab" aria-selected="false" aria-controls="panel-tab-3" type="button">Breath-first + traversal</button><button class="ia-tab" id="tab-tab-3" role="tab" aria-selected="false" aria-controls="panel-tab-3" type="button">Depth-first</button><button class="ia-tab" id="tab-tab-3" role="tab" aria-selected="false" aria-controls="panel-tab-3" type="button">Depth-first + traversal</button></div><div class="ia-tab-panel" id="panel-tab-3" role="tabpanel" aria-labelledby="tab-tab-3"><p>Pojďme najít vstupní uzly a já to udělám přes všechny typy, tedy jak popisky filmů, tak popisky všech konceptů (Character, Genre, Theme, Series, Setting). Uděláme sémantický search na popisky, vezmeme 20 nejbližších a naservírujeme je LLM.</p>
+<table>
+<thead>
+<tr>
+<th>Otázka</th>
+<th>Pozorování</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abby</td>
+<td>S obrovskou převahou vybírá Character nody s Abby nebo podobným jménem, ale odpověď není nic moc, protože sumarizace konceptů neobsahují dost referencí na filmy.</td>
+</tr>
+<tr>
+<td>Star Wars</td>
+<td>Chytá se na Setting a Series, například Imperial Era, Clone Wars Era, Various Planets nebo Star Wars Saga. Odpověď na filmy je tentokrát velmi slušná.</td>
+</tr>
+<tr>
+<td>Mark</td>
+<td>Všechno nody typu Character, dle očekávání.</td>
+</tr>
+<tr>
+<td>Praha</td>
+<td>Vrací hlavně Setting, byť Praha tam není; možná ji LLM nevyextrahovalo jako samostatný koncept. Hodně tam jsou Evropská města a Czechoslovakia.</td>
+</tr>
+<tr>
+<td>Drogy</td>
+<td>Hodně Theme (Drug Trade, Substance Abuse) a důležité Genre (Stoner a komedie). Díky příkladům v sumarizacích je odpověď slušná.</td>
+</tr>
+<tr>
+<td>Silná žena + adventure</td>
+<td>Nachází hodně uzlů Character.</td>
+</tr>
+<tr>
+<td>Westerny z jihozápadu</td>
+<td>Logicky docela dost Setting.</td>
+</tr>
+</tbody>
+</table>
+</div><div class="ia-tab-panel" id="panel-tab-3" role="tabpanel" aria-labelledby="tab-tab-3" hidden><p>Pojďme teď udělat to důležité - přidejme k výsledkům nějaký pohyb po grafu, zejména z konceptů směrem k filmům. Pokud jich je tam víc, vybereme nejlepší přes reranking a nakonec ještě výsledek omezíme a znovu uděláme reranking.</p>
+<table>
+<thead>
+<tr>
+<th>Otázka</th>
+<th>Změna proti čistému breath-first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abby</td>
+<td>6 filmů místo 2, mnohem lepší.</td>
+</tr>
+<tr>
+<td>Star Wars</td>
+<td>Dopadl podobně; ani tento postup není tak dokonalý, jak bychom mohli chtít.</td>
+</tr>
+<tr>
+<td>Mark</td>
+<td>Prakticky stejně.</td>
+</tr>
+<tr>
+<td>Praha</td>
+<td>Spíše hůř, byť se o filmu Nesnesitelná lehkost bytí dozvídáme víc.</td>
+</tr>
+<tr>
+<td>Drogy</td>
+<td>Za mě určitě zlepšení, výsledků je víc a připadají mi přesnější.</td>
+</tr>
+<tr>
+<td>Silná žena + adventure</td>
+<td>Spíše horší.</td>
+</tr>
+<tr>
+<td>Westerny</td>
+<td>Podobné.</td>
+</tr>
+</tbody>
+</table>
+<p>Když bych to srovnal se špičkou z minulého dílu, tedy hybrid search, query rewriting a reranking, tak myslím, že pokročilejší metoda byla lepší. Ale nemůžu plně srovnávat, limitovali jsme minule počet filmů na 10.</p>
+</div><div class="ia-tab-panel" id="panel-tab-3" role="tabpanel" aria-labelledby="tab-tab-3" hidden><p>Zkusme to teď jinak. Uděláme jednoduchý sémantický search výhradně na filmy, podobně jako v minulém díle. Jasně - nemáme tu full-text část, jen sémantickou. Do LLM pošleme rovnou 30 nejlepších filmů.</p>
+<table>
+<thead>
+<tr>
+<th>Otázka</th>
+<th>Pozorování</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Abby</td>
+<td>Problém. To už jsme viděli minule, tam nás zachránil full-text.</td>
+</tr>
+<tr>
+<td>Star Wars</td>
+<td>Super, víc filmů pomohlo, přesně, jak jsme minule spekulovali.</td>
+</tr>
+<tr>
+<td>Mark</td>
+<td>Zdá se, že dost špatně, agregační dotaz a chybí globálnější kontext.</td>
+</tr>
+<tr>
+<td>Praha</td>
+<td>Celkem ok, pořád ten stejný jeden film.</td>
+</tr>
+<tr>
+<td>Drogy</td>
+<td>Výčet filmů je celkem ok, ale odpovědi chybí globálnější kontext. Nepopisuje, v čem jsou ty filmy vážné nebo vtipné, umí dát jen výčet.</td>
+</tr>
+<tr>
+<td>Silná žena + adventure</td>
+<td>Zdá se mi dobré.</td>
+</tr>
+<tr>
+<td>Westerny</td>
+<td>Dobré.</td>
+</tr>
+</tbody>
+</table>
+</div><div class="ia-tab-panel" id="panel-tab-3" role="tabpanel" aria-labelledby="tab-tab-3" hidden><p>Tady je to v kódu trochu komplikovanější, ale postup jsem zkusil tenhle:</p>
+<p>::: steps
+1. <strong>Najdu filmy</strong>: sémantické vyhledávání nad filmy, tentokrát top 20.
+2. <strong>Jdu nahoru do grafu</strong>: od vybraných filmů směrem ke konceptům, po cestě limituji počty, ať mi to nevybouchne.
+3. <strong>Vyberu opakující se koncepty</strong>: seřadím je podle četnosti, oříznu seznam a později jejich sumarizace použiji do LLM.
+4. <strong>Jdu zase dolů k filmům</strong>: od častých konceptů najdu napojené filmy a vyberu zajímavé přes reranking.
+5. <strong>Složím kontext</strong>: do LLM pošlu 20 filmů z prvního kroku, 30 konceptů z druhého kroku a 20 filmů z třetího kroku.</p>
+</div></div>
+</div></div></div></article>
+</div></section>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-11" data-ia-card-button><span class="ia-card-num">11</span><span class="ia-card-title">Co z experimentu vychází</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-11" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Cílem dnes bylo vyzkoušet si koncepty a jako demonstrace to myslím dobře poslouží. Reálné úlohy budou větší a složitější a věřím, že síla těchto postupů se v nich projeví ještě výrazněji.</p>
+<p>Pro mě je fascinující hlavně to, jak breath-first i bez jednotlivých filmů dává zajímavé výsledky a jsou kvalitativně jiné: víc porozumění tématům, ale menší znalost detailů - což je logické.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Breath-first</strong><p>dobrý pro otázky nad tématy, žánry, náladou a agregacemi.</p></div>
+<div class="ia-summary-item"><strong>Depth-first</strong><p>dobrý pro konkrétní filmové tipy a detailní odpovědi.</p></div>
+<div class="ia-summary-item"><strong>Traversal</strong><p>umí přidat souvislosti, ale někdy zhorší přesnost.</p></div>
+<div class="ia-summary-item"><strong>Největší problém</strong><p>postup máme dopředu daný a spoléháme, že sémantika a reranking všechno vyřeší.</p></div>
+</div>
+<p>Přitom víme, že právě u Star Wars tohle tragicky nefunguje - ani embedding ani reranking není dostatečně silný pro pochopení, že hledáme "jako Star Wars" a ne Star Wars.</p>
+</div></div></div></article>
+<section class="ia-group" id="co-dal"><h2 class="ia-group-title">Kam bych to posunul dál</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-12" data-ia-card-button><span class="ia-card-num">12</span><span class="ia-card-title">Ručně zvolený plán pro otázku jako Star Wars</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-12" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Jak by to vypadalo, kdybychom využili zmíněné techniky, ale na příkladu Star Wars volili postup ručně?</p>
+<div class="ia-steps">
+<ol class="ia-steps-list">
+<li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Nezačínal bych filmy</strong><p>z otázky bych usoudil, že přímo hledat filmy není optimální a začal bych koncepty - zejména Theme, Setting a Genre. Character nebo Series moc ne, to mi nenajde filmy Star Wars podobné, ale spíše stejné.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Rozpadl bych dotaz na větve</strong><p>pro každý z těchto konceptů bych možná otázku přeformuloval, aby sémantický search byl přesnější. Query rewriting by vytvořil plán tří větví.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Nechal bych LLM vybrat koncepty</strong><p>z vrácených názvů nejbližších konceptů bych se obrátil na LLM s tím, které z nich se nejlépe hodí k otázce. Tady to bude o pokročilém LLM, které pochopí, že nechceme koncepty "Star Wars", "Imperial Era" nebo "Dark Side", ale spíše "Sci-Fi", "Space", "Planets", "Galaxy" a tak podobně.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">4</span><div><strong class="ia-step-title">Procházel bych graf k filmům</strong><p>na vybraných konceptech bych začal procházet graf směrem k filmům. Po nějaké době bych se zastavil a zeptal se LLM na názor. Máme teď lepší podklady pro odpověď a můžeme hledání ukončit nebo nám pořád něco chybí?</p></div></li>
+<li class="ia-step"><span class="ia-step-num">5</span><div><strong class="ia-step-title">Dovolil bych změnu strategie</strong><p>pokud něco chybí, LLMku už na začátku představíme naše možnosti - co jak se dá vyhledávat (full-text, depth, breath, ...). Očekávám, že možná změní strategii a třeba vytvoří klíčová slova pro full-text a řekne si o něj nebo vygeneruje něco jako doplňující otázku pro sémantiku.</p></div></li>
+<li class="ia-step"><span class="ia-step-num">6</span><div><strong class="ia-step-title">Iteroval bych do limitu</strong><p>takhle to půjde tak dlouho, dokud něco nevyprší nebo dokud nebude mít LLM pocit, že už je podkladů dost a lze vytvořit odpověď.</p></div></li>
+</ol></div>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-13" data-ia-card-button><span class="ia-card-num">13</span><span class="ia-card-title">Směr: agent plánuje vlastní průchod</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-13" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Nějak takhle funguje <strong>deep research</strong> a už jsou k tomu i různé open source frameworky nebo designové návrhy, třeba DRIFT. Nicméně stejně jako minule a dnes, pokusím se jen základní myšlenky vzít a poskládat něco od nuly.</p>
+<aside class="ia-callout">
+<p>Není to o tom, že graf automaticky vyřeší RAG. Graf přidá další typ kontextu a další možnosti pohybu, ale někdo musí rozumně rozhodovat, kdy jít do detailu, kdy do nadhledu a kdy změnit plán.</p>
+</aside>
+<p>Tak zas někdy příště.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Někdy nestačí lepší similarity search; agent musí umět rozhodnout, kudy se za odpovědí vydat.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

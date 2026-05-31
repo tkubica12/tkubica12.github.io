@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Coding agenti - paralelní práce agentů na vašich úkolech</title>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<p class="ia-eyebrow"></p>
+<h1 class="ia-title">Coding agenti - paralelní práce agentů na vašich úkolech</h1>
+<p class="ia-subtitle">Jak použít GitHub Copilot CLI, git worktree a background agenty ve VS Code, když chcete lokálně rozběhnout víc agentů bez toho, aby si navzájem přepisovali soubory.</p>
+<p class="ia-date"><time datetime="2026-01-06">6. 1. 2026</time></p>
+<nav class="ia-links" aria-label="Zdrojové soubory">
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content">
+<p>S tím jak rostou schopnosti AI modelů kódovat a pracovat víc samostatně se snažím do svého workflow začlenit více paralelismu. </p>
+<p>Jsou situace, kdy chci s agentem fungovat interaktivně - sledovat co dělá, abych se jednak učil já od něj, ale současně abych zasáhl pokud se vydá špatným směrem nebo mi začne hrabat do architektury a dělat různé workaroundy místo toho, aby přišel jak správně na to. Ale jindy tohle nepotřebuji - jsou to úlohy, kde mám jasnou specifikaci nebo dostatečné zadání a stačí mi se podívat až na výsledek - třeba nějaká investigace (návrhy co zlepšit, například se často ptám jestli nemám udělat refaktoring, lépe modularizovat, abstrahovat apod.), aktualizace dokumentace, deployment skripty a předpisy (třeba manifesty do Helm chartu - u toho nemusím být, stačí mi překontrolovat výsledek), drobné úpravy, dodělání Dockerfile a ozkoušení že fungují (vyrobit image, lokálně spustit jestli se rozjedou - přes MCP nástroje nebo CLI například). </p>
+<p>V okamžiku, kdy v hlavním okně dělám něco interaktivně jsem to řešil tak, že otevřu ještě další okno GitHub Copilotu a v něm zadám něco dalšího. Jenže všichni agenti pak běží a sahají na stejné soubory, což nemusí dopadnout dobře. Proto jsem zatím tohle omezoval na investigační věci (povídání, analýza) nebo situace, kdy se jedná o úplně jiné části projektu (například adresář /src s kódem vs. třeba /specs). Čas od času použiji cloud agenta v GitHub, který jede zcela v cloudu a vytvoří Pull Request, ale pro rychlé obrátky kdy jsem na to jen já sám mi to přijde zbytečně robustní a trochu mě to zdržuje. Raději bych běžel víc agentů lokálně a na origin pushnul až výsledek svých úloh pro různé agenty. Jak na to?</p>
+<aside class="ia-callout verdict"><span class="ia-callout-title">Pointa</span>
+<p>Paralelní práce agentů dává smysl, ale nechci, aby mi všichni sahali do stejných souborů. Izolace přes worktree a background agenti jsou praktická cesta, jak to dělat lokálně a rychle.</p>
+</aside>
+<section class="ia-group" id="cli"><h2 class="ia-group-title">CLI agent</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">GitHub Copilot CLI - agent bez IDE běžící prakticky kdekoli</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V poslední době se dost mluví o AI coding agentech, kteří neběží v rámci IDE, ale jsou ve formě nějakého CLI. Je zajímavé, jak se principy interface z počítačů před šedesáti lety stále v jisté pozměněné formě drží. Já budu používat <a href="https://github.com/features/copilot/cli/">GitHub Copilot CLI</a>, ale podobně bude fungovat třeba open source projekt <a href="https://opencode.ai/">OpenCode</a>, který na backendu může mít různé lokální i cloudové modely, takže si ho můžete napojit na vaše Microsoft Foundry v Azure a využít třeba modely GPT-5.1-codex-max nebo Claude Sonnet 4.5, nebo <a href="https://developers.openai.com/codex/cli">OpenAI CODEX CLI</a> či proprietární <a href="https://claude.com/product/claude-code">Claude Code</a>.</p>
+<p>GitHub Copilot CLI má i hezké ASCII UI.</p>
+<pre><code>┌──                                                                         ──┐
+│                                                           ▄██████▄          │
+    Welcome to GitHub                                   ▄█▀▀▀▀▀██▀▀▀▀▀█▄
+    █████┐ █████┐ █████┐ ██┐██┐     █████┐ ██████┐     ▐█      ▐▌      █▌
+   ██┌───┘██┌──██┐██┌─██┐██│██│    ██┌──██┐└─██┌─┘     ▐█▄    ▄██▄    ▄█▌
+   ██│    ██│  ██│█████┌┘██│██│    ██│  ██│  ██│      ▄▄███████▀▀███████▄▄
+   ██│    ██│  ██│██┌──┘ ██│██│    ██│  ██│  ██│     ████     ▄  ▄     ████
+   └█████┐└█████┌┘██│    ██│██████┐└█████┌┘  ██│     ████     █  █     ████
+    └────┘ └────┘ └─┘    └─┘└─────┘ └────┘   └─┘     ▀███▄            ▄███▀
+│                              CLI Version 0.0.363      ▀▀████████████▀▀      │
+└──                                                                         ──┘
+ Version 0.0.363 · Commit 66416ad
+
+ Copilot can write, test and debug code right from your terminal. Describe a task to get started or enter ? for help.
+ Copilot uses AI, check for mistakes.
+
+ ● Logged in with gh as user: tkubica12
+
+ ● Connected to GitHub MCP Server
+
+ C:\git\gh-copilot-demo\src\services\toy[⎇ main]                                                claude-sonnet-4.5 (1x)
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ &gt;  Enter @ to mention files or / for commands
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Ctrl+c Exit · Ctrl+r Expand recent
+</code></pre>
+<p>Použití interaktivního režimu mi přijde zajímavé zejména v situaci, kdy jsem na nějakém vzdáleném systému a potřebuji tam pomoci řešit nějaké úlohy. Tak například na mém domácím Orange Pi (čínský "klon" Raspberry), což je malá pasivně chlazená krabička s ARM procesorem, na které mi běží Docker s pár kontejnery, můžu GitHub Copilot CLI používat.</p>
+<pre><code> Welcome to GitHub Copilot CLI
+ Version 0.0.374 · Commit 9fecd24
+
+ Copilot can write, test and debug code right from your terminal. Describe a task to get started or enter ? for help.
+ Copilot uses AI, check for mistakes.
+
+ ● Logged in as user: tkubica12
+
+ ● Connected to GitHub MCP Server
+
+ ~                                                                                              claude-sonnet-4.5 (1x)
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ &gt; Na tomhle počítači běží několik Docker kontejnerů. Zjisti jaké to jsou, analyzuj jejich logy jestli tam nejsou
+   nějaké chyby a stručně mi je popiš a posuď míru závažnosti. Také prozkoumej jak zatěžují tento systém a zda jsou
+   to aktuální verze nebo ne a pokud ne, uveď 3 nejdůležitější změny u každého kontejnerového image.
+ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Ctrl+c Exit · Ctrl+r Expand recent
+
+
+
+ ● Dobře, provedu komplexní analýzu Docker kontejnerů běžících na tomto systému.
+   Začnu zjištěním, jaké kontejnery běží, a pak provedu detailní analýzu.
+
+ ○ Zobrazit běžící Docker kontejnery
+   $ docker ps --format &quot;table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}&quot;
+   ↪ 1 line...
+
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ Zobrazit běžící Docker kontejnery:                                                                                 │
+ │                                                                                                                    │
+ │ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+ │ │ docker ps --format &quot;table {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}&quot;                            │ │
+ │ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯ │
+ │                                                                                                                    │
+ │ Do you want to run this command?                                                                                   │
+ │                                                                                                                    │
+ │ ❯ 1. Yes                                                                                                           │
+ │   2. Yes, and approve `docker` for the rest of the running session                                                 │
+ │   3. No, and tell Copilot what to do differently (Esc)                                                             │
+ │                                                                                                                    │
+ │ Confirm with number keys or ↑↓ keys and Enter, Cancel with Esc                                                     │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+</code></pre>
+<p>Nicméně tím největším lákadlem CLI verzí není zas tolik interaktivní režim nebo editace souborů (na to raději použiji VS Code a pokud vzdálený systém nemá UI tak nevadí, použiji lokální VS Code s remote SSH připojením), ale samostatné použití - spuštění s konkrétním zadáním a parametry přímo z příkazové řádky a Copilot odvede práci a ukončí se. Skvělé do skriptů, CI/CD pipeline (například vygenerování nějakého popisu změn pro zobrazení při schvalování v rámci GitHub Actions) nebo právě pro použití samostatného agenta.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="worktree"><h2 class="ia-group-title">Paralelní lokální práce</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Manuální použití vícero agentů s Git worktree</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Rád bych lokálně zadal úkoly několika agentům nad jedním repozitářem, ale tak, že si všechny agenty a všechny změny řídím sám a nepotřebuji tak dělat komplexní Pull Requesty a CI/CD pipeline pro všechny tyto změny zvlášť. Na druhou stranu jejich běh nad stejnými soubory, když mají všichni zapisovat a spouštět a testovat, tak nedopadne dobře - potřebujeme izolaci, ale stačí mi to všechno jen lokální. Git podporuje možnost vytvořit branch (samozřejmě), ale tam se přepínáte do konkrétního branch a my chceme provozovat agenty paralelně. Proto můžeme použít koncept worktree, kdy dokážeme pro každý branch vytvořit samostatný adresář a tím mít soubory lokálně izolované a pracovat na více větvích současně.</p>
+<p>Pojďme vytvořit dvě nové worktree a s nimi asociovaný nový branch - pro každého agenta jeden.</p>
+<pre><code class="language-bash">git worktree add ../gh-copilot-demo-agent1 -b agent1-task
+git worktree add ../gh-copilot-demo-agent2 -b agent2-task
+
+git worktree list
+C:/git/gh-copilot-demo         fc02290 [main]
+C:/git/gh-copilot-demo-agent1  fc02290 [agent1-task]
+C:/git/gh-copilot-demo-agent2  fc02290 [agent2-task]
+</code></pre>
+<p>V jednom terminálu zadám práci jednomu agentovi (specifikuji model, ale může toho být víc).</p>
+<pre><code class="language-bash">cd ../gh-copilot-demo-agent1
+copilot --allow-all-tools --model claude-sonnet-4.5 --prompt &quot;I have k6 perftest, but no README for it. Create README.md file explaining how to run the perftest, what scenarios it covers, and how to interpret results.&quot;
+git add -A
+git commit -m &quot;Agent 1 commit&quot;
+</code></pre>
+<p>A v druhém paralelně pojede ten druhý.</p>
+<pre><code class="language-bash">cd ../gh-copilot-demo-agent2
+copilot --allow-all-tools --model claude-sonnet-4.5 --prompt &quot;Some of Python services are using pip and requirements.txt. I want to migrate everything to uv as package manager. Make sure to migrate to toml files, remove requirements.txt and change Dockerfile and READMEs accordingly. Test your able to sync uv and that Dockerfile builds without errors.&quot;
+git add -A
+git commit -m &quot;Agent 2 commit&quot;
+</code></pre>
+<p>Teď můžeme obě změny projít, otestovat a tak podobně - každou samu za sebe. Pokud jsem spokojen, mohu změny lokální zamergovat do své hlavní větve a celé worktree a branche vymazat - teprve pak to celé poslat na origin do GitHubu (nebo tam vytvořit Pull Request na to celé - kompletní sadu změn).</p>
+<pre><code class="language-bash">git merge agent1-task
+git merge agent2-task
+git worktree remove ../gh-copilot-demo-agent1
+git worktree remove ../gh-copilot-demo-agent2
+git branch -D agent1-task agent2-task
+</code></pre>
+<pre><code>git log --graph --oneline --all
+*   71e7342 (HEAD -&gt; main) Merge branch 'agent2-task'
+|\
+| * 4d53ba3 Agent 2 commit
+* | fdf038c Agent 1 commit
+|/
+</code></pre>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="vscode"><h2 class="ia-group-title">Background agent ve VS Code</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Agent HQ: založení background agenta</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Přímo ve Visual Studio Code můžu kromě interaktivní práce s agentem zvolit nového background agenta.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-17-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: volba background agenta</button><div class="ia-reveal-body" id="reveal-17-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-39-38.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-39-38.png" alt="Volba background agenta ve VS Code" loading="lazy"></a><figcaption>Volba background agenta ve VS Code</figcaption></figure>
+</div></div></div></div>
+<p>GitHub Copilot mi přímo nabízí izolaci přes worktree - tedy to co jsme dělali ručně pro mě zautomatizuje.</p>
+<p>Poznámka: background agent ve VS Code je v praxi session Copilot CLI. To znamená, že má k dispozici nástroje a MCP servery dostupné/konfigurované pro CLI (typicky jiný seznam než MCP servery, které máte v samotném VS Code) a současně nemá přístup k VS Code extension toolům.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-21-3" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: automaticky vytvořené worktree</button><div class="ia-reveal-body" id="reveal-21-3" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-41-05.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-41-05.png" alt="Automaticky vytvořené worktree pro background agenta" loading="lazy"></a><figcaption>Automaticky vytvořené worktree pro background agenta</figcaption></figure>
+</div></div></div></div>
+<pre><code class="language-bash">git worktree list
+C:/git/gh-copilot-demo                                         fc02290 [main]
+C:/git/gh-copilot-demo.worktrees/worktree-2026-01-06T06-41-14  fc02290 [worktree-2026-01-06T06-41-14]
+</code></pre>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Sledování, přepínání a handoff agentů</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Práci jednotlivých běžících agentů pak můžu sledovat a různě mezi nimi přepínat.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-28-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: seznam běžících agentů</button><div class="ia-reveal-body" id="reveal-28-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-42-19.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-42-19.png" alt="Seznam běžících background agentů" loading="lazy"></a><figcaption>Seznam běžících background agentů</figcaption></figure>
+</div></div></div></div>
+<p>Skvělé je, že můžeme provádět handoff, tedy předávat práci mezi agenty. Tak například můžu mít interaktivní diskusi jak něco implementovat nebo vylepšit a v okamžiku, kdy už z mé strany necítím potřebu u toho dál být, předám to do background agenta. </p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-32-4" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: handoff do background agenta</button><div class="ia-reveal-body" id="reveal-32-4" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-47-54.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-47-54.png" alt="Předání práce z interaktivní konverzace do background agenta" loading="lazy"></a><figcaption>Předání práce z interaktivní konverzace do background agenta</figcaption></figure>
+</div></div></div></div>
+<p>Zavolat background agenta lze taky přímo z promptu přes zavináč.</p>
+<pre><code>@cli I have k6 perftest, but no README for it. Create README.md file explaining how to run the perftest, what scenarios it covers, and how to interpret results.
+</code></pre>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Přijetí změn zpět do hlavního workspace</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Stav každého agenta si můžu snadno zobrazit a vidět co dělá, co píše a jaké změny navrhuje. Jednoduše můžu rozhodnout jaké změny přijmu - tedy mám UI pro automatizaci mergování do větve, ve které je můj VS Code workspace. Mám tedy klasické tlačítko Keep/Undo (v rámci session mi jen ukazuje co se v interakci změnilo v souborech a já můžu snadno udělat undo aniž bych musel řešit nějaké commity a jejich reverty) a také tlačítko "Aplikovat do hlavního workspace".</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-39-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: Keep/Undo a aplikování změn</button><div class="ia-reveal-body" id="reveal-39-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-55-57.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-55-57.png" alt="UI pro přijetí nebo vrácení změn background agenta" loading="lazy"></a><figcaption>UI pro přijetí nebo vrácení změn background agenta</figcaption></figure>
+</div></div></div></div>
+<p>Jakmile dám aplikovat, uvidím tuto změnu přímo ve svém hlavním workspace, tedy ve větvi, ve kterém mám VS Code otevřený. </p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-43-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: změna po aplikování</button><div class="ia-reveal-body" id="reveal-43-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-58-18.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-58-18.png" alt="Změna promítnutá do hlavního VS Code workspace" loading="lazy"></a><figcaption>Změna promítnutá do hlavního VS Code workspace</figcaption></figure>
+</div></div></div></div>
+<p>V seznamu agentů vidím u koho mám nepřečtené zprávy, kolik je tam změn a můžu se rozhodnout co s tím dál.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-47-5" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">›</span>Screenshot: stav agentů a nepřečtené zprávy</button><div class="ia-reveal-body" id="reveal-47-5" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<figure class="ia-figure"><a href="../../images/2026/2026-01-06-07-59-49.png" data-ia-lightbox><img class="ia-image" src="../../images/2026/2026-01-06-07-59-49.png" alt="Stav agentů, nepřečtené zprávy a počet změn" loading="lazy"></a><figcaption>Stav agentů, nepřečtené zprávy a počet změn</figcaption></figure>
+</div></div></div></div>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="volba"><h2 class="ia-group-title">Kdy použít co</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Moje rozhodovací mapa: kdy použít co</span><span class="ia-card-toggle" aria-hidden="true">▾</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Kdy co používám? Takhle si to v praxi rozděluji.</p>
+<div class="ia-tabs" data-ia-tabs><div class="ia-tab-list" role="tablist"><button class="ia-tab" id="tab-interactive-agent" role="tab" aria-selected="true" aria-controls="panel-interactive-agent" type="button">Interaktivní lokální agent</button><button class="ia-tab" id="tab-background-agent" role="tab" aria-selected="false" aria-controls="panel-background-agent" type="button">Background agent ve VS Code</button><button class="ia-tab" id="tab-cloud-agent" role="tab" aria-selected="false" aria-controls="panel-cloud-agent" type="button">Cloud agent v GitHub.com</button></div><div class="ia-tab-panel" id="panel-interactive-agent" role="tabpanel" aria-labelledby="tab-interactive-agent"><ul>
+<li>Potřebuji interakci, chci předkládat názory, možnost, já si vybírám a směřuji konverzaci</li>
+<li>Chci sledovat jak Copilot moje zadání zpracovává, protože mě zajímá jak se to dělá nebo ho potřebuji kontrolovat, aby nesešel z cesty a nezačal dělat něco, co jsem nechtěl</li>
+<li>Úkol je krátký a počkat na něj mě nezdrží dlouho - přepínání myšlenek do backgroundu a zpět je na půl minuty nevýhodné</li>
+<li>Potřebuji sice paralelní běh, ale všechno je jen v režimu čtení - například vedu paralelní diskusi nad dalším krokem nebo architekturou a na to mi stačí nové okno</li>
+</ul>
+</div><div class="ia-tab-panel" id="panel-background-agent" role="tabpanel" aria-labelledby="tab-background-agent" hidden><ul>
+<li>Už vím co chci, mám specifikaci nebo dobrý prompt a věřím, že tenhle úkol model dobře zvládne (už jsme to dělali, vím, že tohle dopadá dobře).</li>
+<li>Potřebuji vyzkoušet různé varianty řešení nebo vyzkoušet různé modely, nepostupuji lineárně - například mě napadají 3 způsoby jak to řešit a nevím jestli bude lepší to udělat v GPT-5.2 nebo Sonnetu 4.5, není problém to pozadávat background agentům a až to budou mít hotové vybrat co vedlo na nejlepší výsledek.</li>
+<li>Zásadní pro tento scénář je, že úlohy jsou všechny moje a sám si je vyhodnotím a pro "projekt", tedy ostatní členy týmu, je předložím až najednou. Beru to tedy jako jakési rychloobrátkové řešení pro mě a teprve jeho kompilací vznikne ten Pull Request, který si projede plným schvalovacím a testovacím kolečkem.</li>
+</ul>
+</div><div class="ia-tab-panel" id="panel-cloud-agent" role="tabpanel" aria-labelledby="tab-cloud-agent" hidden><ul>
+<li>Pro mě hlavně pro situace, kdy potřebuji nemít spuštěný počítač - chci to odstartovat třeba z mobilu a podívám se na výsledky později, zejména, pokud už je k tomu založeno Issue. </li>
+<li>To hlavní ale je robustní auditovatelné řešení v rámci spolupráce mnoha lidí a agentů, kdy navrhované změny prochází různí členové týmu nebo AI agenti (třeba bezpečnostní), ke každému kroku je potřeba robustního testování apod. Pak použití cloud agenta, který vyrobí plnohodnotné PR je správný a udržitelný postup. </li>
+</ul>
+</div></div>
+<p>Do toho všeho ale ještě samozřejmě promlouvají nástroje a dnes už ne jen MCP, ale i Skills (které ale lze použít i na efektivnější správu kontextu) - na to mrkneme hned příště. No a také ve VS Code existuje koncept Custom Agent, i na ten se podíváme - jak lze agenty customizovat a připravit si nějaké specializovanější.</p>
+<div class="ia-summary-grid">
+<div class="ia-summary-item"><strong>Interaktivní agent</strong><p>když se chci učit, kontrolovat směr nebo diskutovat architekturu.</p></div>
+<div class="ia-summary-item"><strong>Background agent</strong><p>když mám jasné zadání, chci paralelní varianty a výsledek si lokálně vyhodnotím.</p></div>
+<div class="ia-summary-item"><strong>Cloud agent</strong><p>když potřebuji auditovatelný PR proces, spolupráci týmu nebo práci bez běžícího počítače.</p></div>
+<div class="ia-summary-item"><strong>Worktree</strong><p>základní lokální izolace, aby agenti nebojovali o stejné soubory.</p></div>
+</div>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Za mě je dobrý agentický workflow mix: interaktivně tam, kde se rozhoduje, background tam, kde už je zadání jasné, a cloud tam, kde má vzniknout týmově auditovatelný PR.</p>
+</div></section>
+
+</main>
+<footer class="ia-footer">
+<p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>
