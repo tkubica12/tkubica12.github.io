@@ -19,6 +19,7 @@ slug: slug
 date: 2026-05-29
 language: cs-CZ
 status: experimental
+published: true
 canonical_url: "/YYYY/slug/"
 agent_friendly:
   source: "source.md"
@@ -27,6 +28,10 @@ agent_friendly:
 ```
 
 The `date` is not only internal metadata. The generator shows it in the article header, so keep it accurate when creating or converting articles.
+
+`published` controls whether the source participates in the public site. Omit it or set `published: true` for published articles. Use `published: false` for drafts; draft sources may live in `interactive\source`, but they must not be added to `interactive\article-index.json` and are excluded from landing page, search, RSS, `llms.txt`, and normal `_site` article output. For local styled preview of a draft, keep a generated snapshot under `interactive\generated\YYYY\slug\` and run `python tools\generate_interactive_site.py --preview-drafts`; normal generator runs remove draft pages from `_site` again.
+
+During iterative drafting Tomas may use standalone `<...>` blocks for instructions to the assistant. Treat those as private authoring notes, not public article text. Do not strip or reinterpret angle brackets inside code fences, HTML snippets, generic type examples, or normal inline prose unless the note is clearly a standalone instruction block.
 
 Prefer normal Markdown for prose, headings, lists, tables, links, code, blockquotes, and images. Screenshots can stay as normal Markdown images in source; the generator renders them as linked figures that use the shared in-page lightbox with zoom, panning, wheel zoom, and pinch zoom.
 

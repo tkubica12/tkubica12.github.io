@@ -63,6 +63,27 @@
   ],
   "articles": [
     {
+      "slug": "foundry-toolbox-search",
+      "year": 2026,
+      "date": "2026-06-09",
+      "title": "Levnější a rychlejší agenti s progressive disclosure MCP přes Foundry Toolbox Search",
+      "eyebrow": "Tool Search, auto-pin a méně input tokenů",
+      "subtitle": "Foundry Toolbox sjednotí mnoho MCP serverů do jednoho endpointu. Tool Search k tomu přidává progressive disclosure: agent vidí nejdřív jen minimum nástrojů a plné definice si najde až ve chvíli, kdy je opravdu potřebuje.",
+      "url": "/2026/foundry-toolbox-search/",
+      "summary": "Praktická ukázka, jak Foundry Toolbox Tool Search snižuje input tokeny přes progressive disclosure, cold search a warm auto-pin.",
+      "labels": [
+        "Foundry Toolbox",
+        "MCP",
+        "Tool Search",
+        "tokeny",
+        "agents"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ]
+    },
+    {
       "slug": "token-saving-cz",
       "year": 2026,
       "date": "2026-05-29",

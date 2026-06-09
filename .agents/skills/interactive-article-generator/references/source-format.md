@@ -38,6 +38,7 @@ slug: article-slug
 date: 2026-05-29
 language: cs-CZ
 status: experimental
+published: true
 canonical_url: "/YYYY/article-slug/"
 agent_friendly:
   source: "source.md"
@@ -46,6 +47,8 @@ agent_friendly:
 ```
 
 The `date` field is public metadata. Generated HTML must show it in the article header using a semantic `<time datetime="YYYY-MM-DD">D. M. YYYY</time>` element.
+
+`published` controls public indexing. Omitted or `published: true` sources are published and must have an entry in `interactive\article-index.json` plus durable generated artifacts. `published: false` sources are drafts: keep them out of `interactive\article-index.json`, do not include them in landing page, search, RSS, or `llms.txt`, and exclude them from normal `_site` output. For local styled draft preview, keep a generated snapshot under `interactive\generated\YYYY\slug\` and run `python tools\generate_interactive_site.py --preview-drafts`; this copies the draft to `_site\YYYY\slug\` only for local review.
 
 English translation sources add provenance fields:
 

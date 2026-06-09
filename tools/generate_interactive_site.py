@@ -323,10 +323,16 @@ def parse_front_matter(path: Path) -> dict[str, str]:
     return result
 
 
-def source_articles() -> dict[str, dict[str, str]]:
+def is_published_source(metadata: dict[str, str]) -> bool:
+    return metadata.get("published", "true").strip().lower() != "false"
+
+
+def source_articles(include_unpublished: bool = False) -> dict[str, dict[str, str]]:
     items: dict[str, dict[str, str]] = {}
     for path in SOURCE_ROOT.glob("*/*.article.md"):
         metadata = parse_front_matter(path)
+        if not include_unpublished and not is_published_source(metadata):
+            continue
         slug = metadata.get("slug")
         if not slug:
             raise ValueError(f"{path} is missing slug")
@@ -497,6 +503,44 @@ def copy_article_files(
                 if filename == "index.html":
                     image_prefix = "../../../images/" if output_subdir else "../../images/"
                     text = text.replace("../../../../images/", image_prefix)
+                path.write_text(text, encoding="utf-8")
+
+
+def remove_unpublished_outputs(output_root: Path) -> None:
+    for metadata in source_articles(include_unpublished=True).values():
+        if is_published_source(metadata):
+            continue
+        date = metadata.get("date", "")
+        slug = metadata.get("slug", "")
+        if not date or not slug:
+            continue
+        stale_dir = output_root / date[:4] / slug
+        if stale_dir.is_dir():
+            shutil.rmtree(stale_dir)
+
+
+def copy_unpublished_preview_files(output_root: Path, public_base: str) -> None:
+    for metadata in source_articles(include_unpublished=True).values():
+        if is_published_source(metadata):
+            continue
+        date = metadata.get("date", "")
+        slug = metadata.get("slug", "")
+        if not date or not slug:
+            continue
+        year = date[:4]
+        source_dir = GENERATED_ROOT / year / slug
+        if not source_dir.is_dir():
+            raise FileNotFoundError(
+                f"Draft preview for {slug} needs generated artifacts in {source_dir.relative_to(ROOT)}"
+            )
+        article_dir = output_root / year / slug
+        shutil.copytree(source_dir, article_dir, dirs_exist_ok=True)
+        public_url = join_url(public_base, year, slug)
+        legacy_url = f"/new/{year}/{slug}/"
+        for filename in ("index.html", "source.md", "caveman.md"):
+            path = article_dir / filename
+            if path.is_file():
+                text = path.read_text(encoding="utf-8").replace(legacy_url, public_url)
                 path.write_text(text, encoding="utf-8")
 
 
@@ -1038,7 +1082,12 @@ def patch_article_pages(
         path.write_text(text, encoding="utf-8")
 
 
-def run(output_root: Path, public_base: str = DEFAULT_PUBLIC_BASE, classic_base: str = DEFAULT_CLASSIC_BASE) -> None:
+def run(
+    output_root: Path,
+    public_base: str = DEFAULT_PUBLIC_BASE,
+    classic_base: str = DEFAULT_CLASSIC_BASE,
+    preview_drafts: bool = False,
+) -> None:
     public_base = normalize_url_base(public_base)
     classic_base = normalize_url_base(classic_base)
     articles, themes = read_cache()
@@ -1052,7 +1101,10 @@ def run(output_root: Path, public_base: str = DEFAULT_PUBLIC_BASE, classic_base:
     validate_articles(articles, themes, public_base, GENERATED_ROOT, INDEX_PATH)
     validate_translations(en_articles, en_themes, articles)
     copy_assets(output_root)
+    remove_unpublished_outputs(output_root)
     copy_article_files(output_root, articles, public_base, GENERATED_ROOT)
+    if preview_drafts:
+        copy_unpublished_preview_files(output_root, public_base)
     if en_articles:
         copy_article_files(output_root, en_articles, en_locale.public_base, GENERATED_ROOT / "en", en_locale.output_subdir)
     generate_llms_txt(articles, en_articles, output_root)
@@ -1071,9 +1123,19 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=SITE_ROOT, help="Output directory for interactive site artifacts.")
     parser.add_argument("--public-base", default=DEFAULT_PUBLIC_BASE, help="Public URL base for the interactive site.")
     parser.add_argument("--classic-base", default=DEFAULT_CLASSIC_BASE, help="Public URL base for the classic Jekyll site.")
+    parser.add_argument(
+        "--preview-drafts",
+        action="store_true",
+        help="Copy published:false draft snapshots into _site for local styled preview without indexing them.",
+    )
     args = parser.parse_args()
     try:
-        run(args.output.resolve(), public_base=args.public_base, classic_base=args.classic_base)
+        run(
+            args.output.resolve(),
+            public_base=args.public_base,
+            classic_base=args.classic_base,
+            preview_drafts=args.preview_drafts,
+        )
     except Exception as exc:
         print(f"generate_interactive_site.py: {exc}", file=sys.stderr)
         return 1
