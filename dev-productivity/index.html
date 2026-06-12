@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Produktivita vývoje, AI coding &amp; GitHub Copilot</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f5f5f5;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f3f3f3;
+  --cp-border: #e1e1e1;
+  --cp-border-strong: #616161;
+  --cp-text: #000000;
+  --cp-text-muted: #616161;
+  --cp-text-soft: #595959;
+  --cp-accent: #005DA6;
+  --cp-accent-hover: #004C87;
+  --cp-accent-soft: rgba(0, 93, 166, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #107c10;
+  --cp-danger: #d13438;
+  --cp-warning: #f59e0b;
+  --cp-link: #005DA6;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #1b1b1b;
+  --cp-bg-elevated: #242424;
+  --cp-surface: #2b2b2b;
+  --cp-surface-soft: #313131;
+  --cp-border: #3d3d3d;
+  --cp-border-strong: #616161;
+  --cp-text: #ffffff;
+  --cp-text-muted: #b0b0b0;
+  --cp-text-soft: #9a9a9a;
+  --cp-accent: #4aa3e8;
+  --cp-accent-hover: #6fb8ef;
+  --cp-accent-soft: rgba(74, 163, 232, 0.14);
+  --cp-accent-fg: #0b0b0b;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4aa3e8;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  line-height: 1.55;
+}
+code, .mono { font-family: Consolas, "Courier New", Courier, monospace; }
+
+header.hero {
+  padding: 48px 24px 32px;
+  text-align: center;
+  background:
+    radial-gradient(1200px 320px at 50% -120px, var(--cp-accent-soft), transparent),
+    var(--cp-bg-elevated);
+  border-bottom: 1px solid var(--cp-border);
+}
+.hero .kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--cp-accent);
+  margin-bottom: 10px;
+}
+.hero h1 {
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  margin: 0 0 10px;
+  line-height: 1.15;
+}
+.hero p {
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--cp-text-muted);
+  font-size: 1.02rem;
+}
+.toolbar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+button.btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--cp-border-strong);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  padding: 8px 16px;
+  border-radius: 0.625rem;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+button.btn:hover { border-color: var(--cp-accent); color: var(--cp-accent); }
+button.btn.primary { background: var(--cp-accent); color: var(--cp-accent-fg); border-color: var(--cp-accent); }
+button.btn.primary:hover { background: var(--cp-accent-hover); color: var(--cp-accent-fg); }
+
+main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+.agenda-item {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.agenda-item[open] { border-color: var(--cp-accent); }
+.agenda-item summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  user-select: none;
+}
+.agenda-item summary::-webkit-details-marker { display: none; }
+.num {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.summary-text { flex: 1; }
+.summary-text .title { font-weight: 400; font-size: 1.08rem; line-height: 1.3; }
+.summary-text .title b { font-weight: 700; }
+.summary-text .sub { color: var(--cp-text-soft); font-size: 0.86rem; margin-top: 2px; }
+.chev {
+  flex: 0 0 auto;
+  color: var(--cp-text-muted);
+  transition: transform 0.2s;
+  font-size: 1.1rem;
+}
+.agenda-item[open] .chev { transform: rotate(90deg); color: var(--cp-accent); }
+
+.body {
+  padding: 4px 22px 22px 72px;
+  border-top: 1px solid var(--cp-border);
+  margin-top: -1px;
+}
+.body p { margin: 12px 0; }
+.body ul { margin: 10px 0; padding-left: 20px; }
+.body li { margin: 6px 0; }
+a { color: var(--cp-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent);
+  margin-right: 6px;
+}
+
+.callout {
+  border-left: 3px solid var(--cp-accent);
+  background: var(--cp-accent-soft);
+  padding: 12px 16px;
+  border-radius: 0 10px 10px 0;
+  margin: 14px 0;
+}
+.callout strong { color: var(--cp-accent); }
+
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-soft);
+  padding: 6px 12px;
+  border-radius: 0.625rem;
+  font-size: 0.86rem;
+  color: var(--cp-text);
+}
+.links a:hover { border-color: var(--cp-accent); color: var(--cp-accent); text-decoration: none; }
+.links a .ext { color: var(--cp-text-soft); font-size: 0.75rem; }
+
+.dims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 14px 0; }
+.dim.guard { grid-column: 1 / -1; }
+@media (max-width: 560px) { .dims { grid-template-columns: 1fr; } }
+.dim {
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--cp-bg-elevated);
+}
+.dim h4 { margin: 0 0 6px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+.dim h4 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cp-accent); }
+.dim.guard h4 .dot { background: var(--cp-warning); }
+.dim small { color: var(--cp-text-soft); display: block; margin-bottom: 6px; }
+.dim ul { margin: 4px 0 0; padding-left: 18px; font-size: 0.88rem; }
+
+.steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; align-items: center; }
+.step {
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-soft);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.arrow { color: var(--cp-text-soft); }
+
+.chapter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 12px; }
+.chapter {
+  display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--cp-bg-elevated);
+  color: var(--cp-text);
+}
+.chapter:hover { border-color: var(--cp-accent); text-decoration: none; }
+.chapter .cn { font-weight: 700; color: var(--cp-accent); font-size: 0.85rem; }
+.chapter .ct { font-size: 0.88rem; }
+
+.demo-note { font-size: 0.82rem; color: var(--cp-text-soft); margin-top: 4px; }
+footer { text-align: center; padding: 30px 20px; color: var(--cp-text-soft); font-size: 0.82rem; border-top: 1px solid var(--cp-border); }
+.disclaimer { font-size: 0.78rem; color: var(--cp-text-soft); font-style: italic; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="kicker">Prezentace pro zákazníka</div>
+  <h1>Produktivita vývoje v éře AI</h1>
+  <p>Jak AI mění ekonomiku tvorby softwaru, proč měřit výsledky (ne aktivitu) a end-to-end demo GitHub Copilot.</p>
+  <div class="toolbar">
+    <button class="btn primary" id="expandAll">Rozbalit vše</button>
+    <button class="btn" id="collapseAll">Sbalit vše</button>
+    <button class="btn" id="themeToggle">Přepnout motiv</button>
+  </div>
+</header>
+
+<main>
+
+  <details class="agenda-item" open>
+    <summary>
+      <span class="num">1</span>
+      <span class="summary-text">
+        <span class="title"><b>Ekonomika tokenů</b><br>proč subscription model přestává fungovat</span>
+        <span class="sub">Od paušálu jako u streamovacích služeb k consumption billingu</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Pricing</span>Interaktivní použití AI má <strong>přirozený strop</strong>: člověk má jen omezený počet hodin denně, takže měsíční subscription dává smysl &mdash; podobně jako Spotify nebo Netflix, kde jeden člověk stejně stihne poslechnout či zhlédnout jen určité množství.</p>
+      <p>Agenti tento předpoklad boří. <strong>Stovky vašich agentů mohou běžet přes noc</strong>, paralelně, bez člověka, který by je brzdil. Spotřeba je prakticky neomezená, takže fixní subscription ji už nedokáže pokrýt.</p>
+      <div class="callout">
+        <strong>Hlavní myšlenka:</strong> consumption billing podle tokenů je budoucnost AI &mdash; a pravděpodobně nejen v codingu. Všude, kde autonomní agenti nahradí interakci řízenou tempem člověka, přijde i měřená spotřeba.
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">2</span>
+      <span class="summary-text">
+        <span class="title"><b>Jak měřit produktivitu vývoje v éře AI</b></span>
+        <span class="sub">EngThrive &mdash; praktická evoluce SPACE, za hranicí DORA</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Frameworky</span>Microsoft nedávno představil <strong>EngThrive</strong>, který lze chápat jako zjednodušenou a praktičtější implementaci frameworku <strong>SPACE</strong>.</p>
+      <p>Sleduje, jak stavět systémy <strong>RYCHLEJI</strong> (FAST) a <strong>SNADNĚJI</strong> (EASE), s vysokou <strong>KVALITOU</strong> (QUALITY) &mdash; přičemž <strong>THRIVE</strong> slouží jako pojistka (guardrail). Tedy: <strong>3 dimenze, 1 guardrail.</strong></p>
+      <p>Záměrně to <em>není</em> jen pohled na pipeline (DORA) a <em>nejsou</em> to metriky aktivity. Cílí na výsledky, na kterých záleží byznysu i inženýrům.</p>
+      <div class="callout">
+        <strong>Klíčové:</strong> EngThrive měří <strong>systém, ne jednotlivce</strong>. Microsoft se měření jednotlivců aktivně vyhýbá &mdash; korumpuje to důvěru a vede k optimalizaci čísla místo výsledku.
+      </div>
+      <div class="links">
+        <a href="https://arxiv.org/pdf/2605.04259" target="_blank" rel="noopener">📄 EngThrive paper (arXiv) <span class="ext">↗</span></a>
+        <a href="https://space-framework.com/" target="_blank" rel="noopener">🧭 SPACE framework <span class="ext">↗</span></a>
+        <a href="https://dora.dev/" target="_blank" rel="noopener">📊 DORA metriky <span class="ext">↗</span></a>
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">3</span>
+      <span class="summary-text">
+        <span class="title"><b>Proč jsou metriky aktivity špatným cílem</b></span>
+        <span class="sub">Goodhartův zákon: jakmile se chování stane metrikou, ztrácí smysl</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Anti-vzor</span>Lines of code, commity, PR, reviews i spotřebované tokeny jsou všechno <strong>míry aktivity</strong>. Vyprávějí příběh o <em>chování</em>&hellip;</p>
+      <p>&hellip;ale ve chvíli, kdy se chování <strong>stane metrikou, ztrácí smysl</strong> &mdash; lidé pak optimalizují číslo, ne výsledek.</p>
+      <div class="callout">
+        <strong>Princip:</strong> měřte <strong>výsledky</strong> (outcomes), ne aktivitu. Aktivita vás může informovat; nesmí být cílem.
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">4</span>
+      <span class="summary-text">
+        <span class="title"><b>Dimenze</b><br>FAST, EASE, QUALITY &amp; THRIVE</span>
+        <span class="sub">Outcome metriky za každou dimenzí</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Metriky</span>Tři výsledkové dimenze plus jedna pojistka, každá s konkrétními signály:</p>
+      <div class="dims">
+        <div class="dim">
+          <h4><span class="dot"></span>FAST</h4>
+          <small>Rychlost dodání hodnoty</small>
+          <ul>
+            <li>Idea-to-Customer (I2C)</li>
+            <li>Čas do N-tého PR (onboarding nových inženýrů)</li>
+          </ul>
+        </div>
+        <div class="dim">
+          <h4><span class="dot"></span>EASE</h4>
+          <small>Jak bezfrikční je práce</small>
+          <ul>
+            <li>Innovation time ratio (podíl času na inovace)</li>
+          </ul>
+        </div>
+        <div class="dim">
+          <h4><span class="dot"></span>QUALITY</h4>
+          <small>Spolehlivost toho, co jde do produkce</small>
+          <ul>
+            <li>PR na jeden incident</li>
+            <li>Doba vyřešení incidentu</li>
+          </ul>
+        </div>
+        <div class="dim guard">
+          <h4><span class="dot"></span>THRIVE <em>(guardrail)</em></h4>
+          <small>Udržitelní a zdraví inženýři</small>
+          <ul>
+            <li>Počet „bad days“</li>
+            <li>Context switche &amp; focus time</li>
+            <li>Zátěž z callů / meetingů</li>
+            <li>NSAT (self-report)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">5</span>
+      <span class="summary-text">
+        <span class="title"><b>Jen ~15 % času vývojáře je psaní kódu</b></span>
+        <span class="sub">Nesměřujte AI pouze na psaní kódu</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Insight</span>Psaní kódu je zhruba <strong>15 %</strong> času vývojáře. Zbytek je pochopení, návrh, review, testování, debugging, koordinace a provoz.</p>
+      <div class="callout">
+        <strong>Důsledek:</strong> nesměřujte AI jen na psaní kódu. Největší přínos přichází z nasazení AI napříč <em>celým</em> životním cyklem &mdash; triage, review, security, dokumentace, provoz.
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">6</span>
+      <span class="summary-text">
+        <span class="title"><b>Demo</b><br>AI end-to-end &amp; jak se mění vaše práce</span>
+        <span class="sub">Prostředí, agenti v celém lifecyklu a co přijde dál</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Demo</span>S rostoucí autonomií se vaše práce přesouvá mezi prostředími:</p>
+      <div class="steps">
+        <span class="step">Local IDE</span><span class="arrow">→</span>
+        <span class="step">Local CLI</span><span class="arrow">→</span>
+        <span class="step">Copilot App (správa mnoha agentů)</span><span class="arrow">→</span>
+        <span class="step">Cloud sandboxed agents</span>
+      </div>
+      <p class="demo-note">Cloud agenti: interaktivní (<code>CLI --cloud</code>), delegovaní a Issue-assigned.</p>
+
+      <p><strong>Agenti napříč celým životním cyklem:</strong></p>
+      <ul>
+        <li>Issue triage</li>
+        <li>Issue assignment</li>
+        <li>Code review</li>
+        <li>Security review</li>
+        <li>Spec-compliance review</li>
+        <li>SRE agenti pro provoz</li>
+      </ul>
+
+      <div class="callout">
+        <strong>Co přijde dál?</strong> S výkonnějšími modely (např. „Fable 5“) se v top organizacích jako Anthropic a OpenAI rodí nový vzorec: od <em>lidí řídících junior agenty</em> k <em>lidem jako principálům řídícím „senior agenty“</em>, kteří dál řídí a promptují junior agenty. Viz Anthropic „in the loop“ meme a OpenAI Symphony spec.
+      </div>
+      <div class="links">
+        <a href="https://github.com/openai/symphony/blob/main/SPEC.md" target="_blank" rel="noopener">🎼 OpenAI Symphony SPEC.md <span class="ext">↗</span></a>
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">7</span>
+      <span class="summary-text">
+        <span class="title"><b>Token efficiency</b></span>
+        <span class="sub">Ušetřit wall-clock, aniž bychom znásobili input tokeny</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <div class="callout">
+        Tokeny nejsou náklad ke škrcení. Jsou <strong>investicí</strong>. Řešte návratnost, ne spotřebu.
+      </div>
+      <div class="links">
+        <a href="https://tomaskubica.cz/2026/token-saving-cz/" target="_blank" rel="noopener">📝 Článek Token saving <span class="ext">↗</span></a>
+        <a href="https://tomaskubica.cz/en/2026/token-saving-cz/" target="_blank" rel="noopener">📝 Anglická verze <span class="ext">↗</span></a>
+      </div>
+    </div>
+  </details>
+
+  <details class="agenda-item">
+    <summary>
+      <span class="num">8</span>
+      <span class="summary-text">
+        <span class="title"><b>GitHub Copilot demo</b><br>kapitoly workshopu</span>
+        <span class="sub">Context · Skills/Tools &amp; self-improvement · CLI &amp; session management · Models/multiagent</span>
+      </span>
+      <span class="chev">&#9656;</span>
+    </summary>
+    <div class="body">
+      <p><span class="tag">Hands-on</span>Živá ukázka z demo repozitáře. Hlavní kapitoly: repository <strong>context</strong>, <strong>skills/tools</strong> (vč. self-improvement), <strong>CLI &amp; session management</strong> a <strong>models / multiagent</strong>.</p>
+      <div class="links" style="margin-bottom:6px;">
+        <a href="https://github.com/tkubica12/gh-copilot-demo" target="_blank" rel="noopener">⭐ Demo repozitář <span class="ext">↗</span></a>
+        <a href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/README.md" target="_blank" rel="noopener">📚 Index workshopu <span class="ext">↗</span></a>
+      </div>
+      <div class="chapter-grid">
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/01-repository-context.md" target="_blank" rel="noopener"><span class="cn">01</span><span class="ct">Repository context, AGENTS.md, PRD, specs &amp; Spaces</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/02-skills-and-mcp.md" target="_blank" rel="noopener"><span class="cn">02</span><span class="ct">Skills a MCP</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/03-vscode-agents.md" target="_blank" rel="noopener"><span class="cn">03</span><span class="ct">VS Code prompt files, custom agents, handoffs &amp; subagents</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/04-copilot-cli.md" target="_blank" rel="noopener"><span class="cn">04</span><span class="ct">Copilot CLI, sessions, research, memory &amp; execution surfaces</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/05-token-efficiency.md" target="_blank" rel="noopener"><span class="cn">05</span><span class="ct">Token efficiency, context hygiene &amp; measurement lab</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/06-governance-review-security-hooks.md" target="_blank" rel="noopener"><span class="cn">06</span><span class="ct">Governance, review, security, hooks &amp; Critic agent</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/07-workflow-agents.md" target="_blank" rel="noopener"><span class="cn">07</span><span class="ct">Workflow agents v GitHub Actions</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/08-operations.md" target="_blank" rel="noopener"><span class="cn">08</span><span class="ct">SRE agenti a provoz</span></a>
+        <a class="chapter" href="https://github.com/tkubica12/gh-copilot-demo/blob/main/docs/workshop/09-optional-demos.md" target="_blank" rel="noopener"><span class="cn">09</span><span class="ct">Volitelná dema a rozšíření</span></a>
+      </div>
+    </div>
+  </details>
+
+</main>
+
+<footer>
+  Připravil Tomáš Kubica · Prezentace pro zákazníka o produktivitě vývoje &amp; GitHub Copilot
+  <div class="disclaimer">Stiskněte <code>E</code> pro rozbalení všeho, <code>C</code> pro sbalení. Otevřete soubor v libovolném prohlížeči; funguje plně offline.</div>
+</footer>
+
+<script>
+  const items = Array.from(document.querySelectorAll('.agenda-item'));
+  document.getElementById('expandAll').addEventListener('click', () => items.forEach(d => d.open = true));
+  document.getElementById('collapseAll').addEventListener('click', () => items.forEach(d => d.open = false));
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key.toLowerCase() === 'e') items.forEach(d => d.open = true);
+    if (e.key.toLowerCase() === 'c') items.forEach(d => d.open = false);
+  });
+</script>
+</body>
+</html>
