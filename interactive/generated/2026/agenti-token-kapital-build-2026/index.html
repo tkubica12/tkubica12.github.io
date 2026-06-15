@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenti mění co je jedna jednotka práce</title>
+<link rel="canonical" href="/2026/agenti-token-kapital-build-2026/">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<script defer src="../../assets/interactive-article.js"></script>
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">Microsoft Build 2026</p>
+    <h1 class="ia-title">Agenti mění co je jedna jednotka práce</h1>
+    <p class="ia-subtitle">Consumption billing a odemykání hodnoty tokenů lidským kapitálem.</p>
+    <p class="ia-date"><time datetime="2026-06-15">15. 6. 2026</time></p>
+    <nav class="ia-links" aria-label="Navigace článku">
+      <a href="../../">← Všechny interaktivní články</a>
+      <a href="./" aria-current="page" lang="cs-CZ" hreflang="cs-CZ">CZ</a>
+      <a href="../../en/2026/agenti-token-kapital-build-2026/" lang="en" hreflang="en">EN</a>
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <nav class="ia-toc" aria-label="Obsah">
+    <p class="ia-toc-title">Obsah</p>
+    <div class="ia-toc-list">
+      <a href="#jednotka-prace"><span class="ia-toc-num">01</span><span>Agenti mění co je jedna jednotka práce</span></a>
+      <a href="#nova-ai-ekonomika"><span class="ia-toc-num">02</span><span>Nová AI ekonomika</span></a>
+    </div>
+  </nav>
+
+  <main id="content">
+    <div class="ia-prose">
+      <p>Povaha práce s AI se mění a odpoutala se od asistentů, kteří žili tempem svého člověka. Agenti běží ve dne v noci, mají své vlastní týmy, ale také jsou součástí těch vašich. Vstup člověka se začíná posouvat z detailní instrukce či specifikace směrem k definici záměru.</p>
+      <p>AI se tak posouvá do obchodního modelu postaveného na tokenech a firmy tak mají lidský a tokenový kapitál, jehož optimální kombinací vzniká hodnota. Jsou to právě lidé - harness, kontext a kontinuální učení, které bude odlišovat firmy od konkurence.</p>
+    </div>
+
+    <section class="ia-group" id="jednotka-prace">
+      <h2 class="ia-group-title">Agenti mění co je jedna jednotka práce</h2>
+      <p class="ia-prose">Méně detailních instrukcí, víc kontextu a kontinuálního učení.</p>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-01-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title"><span class="ia-card-title-main">Asistent -&gt; Agent</span><span class="ia-card-subtitle">Větší kousky práce mezi lidskou intervencí.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-01" aria-labelledby="card-01-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Před pár lety byla interakce s AI postavena na otázce a rychlé odpovědi, například jste si nechali napsat unit test nebo část dokumentace. Malá jednotka práce, rychlá reakce. Dnes zadáváte agentům celé specifikace kódu, na kterých pracují několik desítek minut včetně testování a nasazení, nebo konkrétní úlohy s využitím Excelu a následným vygenerováním výsledků do prezentace. Okamžik mezi jednotlivými vstupy člověka se tak výrazně prodloužil - vstupujete méně často, mezi vstupy se toho stane víc.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-02-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title"><span class="ia-card-title-main">Sync -&gt; Async</span><span class="ia-card-subtitle">Paralelní práce, klidně přes noc.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-02" aria-labelledby="card-02-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>To je ale také důvodem proč u obrazovky agenty čím dál méně čekáme, ale otevřeme jinou session a v ní řešíme něco jiného. Procházíme deset běžících agentů a sledujeme kdo potřebuje pomoci, kdo má nějakou otázku nebo už má hotovo. Můžete i večer na noc rozdat úkoly a jít spát, na výsledky agentů se podíváte ráno.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-03-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title"><span class="ia-card-title-main">Spec -&gt; Intent</span><span class="ia-card-subtitle">Člověk mluví s agentem předákem, ten pak promptuje běžné agenty.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-03" aria-labelledby="card-03-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Někteří se dnes posouvají o jednou outer loop nahoru a místo promptování agenta mají agenta předáka, který pak agenty promptuje. Zejména s nejsilnějšími modely začíná být možné místo zadávání detailní specifikace pro jeden úkon řešit s předákem váš záměr, intent, a ten potom udělá specifikace a napromptuje jednotlivé agenty.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-04-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button>
+            <span class="ia-card-num">04</span><span class="ia-card-title"><span class="ia-card-title-main">1:n -&gt; m:n</span><span class="ia-card-subtitle">Smíšená družstva lidí a agentů.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-04" aria-labelledby="card-04-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Ve finále ale nezůstaneme u toho, že každý má svých pár agentů nebo agentických týmů. Přichází smíšené týmy agentů a lidí a potkávají se na platformách, které pro spolupráci dávají největší smysl - GitHub pro vývoj a Teams pro běžnou práci.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="nova-ai-ekonomika">
+      <h2 class="ia-group-title">Nová AI ekonomika</h2>
+      <p class="ia-prose">Consumption billing a odemykání hodnoty tokenů lidským kapitálem.</p>
+      <div class="ia-card-list">
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-05-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button>
+            <span class="ia-card-num">05</span><span class="ia-card-title"><span class="ia-card-title-main">Agenti nespí</span><span class="ia-card-subtitle">Prostupnost už není vázána na lidské bdění.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-05" aria-labelledby="card-05-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Dokud bylo AI ve formě asistenta běžícího v rychlosti lidí, bylo možné pracovat s licenčními modely na základě uživatele - podobně jako Spotify či Netflix, které mají rovněž přirozené limity spotřeby dané dobou bdělosti člověka. Dnes už ale agenti nespí a nejsou vázáni na váš čas.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-06-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button>
+            <span class="ia-card-num">06</span><span class="ia-card-title"><span class="ia-card-title-main">Náklad vs. hodnota</span><span class="ia-card-subtitle">Člověk přetavuje náklady tokenů na hodnotu.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-06" aria-labelledby="card-06-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Jakmile tedy řešíme consumption billing, začne být cena a hodnota tokenů důležitá. Cena je daná velikostí a výrobcem modelu a je velmi užitečné mít široké možnosti výběru, což snižuje rizika a otevírá více prostoru pro úspory. Hodnota ale vychází z toho, co s tokeny dokážeme.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-07-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button>
+            <span class="ia-card-num">07</span><span class="ia-card-title"><span class="ia-card-title-main">Lidé a tokeny</span><span class="ia-card-subtitle">Nejvyšší přínosy má mix lidského a tokenového kapitálu.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-07" aria-labelledby="card-07-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Ve firmách tak bude existovat lidský a tokenový kapitál a mít jen jedno nebo druhé nebude dávat optimální výsledky. Právě lidé jsou to, co dává tokenům hodnotu - spotřebovaný benzín nemá hodnotu, když auto jezdí dokola, ale má, když mu dáte směr a odveze vás kam chcete.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-08-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button>
+            <span class="ia-card-num">08</span><span class="ia-card-title"><span class="ia-card-title-main">Hodnota není v modelu</span><span class="ia-card-subtitle">Soustřeďte se na to, co vás odlišuje - harness, kontext, skill a RLE.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-08" aria-labelledby="card-08-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Hodnota tedy není v generickém modelu, ten mají všichni stejný, ale v tom, co je pro vás unikátní. Váš kontext, skilly, zkušenosti nebo ladění a trénování modelů, prostředí pro jejich samo-vzdělávání (RLE tělocvičny) nebo zpětná vazba od lidí, to je budoucnost hodnoty vašich AI řešení. Generický model je nový zaměstnanec, chytrý, ale užitečný ještě není. Proškolení, kontext, starší případy, možnost si to vyzkoušet a zpětná vazba jsou to, co zvýší jeho hodnotu.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-closing" aria-label="Závěr">
+      <div class="ia-quote ia-prose">
+        <p>AI hodnota nebude v tom, kolik tokenů spálíte, ale jak dobře je lidé dokážou proměnit v kontext, učení a výsledky.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <div class="ia-article-nav"><a href="../../">← Všechny interaktivní články</a></div>
+    <p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+  </footer>
+</div>
+</body>
+</html>

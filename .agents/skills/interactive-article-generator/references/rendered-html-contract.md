@@ -101,6 +101,16 @@ Add `is-open` and `aria-expanded="true"` only for the first visible card or any
 card explicitly marked `default="open"`; the others use `aria-expanded="false"`
 and omit the `is-open` class.
 
+When a card needs a subtitle visible even while collapsed, render the title span
+as a two-line block:
+
+```html
+<span class="ia-card-title">
+  <span class="ia-card-title-main">Card title</span>
+  <span class="ia-card-subtitle">Short subtitle visible in the collapsed header.</span>
+</span>
+```
+
 ## Callout
 
 ```html

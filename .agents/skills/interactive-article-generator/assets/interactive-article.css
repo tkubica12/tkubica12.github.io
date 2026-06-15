@@ -320,6 +320,20 @@ a:hover {
   letter-spacing: -0.005em;
 }
 
+.ia-card-title-main,
+.ia-card-subtitle {
+  display: block;
+}
+
+.ia-card-subtitle {
+  margin-top: 3px;
+  color: var(--cp-text-muted);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
 .ia-card-toggle {
   color: var(--cp-text-soft);
   font-size: 12px;

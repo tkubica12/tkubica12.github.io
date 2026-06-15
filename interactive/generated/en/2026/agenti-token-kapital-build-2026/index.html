@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents change what one unit of work is</title>
+<link rel="canonical" href="/en/2026/agenti-token-kapital-build-2026/">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+<script defer src="../../../assets/interactive-article.js"></script>
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+  <button class="ia-control" type="button" data-expand-all>Expand all</button>
+  <button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+
+<div class="ia-page">
+  <header class="ia-header">
+    <p class="ia-eyebrow">Microsoft Build 2026</p>
+    <h1 class="ia-title">Agents change what one unit of work is</h1>
+    <p class="ia-subtitle">Consumption billing and unlocking the value of tokens through human capital.</p>
+    <p class="ia-date"><time datetime="2026-06-15">15 Jun 2026</time></p>
+    <nav class="ia-links" aria-label="Article navigation">
+      <a href="../../../en/">← All interactive articles</a>
+      <a href="../../../2026/agenti-token-kapital-build-2026/" lang="cs-CZ" hreflang="cs-CZ">CZ</a>
+      <a href="./" aria-current="page" lang="en" hreflang="en">EN</a>
+      <a href="./source.md">source.md</a>
+      <a href="./caveman.md">caveman.md</a>
+    </nav>
+  </header>
+
+  <nav class="ia-toc" aria-label="Contents">
+    <p class="ia-toc-title">Contents</p>
+    <div class="ia-toc-list">
+      <a href="#unit-of-work"><span class="ia-toc-num">01</span><span>Agents change what one unit of work is</span></a>
+      <a href="#new-ai-economy"><span class="ia-toc-num">02</span><span>The new AI economy</span></a>
+    </div>
+  </nav>
+
+  <main id="content">
+    <div class="ia-prose">
+      <p>The nature of work with AI is changing and has detached itself from assistants that lived at the pace of their human. Agents run day and night, have their own teams, and are also part of yours. Human input is starting to move from detailed instruction or specification toward defining intent.</p>
+      <p>AI is therefore moving into a business model built on tokens, and companies now have both human and token capital, whose optimal combination creates value. It is people - the harness, context, and continuous learning - that will differentiate companies from their competitors.</p>
+    </div>
+
+    <section class="ia-group" id="unit-of-work">
+      <h2 class="ia-group-title">Agents change what one unit of work is</h2>
+      <p class="ia-prose">Fewer detailed instructions, more context and continuous learning.</p>
+      <div class="ia-card-list">
+        <article class="ia-card is-open" data-ia-card>
+          <button class="ia-card-head" id="card-01-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button>
+            <span class="ia-card-num">01</span><span class="ia-card-title"><span class="ia-card-title-main">Assistant -&gt; Agent</span><span class="ia-card-subtitle">Bigger chunks of work between human interventions.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-01" aria-labelledby="card-01-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>A few years ago, interaction with AI was based on a question and a quick answer, for example having it write a unit test or part of documentation. A small unit of work, a quick response. Today you give agents whole code specifications that they work on for tens of minutes, including testing and deployment, or concrete tasks using Excel followed by generating the results into a presentation. The time between individual human inputs has therefore grown significantly - you step in less often, and more happens between your inputs.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-02-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button>
+            <span class="ia-card-num">02</span><span class="ia-card-title"><span class="ia-card-title-main">Sync -&gt; Async</span><span class="ia-card-subtitle">Parallel work, even overnight.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-02" aria-labelledby="card-02-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>That is also why we increasingly do not wait for agents at the screen, but open another session and work on something else there. We go through ten running agents and watch who needs help, who has a question, or who is already done. You can also hand out tasks in the evening before the night and go to sleep; you look at the agents' results in the morning.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-03-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button>
+            <span class="ia-card-num">03</span><span class="ia-card-title"><span class="ia-card-title-main">Spec -&gt; Intent</span><span class="ia-card-subtitle">The human talks to a foreman agent, which then prompts regular agents.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-03" aria-labelledby="card-03-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Some people are already moving one outer loop up and, instead of prompting an agent, they have a foreman agent that then prompts other agents. Especially with the strongest models, it is becoming possible to discuss your intent with the foreman instead of providing a detailed specification for one task; the foreman then creates the specifications and prompts the individual agents.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-04-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button>
+            <span class="ia-card-num">04</span><span class="ia-card-title"><span class="ia-card-title-main">1:n -&gt; m:n</span><span class="ia-card-subtitle">Mixed squads of people and agents.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-04" aria-labelledby="card-04-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>In the end, we will not stay in a world where everyone has a few agents or agentic teams of their own. Mixed teams of agents and people are coming, and they will meet on platforms that make the most sense for collaboration - GitHub for development and Teams for regular work.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-group" id="new-ai-economy">
+      <h2 class="ia-group-title">The new AI economy</h2>
+      <p class="ia-prose">Consumption billing and unlocking the value of tokens through human capital.</p>
+      <div class="ia-card-list">
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-05-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button>
+            <span class="ia-card-num">05</span><span class="ia-card-title"><span class="ia-card-title-main">Agents do not sleep</span><span class="ia-card-subtitle">Throughput is no longer tied to human wakefulness.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-05" aria-labelledby="card-05-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>As long as AI was an assistant running at human speed, it was possible to work with per-user licensing models - similar to Spotify or Netflix, which also have natural consumption limits given by the time a human is awake. But today agents do not sleep and are not tied to your time.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-06-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button>
+            <span class="ia-card-num">06</span><span class="ia-card-title"><span class="ia-card-title-main">Cost vs. value</span><span class="ia-card-subtitle">Humans transform token costs into value.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-06" aria-labelledby="card-06-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Once we deal with consumption billing, the price and value of tokens become important. The price is given by the size and vendor of the model, and it is very useful to have a wide range of choices, which lowers risk and opens more room for savings. But value comes from what we can do with the tokens.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-07-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button>
+            <span class="ia-card-num">07</span><span class="ia-card-title"><span class="ia-card-title-main">People and tokens</span><span class="ia-card-subtitle">The highest gains come from a mix of human and token capital.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-07" aria-labelledby="card-07-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Companies will therefore have both human and token capital, and having only one or the other will not produce optimal results. People are what gives tokens value - consumed gasoline has no value when the car drives in circles, but it does when you give it direction and it takes you where you want to go.</p>
+            </div></div>
+          </div>
+        </article>
+
+        <article class="ia-card" data-ia-card>
+          <button class="ia-card-head" id="card-08-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button>
+            <span class="ia-card-num">08</span><span class="ia-card-title"><span class="ia-card-title-main">Value is not in the model</span><span class="ia-card-subtitle">Focus on what differentiates you - harness, context, skill, and RLE.</span></span><span class="ia-card-toggle" aria-hidden="true">▾</span>
+          </button>
+          <div class="ia-card-body" id="card-08" aria-labelledby="card-08-head" data-ia-card-panel>
+            <div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+              <p>Value is therefore not in the generic model, because everyone has the same one, but in what is unique to you. Your context, skills, experience, model tuning and training, environments for self-learning (RLE gyms), or human feedback are the future of the value of your AI solutions. A generic model is a new employee: smart, but not yet useful. Training, context, older cases, a chance to try things out, and feedback are what increase its value.</p>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="ia-closing" aria-label="Conclusion">
+      <div class="ia-quote ia-prose">
+        <p>AI value will not be in how many tokens you burn, but in how well people can turn them into context, learning, and outcomes.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ia-footer">
+    <div class="ia-article-nav"><a href="../../../en/">← All interactive articles</a></div>
+    <p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+  </footer>
+</div>
+</body>
+</html>

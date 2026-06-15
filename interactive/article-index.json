@@ -63,6 +63,27 @@
   ],
   "articles": [
     {
+      "slug": "agenti-token-kapital-build-2026",
+      "year": 2026,
+      "date": "2026-06-15",
+      "title": "Agenti mění co je jedna jednotka práce",
+      "eyebrow": "Microsoft Build 2026",
+      "subtitle": "Consumption billing a odemykání hodnoty tokenů lidským kapitálem.",
+      "url": "/2026/agenti-token-kapital-build-2026/",
+      "summary": "Úvaha o tom, jak agenti mění jednotku práce, posouvají interakci od specifikace k intentu a vytvářejí novou ekonomiku lidského a tokenového kapitálu.",
+      "labels": [
+        "agents",
+        "tokeny",
+        "AI ekonomika",
+        "intent",
+        "lidský kapitál"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ]
+    },
+    {
       "slug": "foundry-toolbox-search",
       "year": 2026,
       "date": "2026-06-09",

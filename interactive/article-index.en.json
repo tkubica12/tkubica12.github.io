@@ -63,6 +63,30 @@
   ],
   "articles": [
     {
+      "slug": "agenti-token-kapital-build-2026",
+      "year": 2026,
+      "date": "2026-06-15",
+      "title": "Agents change what one unit of work is",
+      "eyebrow": "Microsoft Build 2026",
+      "subtitle": "Consumption billing and unlocking the value of tokens through human capital.",
+      "url": "/en/2026/agenti-token-kapital-build-2026/",
+      "summary": "A reflection on how agents change the unit of work, move interaction from specification toward intent, and create a new economy of human and token capital.",
+      "labels": [
+        "agents",
+        "tokens",
+        "AI economy",
+        "intent",
+        "human capital"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "agenti-token-kapital-build-2026",
+      "translated_from_hash": "c6ab9f5b9de49a6d0356748fe7d7fa0e9f8fc27c017f789d8899e5f6c8750a84",
+      "translation_status": "current"
+    },
+    {
       "slug": "token-saving-cz",
       "year": 2026,
       "date": "2026-05-29",
