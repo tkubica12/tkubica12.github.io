@@ -119,6 +119,23 @@ def validate_internal_links(errors: list[str]) -> None:
                 errors.append(f"{page.relative_to(SITE_ROOT)} has broken {attr}: {link}")
 
 
+def validate_article_navigation(page: Path, slug: str, errors: list[str]) -> None:
+    if not page.is_file():
+        return
+    html_text = page.read_text(encoding="utf-8")
+    match = re.search(r'<nav\b(?=[^>]*\bclass="[^"]*\bia-links\b[^"]*")[^>]*>.*?</nav>', html_text, flags=re.S)
+    if not match:
+        errors.append(f"{slug}: article navigation is missing.")
+        return
+    nav = match.group(0)
+    require(nav.count("aria-label=") == 1, f"{slug}: article navigation has duplicate aria-label attributes.", errors)
+    require(nav.count('href="./source.md"') == 1, f"{slug}: article navigation must contain source.md exactly once.", errors)
+    require(nav.count('href="./caveman.md"') == 1, f"{slug}: article navigation must contain caveman.md exactly once.", errors)
+    require(nav.count('aria-current="page"') <= 1, f"{slug}: article navigation has more than one current language link.", errors)
+    require(len(re.findall(r'hreflang="cs-CZ"', nav)) <= 1, f"{slug}: article navigation has duplicate Czech language links.", errors)
+    require(len(re.findall(r'hreflang="en"', nav)) <= 1, f"{slug}: article navigation has duplicate English language links.", errors)
+
+
 def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[str]) -> None:
     en_articles = optional_article_entries(ARTICLE_INDEX_EN)
     require(not (SITE_ROOT / "classic" / "en").exists(), "Classic output must not contain an en layer.", errors)
@@ -138,6 +155,12 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
 
     cs_by_slug = {str(article["slug"]): article for article in cs_articles}
     en_by_source = {str(article.get("source_slug") or article["slug"]): article for article in en_articles}
+    missing_translations = sorted(set(cs_by_slug) - set(en_by_source))
+    require(
+        not missing_translations,
+        "Published Czech articles missing English translations: " + ", ".join(missing_translations),
+        errors,
+    )
 
     if en_search.is_file():
         payload = json.loads(en_search.read_text(encoding="utf-8"))
@@ -160,6 +183,7 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
         html_path = article_dir / "index.html"
         if not html_path.is_file():
             continue
+        validate_article_navigation(html_path, slug, errors)
         html_text = html_path.read_text(encoding="utf-8")
         require('html lang="en"' in html_text, f"{slug}: English article must use lang=\"en\".", errors)
         require("ia-translation-notice" in html_text, f"{slug}: English article is missing the machine translation notice.", errors)
@@ -176,6 +200,7 @@ def validate_english_layer(cs_articles: list[dict[str, object]], errors: list[st
             continue
         cs_path = SITE_ROOT / str(cs_article["year"]) / str(cs_article["slug"]) / "index.html"
         if cs_path.is_file():
+            validate_article_navigation(cs_path, source_slug, errors)
             cs_html = cs_path.read_text(encoding="utf-8")
             expected_href = f'../../en/{article["year"]}/{article["slug"]}/'
             require(expected_href in cs_html, f"{source_slug}: Czech article must link to the English translation.", errors)
@@ -246,6 +271,7 @@ def validate_site() -> list[str]:
             require(file_path.is_file(), f"{slug}: {filename} is missing.", errors)
             if file_path.is_file():
                 require("/new/" not in file_path.read_text(encoding="utf-8"), f"{slug}: {filename} still contains /new/.", errors)
+        validate_article_navigation(article_dir / "index.html", slug, errors)
 
     overrides = redirect_overrides()
     for source, target in overrides.items():

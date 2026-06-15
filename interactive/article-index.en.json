@@ -63,6 +63,30 @@
   ],
   "articles": [
     {
+      "slug": "foundry-toolbox-search",
+      "year": 2026,
+      "date": "2026-06-09",
+      "title": "Cheaper and faster agents with progressive disclosure MCP through Foundry Toolbox Search",
+      "eyebrow": "Tool Search, auto-pin, and fewer input tokens",
+      "subtitle": "Foundry Toolbox unifies many MCP servers into one endpoint. Tool Search adds progressive disclosure: the agent first sees only a minimum set of tools and retrieves full definitions only when it really needs them.",
+      "url": "/en/2026/foundry-toolbox-search/",
+      "summary": "A practical demo of how Foundry Toolbox Tool Search reduces input tokens through progressive disclosure, cold search, and warm auto-pin.",
+      "labels": [
+        "Foundry Toolbox",
+        "MCP",
+        "Tool Search",
+        "tokens",
+        "agents"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "foundry-toolbox-search",
+      "translated_from_hash": "b6cf4c9ec39f63038337faf89a15f4503641d175fa3a98784f3d2419c71ac8a4",
+      "translation_status": "current"
+    },
+    {
       "slug": "agenti-token-kapital-build-2026",
       "year": 2026,
       "date": "2026-06-15",

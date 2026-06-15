@@ -872,11 +872,15 @@ def article_footer(article: Article, related: Article | None, reason: str, local
 </section>""".rstrip()
     return f"""<footer class="ia-footer">
 <div class="ia-article-nav">
-  <a href="../../">{e(locale.back_to_index)}</a>
+  <a href="{e(article_index_href(locale))}">{e(locale.back_to_index)}</a>
 </div>
 {related_block}
 <p>{e(locale.agent_friendly)}: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a> · <a href="{e(locale.profile_url)}" rel="noopener">{e(locale.profile_label)}</a> · <a href="{e(locale.repo_url)}" rel="noopener">{e(locale.repo_label)}</a></p>
 </footer>"""
+
+
+def article_index_href(locale: LocaleConfig) -> str:
+    return "../../../en/" if locale.code == "en" else "../../"
 
 
 def article_language_links(
@@ -926,23 +930,16 @@ def patch_article_nav(
             if "./source.md" not in block or "./caveman.md" not in block:
                 continue
 
-            if fallback_tag == "div":
-                opening = f'<nav class="ia-links" aria-label="{e(locale.article_navigation_label)}">'
-                body = re.sub(r"</div>\s*$", "</nav>", match.group(2), count=1)
-            else:
-                opening = re.sub(
-                    r'aria-label="[^"]*"',
-                    f'aria-label="{e(locale.article_navigation_label)}"',
-                    match.group(1),
-                    count=1,
-                )
-                if opening == match.group(1):
-                    opening = opening[:-1] + f' aria-label="{e(locale.article_navigation_label)}">'
-                body = match.group(2)
-
             language_links = article_language_links(article, locale, translations_by_source, cs_by_slug)
-            language_block = f"\n{language_links}" if language_links else ""
-            replacement = f'{opening}\n<a href="../../">{e(locale.back_to_index)}</a>{language_block}\n{body}'
+            language_block = f"{language_links}\n" if language_links else ""
+            replacement = (
+                f'<nav class="ia-links" aria-label="{e(locale.article_navigation_label)}">\n'
+                f'<a href="{e(article_index_href(locale))}">{e(locale.back_to_index)}</a>\n'
+                f"{language_block}"
+                '<a href="./source.md">source.md</a>\n'
+                '<a href="./caveman.md">caveman.md</a>\n'
+                "</nav>"
+            )
             return text[: match.start()] + replacement + text[match.end() :]
 
     raise ValueError(f"{article.slug}: could not patch article navigation")

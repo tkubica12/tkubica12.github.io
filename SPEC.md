@@ -37,6 +37,7 @@ OUTPUT
 - `_site\classic\...`: old Jekyll site.
 - `_site\feed.xml`: canonical Atom feed combining interactive articles with legacy classic entries.
 - `_site\llms.txt`: LLM-friendly Markdown index linking CZ and EN article `source.md` and `caveman.md` files.
+- Published CZ interactive articles must have current EN translations; `published: false` drafts are the exception.
 - `_site\classic\feed.xml`: legacy-only Jekyll feed for the classic section.
 
 PIPELINE
