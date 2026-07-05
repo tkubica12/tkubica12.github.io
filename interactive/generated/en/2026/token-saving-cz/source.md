@@ -4,12 +4,12 @@ title: "Saving tokens in GitHub Copilot"
 eyebrow: "How to reduce costs in 15 minutes"
 subtitle: "From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one."
 slug: token-saving-cz
-date: 2026-05-29
+date: 2026-07-05
 language: en
 source_language: cs-CZ
 source_slug: token-saving-cz
 translation: machine
-translated_from_hash: "b35cee2ce7d4dcd2dd1b7f7fa93ae47594b131a58c3669d3b6551b962832806b"
+translated_from_hash: "d89db6b18499fcee71ba854b3dd6757e4f49cf415d30ca66e48b7a9d962c85d7"
 translation_status: current
 status: experimental
 canonical_url: "/en/2026/token-saving-cz/"
@@ -32,7 +32,7 @@ Cost does not come only from what you type into chat. It adds up across many lay
 - **Chat history** and summaries between turns
 - **MCP tool definitions** and their JSON schemas — even the ones you do not use
 - **Tool call results** replayed as input in the next step
-- **Model output** (output tokens are the most expensive)
+- **Model output** including reasoning/thinking tokens (output tokens are the most expensive)
 - **Retries, subagents, loops** in agent mode
 
 ::: callout type="rule"
@@ -43,7 +43,11 @@ The goal is **scoped sufficiency** — enough context for Copilot to solve the t
 
 - **Input** — everything you send to the model for the first time (prompt, context, tool results)
 - **Cached input** — a repeated prefix the model has already seen in a previous turn of the same session. **~10× cheaper** than fresh input.
-- **Output** — what the model generates. **~6× more expensive** than fresh input, **~60× more expensive** than cached input.
+- **Output** — what the model generates, often including internal reasoning/thinking tokens. **~6× more expensive** than fresh input, **~60× more expensive** than cached input.
+
+::: callout type="warning" title="Output is not only the text you see"
+For reasoning models, hidden thinking is typically part of the output budget and billing. Higher reasoning effort therefore increases not just quality and latency, but also the most expensive token category.
+:::
 
 **Example from current real pricing (USD per 1M tokens):**
 
@@ -56,7 +60,7 @@ The goal is **scoped sufficiency** — enough context for Copilot to solve the t
 
 Mini and nano do not have long context.
 
-**Ballpark rules:**
+**Simplified rules:**
 
 - **Cache : Input : Output ≈ 1 : 10 : 60**
 - **Each tier down is ~3–4× cheaper**
@@ -78,7 +82,11 @@ If you are not sure why you need a premium reasoning model, start with **Auto**.
 - **10% discount on the multiplier** for paid plans
 - Manual override for architecture or hard debugging remains available
 
-In practice, for normal work this means you save 10% compared with pinning a specific model — and often also get a cheaper model that can handle the task.
+In practice this means two things: Auto picks a suitable model for the session and paid plans get a **10% multiplier discount**. Microsoft published the **HyDRA** paper ([arXiv](https://arxiv.org/abs/2605.17106)): on SWE-Bench Verified it can match strong Sonnet 4.6 quality while saving **54.1% of cost**; in peak-quality mode it even beats Sonnet and still saves **12.9%**.
+
+::: callout type="rule" title="Auto is not random model selection"
+Copilot combines real-time model health with an estimate of task requirements — reasoning, code generation, debugging and tool use. It is also cache-aware: it does not switch models on every turn, because changing the model, reasoning level or context size can break the cached prefix and make the next step more expensive ([GitHub blog](https://github.blog/ai-and-ml/github-copilot/getting-more-from-each-token-how-copilot-improves-context-handling-and-model-routing/)).
+:::
 
 :::
 
@@ -143,6 +151,18 @@ Done. List: files, why, validation, risks. No intro. ≤5 bullets.
 
 ::: callout type="warning" title="Careful"
 Do not shorten safety, destructive or compliance instructions. Ambiguity costs more than the saved tokens.
+:::
+
+**Set reasoning effort as deliberately as response length.**
+
+| Setting | When it makes sense | Token impact |
+|---|---|---|
+| Low | quick questions, small edits, format conversions | little hidden output |
+| Medium | normal agentic work | usually best cost/performance |
+| High | architecture, hard debugging, unclear multi-step problem | more reasoning tokens, higher latency |
+
+::: callout type="verdict" title="My take"
+Medium reasoning is a good default for normal coding. Benchmarks such as Expert-SWE ([benchmark](https://www.digitalapplied.com/blog/reasoning-effort-cost-vs-quality-benchmarks-2026)) suggest medium effort is often the refactoring sweet spot: low misses cross-file context, high adds cost and can add over-engineering.
 :::
 
 :::
@@ -225,7 +245,7 @@ Rule: text for text, controlled browser for visuals. Static screenshot only as a
 
 :::
 
-::: card number="07" title="Prompt language and structure — why English is not dogma"
+::: card number="07" title="Prompt language, structure and tokenizer — why English is not dogma"
 
 The tokenizer is trained mostly on English text, but this is not dogma:
 
@@ -285,6 +305,12 @@ while on validation error it returns 400 Bad Request with error details?
 Use your native language when quality matters and you are expressing nuance. For repeated operational prompts, compact English or structured keys win.
 :::
 
+One more layer: **models do not share the same vocabulary**. Two models can have the same price per million tokens without having the same price for the same text. Anthropic says Claude Sonnet 5's new tokenizer produces approximately **30% more tokens** for the same text than Claude Sonnet 4.6; per-token pricing is unchanged, but an equivalent request can cost more ([Anthropic docs](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5)). Models from different vendors can differ in the same way.
+
+::: callout type="rule"
+When comparing models, do not measure only price per 1M tokens. Measure **cost per solved task**: tokenizer, reasoning effort, number of tool calls, retry rate and result quality.
+:::
+
 :::
 
 :::
@@ -341,6 +367,10 @@ If you learned something the hard way in a session, it is a **candidate for dura
 Unused global MCP servers cost tokens before you even call them. Keep MCP per-workspace.
 :::
 
+The good news: Copilot has started doing part of this work for you. The VS Code team describes **tool search**, where the model initially receives only lightweight tool metadata and full JSON schemas are loaded on demand ([VS Code blog](https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot)). For OpenAI GPT-5.4/5.5, the experiment reduced median total tokens per turn by **8.61–9.81%** and median session tokens by **8.97–10.92%**. For Anthropic models, deferring tool definitions reduced total tokens for the median user by roughly **18%**.
+
+The principle still holds: tool search saves **tool definitions**, not result volume. MCP should still return small candidates, filter, and send detail only on demand.
+
 :::
 
 ::: card number="10" title="Deterministic tools instead of many-turn reasoning"
@@ -378,6 +408,8 @@ The economics are always the same: old cache is cheapest, fresh input ~10×, out
 
 `/chronicle tips`, `/chronicle cost-tips` and `/chronicle improve` serve as regular self-reflection.
 
+**Spend governance is another layer.** Copilot CLI can set a soft session limit with `/limits set max-ai-credits NUMBER` or `--max-ai-credits NUMBER` in non-interactive runs ([docs](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit)). Admins can govern user-level budgets, cost center per-user limits, cost center budgets, organization/enterprise budgets, and hard stops when budgets are exhausted ([docs](https://docs.github.com/en/copilot/concepts/billing/budgets-for-usage-based-billing)).
+
 :::
 
 ::: card number="12" title="Subagents — isolation, not magic savings"
@@ -398,7 +430,13 @@ Do not use when:
 - Coordination overhead dominates
 
 ::: callout type="rule"
-Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.
+Keep the handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.
+:::
+
+A subagent does not have to mean "another big model in another window". The direction GitHub/VS Code describes is specialized subagents for narrow tasks: workspace search, command execution and result summarization. The goal is to move noisy work out of the main agent and run it on the smallest model that can handle it ([VS Code blog](https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot)).
+
+::: callout type="warning" title="A cheaper model is not automatically a cheaper result"
+A smaller model can be cheap per token but less efficient at search, planning or tool use. If it makes more tool calls, reads more files or triggers retries, it can end up more expensive than a stronger model that finds the path on the first try.
 :::
 
 :::
@@ -440,6 +478,7 @@ The only universal advice: **measure your workload**. Cheaper model is not autom
 ### Easy
 
 - Auto model as the default
+- Do not leave reasoning effort unnecessarily high
 - Name exact files and done criteria
 - Find files as the first step
 - Limit output
@@ -450,9 +489,10 @@ The only universal advice: **measure your workload**. Cheaper model is not autom
 
 - Small `AGENTS.md` + skills + path instructions
 - MCP as search → select → fetch
+- Account for different tokenizers across models
 - Deterministic tooling
 - Use `/ask`, `/fork`, `/resume` consciously, `/compact` carefully
-- Subagents only for independent work
+- Subagents only for independent work; discovery/search subagents are a promising direction
 - Measure in CI and ask the agent for self-improvement
 
 ::: callout type="verdict"

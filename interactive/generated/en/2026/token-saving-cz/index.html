@@ -72,7 +72,7 @@ html[data-theme="dark"] {
 <p class="ia-eyebrow">How to reduce costs in 15 minutes</p>
 <h1 class="ia-title">Saving tokens in GitHub Copilot</h1>
 <p class="ia-subtitle">From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one.</p>
-<p class="ia-date"><time datetime="2026-05-29">May 29, 2026</time></p>
+<p class="ia-date"><time datetime="2026-07-05">July 5, 2026</time></p>
 <nav aria-label="Source files" class="ia-links">
 <a href="./source.md">source.md</a>
 <a href="./caveman.md">caveman.md</a>
@@ -106,7 +106,7 @@ html[data-theme="dark"] {
 <li><strong>Chat history</strong> and summaries between turns</li>
 <li><strong>MCP tool definitions</strong> and their JSON schemas — even the ones you do not use</li>
 <li><strong>Tool call results</strong> replayed as input in the next step</li>
-<li><strong>Model output</strong> (output tokens are the most expensive)</li>
+<li><strong>Model output</strong> including reasoning/thinking tokens (output tokens are the most expensive)</li>
 <li><strong>Retries, subagents, loops</strong> in agent mode</li>
 </ul>
 <aside class="ia-callout rule">
@@ -117,8 +117,12 @@ html[data-theme="dark"] {
 <ul>
 <li><strong>Input</strong> — everything you send to the model for the first time (prompt, context, tool results)</li>
 <li><strong>Cached input</strong> — a repeated prefix the model has already seen in a previous turn of the same session. <strong>~10× cheaper</strong> than fresh input.</li>
-<li><strong>Output</strong> — what the model generates. <strong>~6× more expensive</strong> than fresh input, <strong>~60× more expensive</strong> than cached input.</li>
+<li><strong>Output</strong> — what the model generates, often including internal reasoning/thinking tokens. <strong>~6× more expensive</strong> than fresh input, <strong>~60× more expensive</strong> than cached input.</li>
 </ul>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Output is not only the text you see</span>
+<p>For reasoning models, hidden thinking is typically part of the output budget and billing. Higher reasoning effort therefore increases not just quality and latency, but also the most expensive token category.</p>
+</aside>
 <p><strong>Example from current real pricing (USD per 1M tokens):</strong></p>
 <div class="ia-table-wrap"><table>
 <thead><tr>
@@ -169,7 +173,7 @@ html[data-theme="dark"] {
 </tr>
 </tbody></table></div>
 <p>Mini and nano do not have long context.</p>
-<p><strong>Ballpark rules:</strong></p>
+<p><strong>Simplified rules:</strong></p>
 <ul>
 <li><strong>Cache : Input : Output ≈ 1 : 10 : 60</strong></li>
 <li><strong>Each tier down is ~3–4× cheaper</strong></li>
@@ -199,7 +203,11 @@ html[data-theme="dark"] {
 <li><strong>10% discount on the multiplier</strong> for paid plans</li>
 <li>Manual override for architecture or hard debugging remains available</li>
 </ul>
-<p>In practice, for normal work this means you save 10% compared with pinning a specific model — and often also get a cheaper model that can handle the task.</p>
+<p>In practice this means two things: Auto picks a suitable model for the session and paid plans get a <strong>10% multiplier discount</strong>. Microsoft published the <strong>HyDRA</strong> paper (<a href="https://arxiv.org/abs/2605.17106">arXiv</a>): on SWE-Bench Verified it can match strong Sonnet 4.6 quality while saving <strong>54.1% of cost</strong>; in peak-quality mode it even beats Sonnet and still saves <strong>12.9%</strong>.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Auto is not random model selection</span>
+<p>Copilot combines real-time model health with an estimate of task requirements — reasoning, code generation, debugging and tool use. It is also cache-aware: it does not switch models on every turn, because changing the model, reasoning level or context size can break the cached prefix and make the next step more expensive (<a href="https://github.blog/ai-and-ml/github-copilot/getting-more-from-each-token-how-copilot-improves-context-handling-and-model-routing/">GitHub blog</a>).</p>
+</aside>
 </div></div>
 </div>
 </article>
@@ -270,6 +278,18 @@ html[data-theme="dark"] {
 <aside class="ia-callout warning">
 <span class="ia-callout-title">Careful</span>
 <p>Do not shorten safety, destructive or compliance instructions. Ambiguity costs more than the saved tokens.</p>
+</aside>
+<p><strong>Set reasoning effort as deliberately as response length.</strong></p>
+<div class="ia-table-wrap"><table>
+<thead><tr><th>Setting</th><th>When it makes sense</th><th>Token impact</th></tr></thead>
+<tbody>
+<tr><td>Low</td><td>quick questions, small edits, format conversions</td><td>little hidden output</td></tr>
+<tr><td>Medium</td><td>normal agentic work</td><td>usually best cost/performance</td></tr>
+<tr><td>High</td><td>architecture, hard debugging, unclear multi-step problem</td><td>more reasoning tokens, higher latency</td></tr>
+</tbody></table></div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">My take</span>
+<p>Medium reasoning is a good default for normal coding. Benchmarks such as Expert-SWE (<a href="https://www.digitalapplied.com/blog/reasoning-effort-cost-vs-quality-benchmarks-2026">benchmark</a>) suggest medium effort is often the refactoring sweet spot: low misses cross-file context, high adds cost and can add over-engineering.</p>
 </aside>
 </div></div>
 </div>
@@ -398,7 +418,7 @@ html[data-theme="dark"] {
 <article class="ia-card" data-ia-card="">
 <button aria-controls="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" aria-expanded="false" class="ia-card-head" data-ia-card-button="" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" type="button">
 <span class="ia-card-num">07</span>
-<span class="ia-card-title">Prompt language and structure — why English is not dogma</span>
+<span class="ia-card-title">Prompt language, structure and tokenizer — why English is not dogma</span>
 <span aria-hidden="true" class="ia-card-toggle">⌄</span>
 </button>
 <div aria-labelledby="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" class="ia-card-body" data-ia-card-panel="" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" role="region">
@@ -520,6 +540,11 @@ Validate: name req, email req+valid
 <span class="ia-callout-title">Conclusion</span>
 <p>Use your native language when quality matters and you are expressing nuance. For repeated operational prompts, compact English or structured keys win.</p>
 </aside>
+<p>One more layer: <strong>models do not share the same vocabulary</strong>. Two models can have the same price per million tokens without having the same price for the same text. Anthropic says Claude Sonnet 5&#x27;s new tokenizer produces approximately <strong>30% more tokens</strong> for the same text than Claude Sonnet 4.6; per-token pricing is unchanged, but an equivalent request can cost more (<a href="https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5">Anthropic docs</a>). Models from different vendors can differ in the same way.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Rule</span>
+<p>When comparing models, do not measure only price per 1M tokens. Measure <strong>cost per solved task</strong>: tokenizer, reasoning effort, number of tool calls, retry rate and result quality.</p>
+</aside>
 </div></div>
 </div>
 </article>
@@ -606,6 +631,8 @@ Validate: name req, email req+valid
 <span class="ia-callout-title">Careful</span>
 <p>Unused global MCP servers cost tokens before you even call them. Keep MCP per-workspace.</p>
 </aside>
+<p>The good news: Copilot has started doing part of this work for you. The VS Code team describes <strong>tool search</strong>, where the model initially receives only lightweight tool metadata and full JSON schemas are loaded on demand (<a href="https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot">VS Code blog</a>). For OpenAI GPT-5.4/5.5, the experiment reduced median total tokens per turn by <strong>8.61–9.81%</strong> and median session tokens by <strong>8.97–10.92%</strong>. For Anthropic models, deferring tool definitions reduced total tokens for the median user by roughly <strong>18%</strong>.</p>
+<p>The principle still holds: tool search saves <strong>tool definitions</strong>, not result volume. MCP should still return small candidates, filter, and send detail only on demand.</p>
 </div></div>
 </div>
 </article>
@@ -691,6 +718,7 @@ Validate: name req, email req+valid
 </tr>
 </tbody></table></div>
 <p><code>/chronicle tips</code>, <code>/chronicle cost-tips</code> and <code>/chronicle improve</code> serve as regular self-reflection.</p>
+<p><strong>Spend governance is another layer.</strong> Copilot CLI can set a soft session limit with <code>/limits set max-ai-credits NUMBER</code> or <code>--max-ai-credits NUMBER</code> in non-interactive runs (<a href="https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit">docs</a>). Admins can govern user-level budgets, cost center per-user limits, cost center budgets, organization/enterprise budgets, and hard stops when budgets are exhausted (<a href="https://docs.github.com/en/copilot/concepts/billing/budgets-for-usage-based-billing">docs</a>).</p>
 </div></div>
 </div>
 </article>
@@ -718,7 +746,12 @@ Validate: name req, email req+valid
 </ul>
 <aside class="ia-callout rule">
 <span class="ia-callout-title">Rule</span>
-<p>Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.</p>
+<p>Keep the handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.</p>
+</aside>
+<p>A subagent does not have to mean &quot;another big model in another window&quot;. The direction GitHub/VS Code describes is specialized subagents for narrow tasks: workspace search, command execution and result summarization. The goal is to move noisy work out of the main agent and run it on the smallest model that can handle it (<a href="https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot">VS Code blog</a>).</p>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">A cheaper model is not automatically a cheaper result</span>
+<p>A smaller model can be cheap per token but less efficient at search, planning or tool use. If it makes more tool calls, reads more files or triggers retries, it can end up more expensive than a stronger model that finds the path on the first try.</p>
 </aside>
 </div></div>
 </div>
@@ -767,6 +800,7 @@ steps:
 <h3>Easy</h3>
 <ul>
 <li>Auto model as the default</li>
+<li>Do not leave reasoning effort unnecessarily high</li>
 <li>Name exact files and done criteria</li>
 <li>Find files as the first step</li>
 <li>Limit output</li>
@@ -778,9 +812,10 @@ steps:
 <ul>
 <li>Small <code>AGENTS.md</code> + skills + path instructions</li>
 <li>MCP as search → select → fetch</li>
+<li>Account for different tokenizers across models</li>
 <li>Deterministic tooling</li>
 <li><code>/ask</code>, <code>/fork</code>, <code>/resume</code> consciously, <code>/compact</code> carefully</li>
-<li>Subagents only for independent work</li>
+<li>Subagents only for independent work; discovery/search subagents are a promising direction</li>
 <li>Measure in CI and ask the agent for self-improvement</li>
 </ul></div>
 </div>

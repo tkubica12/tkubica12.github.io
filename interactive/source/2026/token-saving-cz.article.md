@@ -6,7 +6,7 @@ subtitle: "Od snadných výher po pokročilý context engineering. Cílem není 
 slug: token-saving-cz
 language: cs-CZ
 status: experimental
-date: 2026-05-29
+date: 2026-07-05
 canonical_url: "/2026/token-saving-cz/"
 agent_friendly:
   source: "source.md"
@@ -27,7 +27,7 @@ Náklad neplyne jen z toho, co napíšete do chatu. Sčítá se z mnoha vrstev:
 - **Historie chatu** a shrnutí mezi tahy
 - **Definice MCP nástrojů** a jejich JSON schémata — i ty, které nepoužijete
 - **Výsledky tool callů** zopakované jako input v dalším kroku
-- **Výstup modelu** (output tokeny jsou nejdražší)
+- **Výstup modelu** včetně reasoning/thinking tokenů (output tokeny jsou nejdražší)
 - **Retries, subagents, smyčky** v agent módu
 
 ::: callout type="rule"
@@ -38,7 +38,11 @@ Cíl je **scoped sufficiency** — dostatek kontextu, aby Copilot úkol vyřeši
 
 - **Input** — vše, co posíláte modelu poprvé (prompt, kontext, tool results)
 - **Cached input** — opakovaný prefix, který model už viděl v předchozím tahu téže session. **~10× levnější** než fresh input.
-- **Output** — to, co model vygeneruje. **~6× dražší** než fresh input, **~60× dražší** než cached input.
+- **Output** — to, co model vygeneruje, často včetně interních reasoning/thinking tokenů. **~6× dražší** než fresh input, **~60× dražší** než cached input.
+
+::: callout type="warning" title="Output není jen text, který vidíte"
+U reasoning modelů se do výstupního rozpočtu a účtování typicky počítá i skryté přemýšlení. Vyšší reasoning effort tedy nezvyšuje jen kvalitu a latenci, ale i nejdražší kategorii tokenů.
+:::
 
 **Příklad z reálného aktuálního ceníku (USD za 1M tokenů):**
 
@@ -51,7 +55,7 @@ Cíl je **scoped sufficiency** — dostatek kontextu, aby Copilot úkol vyřeši
 
 Mini a nano dlouhý kontext nemají.
 
-**Ballpark pravidla:**
+**Zjednodušená pravidla:**
 
 - **Cache : Input : Output ≈ 1 : 10 : 60**
 - **Každý tier dolů je ~3–4× levnější**
@@ -73,7 +77,11 @@ Pokud si nejste jistí, proč potřebujete premium reasoning model, začněte s 
 - **10% sleva na multiplier** u placených plánů
 - Manuální override pro architekturu nebo těžký debug zůstává
 
-V praxi to znamená, že pro běžnou práci ušetříte 10 % oproti pinnutí konkrétního modelu — a navíc často dostanete levnější model, který úkol zvládne.
+V praxi to znamená dvě věci: Auto vybere vhodný model pro session a u placených plánů má **10% slevu na multiplier**. Microsoft k tomu publikoval paper **HyDRA** ([arXiv](https://arxiv.org/abs/2605.17106)): na SWE-Bench Verified umí při stejné kvalitě jako silný Sonnet 4.6 ušetřit **54,1 % nákladů**; v režimu maximální kvality Sonnet dokonce překoná a pořád šetří **12,9 %**.
+
+::: callout type="rule" title="Auto není random výběr modelu"
+Copilot kombinuje zdraví modelů v reálném čase s odhadem nároků úkolu — reasoning, code generation, debugging a tool use. Zároveň je cache-aware: model nemění v každém tahu, protože přepnutí modelu, reasoning levelu nebo context size umí rozbít cache prefixu a zdražit další krok ([GitHub blog](https://github.blog/ai-and-ml/github-copilot/getting-more-from-each-token-how-copilot-improves-context-handling-and-model-routing/)).
+:::
 
 :::
 
@@ -138,6 +146,18 @@ Hotovo. Vypiš: soubory, proč, validace, rizika. Bez úvodu. ≤5 odrážek.
 
 ::: callout type="warning" title="Pozor"
 Nezkracujte bezpečnostní, destruktivní nebo compliance instrukce. Nejednoznačnost stojí víc než ušetřené tokeny.
+:::
+
+**Reasoning effort nastavujte stejně vědomě jako délku odpovědi.**
+
+| Nastavení | Kdy dává smysl | Tokenový dopad |
+|---|---|---|
+| Nízké | rychlé dotazy, malé editace, převody formátu | málo skrytého outputu |
+| Střední | běžná agentická práce | obvykle nejlepší poměr cena/výkon |
+| Vysoké | architektura, těžký debug, nejasný multi-step problém | více reasoning tokenů, vyšší latence |
+
+::: callout type="verdict" title="Za mě"
+Střední reasoning je pro běžné kódování dobrý default. Benchmarky typu Expert-SWE ([benchmark](https://www.digitalapplied.com/blog/reasoning-effort-cost-vs-quality-benchmarks-2026)) ukazují, že u refactoringu bývá sweet spot právě střední effort: nízký často mine cross-file souvislosti, vysoký přidá cenu a někdy i over-engineering.
 :::
 
 :::
@@ -220,7 +240,7 @@ Pravidlo: text pro text, řízený browser pro vizuál. Statický screenshot až
 
 :::
 
-::: card number="07" title="Jazyk a struktura promptu — proč angličtina není dogma"
+::: card number="07" title="Jazyk, struktura promptu a tokenizer — proč angličtina není dogma"
 
 Tokenizer je trénovaný hlavně na anglickém textu, ale není to dogma:
 
@@ -280,6 +300,12 @@ zatímco při validační chybě vrátí 400 Bad Request s detaily chyb?
 Používejte rodný jazyk, když jde o kvalitu a vyjadřujete nuance. Pro opakované operační prompty vítězí úsporná angličtina nebo strukturované klíče.
 :::
 
+Ještě jedna vrstva: **modely nemají stejný slovník**. To, že dva modely mají stejnou cenu za milion tokenů, neznamená stejnou cenu za stejný text. Anthropic u Claude Sonnet 5 píše, že nový tokenizer vyrobí pro stejný text přibližně **o 30 % víc tokenů** než Claude Sonnet 4.6; per-token cena je stejná, ale ekvivalentní request může stát víc ([Anthropic docs](https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5)). Podobně se mohou lišit modely různých výrobců.
+
+::: callout type="rule"
+Když porovnáváte modely, neměřte jen cenu za 1M tokenů. Měřte **cenu za vyřešený úkol**: tokenizer, reasoning effort, počet tool callů, retry rate a kvalitu výsledku.
+:::
+
 :::
 
 :::
@@ -336,6 +362,10 @@ Pokud jste se v sessioně něco složitě dozvěděli, je to **kandidát na trva
 Nepoužívané globální MCP servery stojí tokeny dřív, než je vůbec zavoláte. Držte MCP per-workspace.
 :::
 
+Dobrá zpráva: část téhle práce už Copilot začal dělat za vás. VS Code tým popsal **tool search**, kde model dostane jen lehká metadata nástrojů a plná JSON schémata se načtou až na vyžádání ([VS Code blog](https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot)). U OpenAI modelů GPT-5.4/5.5 to v experimentu snížilo medián celkových tokenů na tah o **8,61–9,81 %** a medián session tokenů o **8,97–10,92 %**. U Anthropic modelů deferring tool definitions snížil u mediánového uživatele celkové tokeny zhruba o **18 %**.
+
+Princip ale zůstává: tool search šetří **definice toolů**, ne objem jejich výsledků. MCP má dál vracet malé kandidáty, filtrovat a detail posílat až na vyžádání.
+
 :::
 
 ::: card number="10" title="Deterministické nástroje místo reasoningu přes mnoho tahů"
@@ -373,6 +403,8 @@ Ekonomika je vždy stejná: stará cache je nejlevnější, fresh input ~10×, o
 
 `/chronicle tips`, `/chronicle cost-tips` a `/chronicle improve` slouží jako pravidelná self-reflection.
 
+**Governance spotřeby je další vrstva.** V Copilot CLI jde na session nastavit měkký limit přes `/limits set max-ai-credits NUMBER` nebo v neinteraktivním běhu `--max-ai-credits NUMBER` ([docs](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit)). Admini pak mohou řídit user-level budgets, cost center per-user limity, cost center budgety, organization/enterprise budgety a hard stop při vyčerpání ([docs](https://docs.github.com/en/copilot/concepts/billing/budgets-for-usage-based-billing)).
+
 :::
 
 ::: card number="12" title="Subagents — izolace, ne magická úspora"
@@ -393,7 +425,13 @@ Nepoužívejte když:
 - Coordination overhead dominuje
 
 ::: callout type="rule"
-Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.
+Malý handoff: cíl, známá fakta, přesné soubory, omezení, akceptační kritéria, formát výstupu.
+:::
+
+Subagent ale nemusí být jen „další velký model ve vedlejším okně". Směr, který GitHub/Vs Code tým popisuje, jsou specializovaní subagenti pro úzké úkoly: hledání ve workspace, spouštění příkazů a sumarizaci výsledků. Cíl je přesunout hlučnou práci mimo hlavního agenta a nechat ji běžet na nejmenším modelu, který ji zvládne ([VS Code blog](https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot)).
+
+::: callout type="warning" title="Levnější model není automaticky levnější výsledek"
+Menší model může být levný na token, ale méně efektivní v hledání, plánování nebo používání nástrojů. Když kvůli tomu udělá víc tool callů, přečte víc souborů nebo vyvolá retries, vyjde nakonec dráž než silnější model, který trefí cestu napoprvé.
 :::
 
 :::
@@ -435,6 +473,7 @@ Jediná univerzální rada: **změřte svůj workload**. Cheaper model není aut
 ### Snadné
 
 - Auto model jako default
+- Reasoning effort nenechávat zbytečně vysoko
 - Pojmenujte přesné soubory a done criteria
 - Nalezení souborů jako první krok
 - Omezte výstup
@@ -445,9 +484,10 @@ Jediná univerzální rada: **změřte svůj workload**. Cheaper model není aut
 
 - Drobný `AGENTS.md` + skills + path instructions
 - MCP jako search → select → fetch
+- Počítat s tím, že modely mají různé tokenizery
 - Deterministické toolery
 - `/ask`, `/fork`, `/resume` vědomě, `/compact` opatrně
-- Subagents jen na nezávislou práci
+- Subagents jen na nezávislou práci; discovery/search subagenti jsou slibný směr
 - Měřte v CI a ptejte se agenta na sebezlepšení
 
 ::: callout type="verdict"

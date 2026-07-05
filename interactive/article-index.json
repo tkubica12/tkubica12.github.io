@@ -107,7 +107,7 @@
     {
       "slug": "token-saving-cz",
       "year": 2026,
-      "date": "2026-05-29",
+      "date": "2026-07-05",
       "title": "Šetříme tokeny v GitHub Copilot",
       "eyebrow": "Jak snížit náklady v 15 minutách",
       "subtitle": "Od snadných výher po pokročilý context engineering. Cílem není utratit nejméně tokenů, ale získat z každého maximální hodnotu.",
@@ -117,6 +117,8 @@
         "Copilot",
         "tokeny",
         "context engineering",
+        "reasoning effort",
+        "tokenizer",
         "agents",
         "MCP"
       ],

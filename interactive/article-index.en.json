@@ -113,7 +113,7 @@
     {
       "slug": "token-saving-cz",
       "year": 2026,
-      "date": "2026-05-29",
+      "date": "2026-07-05",
       "title": "Saving tokens in GitHub Copilot",
       "eyebrow": "How to reduce costs in 15 minutes",
       "subtitle": "From easy wins to advanced context engineering. The goal is not to spend the fewest tokens, but to get maximum value from each one.",
@@ -123,6 +123,8 @@
         "Copilot",
         "tokens",
         "context engineering",
+        "reasoning effort",
+        "tokenizer",
         "agents",
         "MCP"
       ],
@@ -131,7 +133,7 @@
         "osobni-ai-workflow"
       ],
       "source_slug": "token-saving-cz",
-      "translated_from_hash": "b35cee2ce7d4dcd2dd1b7f7fa93ae47594b131a58c3669d3b6551b962832806b",
+      "translated_from_hash": "d89db6b18499fcee71ba854b3dd6757e4f49cf415d30ca66e48b7a9d962c85d7",
       "translation_status": "current"
     },
     {

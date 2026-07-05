@@ -71,7 +71,7 @@ html[data-theme="dark"] {
 <p class="ia-eyebrow">Jak snížit náklady v 15 minutách</p>
 <h1 class="ia-title">Šetříme tokeny v GitHub Copilot</h1>
 <p class="ia-subtitle">Od snadných výher po pokročilý context engineering. Cílem není utratit nejméně tokenů, ale získat z každého maximální hodnotu.</p>
-<p class="ia-date"><time datetime="2026-05-29">29. 5. 2026</time></p>
+<p class="ia-date"><time datetime="2026-07-05">5. 7. 2026</time></p>
 <nav class="ia-links" aria-label="Zdrojové soubory">
 <a href="./source.md">source.md</a>
 <a href="./caveman.md">caveman.md</a>
@@ -105,7 +105,7 @@ html[data-theme="dark"] {
 <li><strong>Historie chatu</strong> a shrnutí mezi tahy</li>
 <li><strong>Definice MCP nástrojů</strong> a jejich JSON schémata — i ty, které nepoužijete</li>
 <li><strong>Výsledky tool callů</strong> zopakované jako input v dalším kroku</li>
-<li><strong>Výstup modelu</strong> (output tokeny jsou nejdražší)</li>
+<li><strong>Výstup modelu</strong> včetně reasoning/thinking tokenů (output tokeny jsou nejdražší)</li>
 <li><strong>Retries, subagents, smyčky</strong> v agent módu</li>
 </ul>
 <aside class="ia-callout rule">
@@ -116,8 +116,12 @@ html[data-theme="dark"] {
 <ul>
 <li><strong>Input</strong> — vše, co posíláte modelu poprvé (prompt, kontext, tool results)</li>
 <li><strong>Cached input</strong> — opakovaný prefix, který model už viděl v předchozím tahu téže session. <strong>~10× levnější</strong> než fresh input.</li>
-<li><strong>Output</strong> — to, co model vygeneruje. <strong>~6× dražší</strong> než fresh input, <strong>~60× dražší</strong> než cached input.</li>
+<li><strong>Output</strong> — to, co model vygeneruje, často včetně interních reasoning/thinking tokenů. <strong>~6× dražší</strong> než fresh input, <strong>~60× dražší</strong> než cached input.</li>
 </ul>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Output není jen text, který vidíte</span>
+<p>U reasoning modelů se do výstupního rozpočtu a účtování typicky počítá i skryté přemýšlení. Vyšší reasoning effort tedy nezvyšuje jen kvalitu a latenci, ale i nejdražší kategorii tokenů.</p>
+</aside>
 <p><strong>Příklad z reálného aktuálního ceníku (USD za 1M tokenů):</strong></p>
 <div class="ia-table-wrap"><table>
 <thead><tr>
@@ -168,7 +172,7 @@ html[data-theme="dark"] {
 </tr>
 </tbody></table></div>
 <p>Mini a nano dlouhý kontext nemají.</p>
-<p><strong>Ballpark pravidla:</strong></p>
+<p><strong>Zjednodušená pravidla:</strong></p>
 <ul>
 <li><strong>Cache : Input : Output ≈ 1 : 10 : 60</strong></li>
 <li><strong>Každý tier dolů je ~3–4× levnější</strong></li>
@@ -198,7 +202,11 @@ html[data-theme="dark"] {
 <li><strong>10% sleva na multiplier</strong> u placených plánů</li>
 <li>Manuální override pro architekturu nebo těžký debug zůstává</li>
 </ul>
-<p>V praxi to znamená, že pro běžnou práci ušetříte 10 % oproti pinnutí konkrétního modelu — a navíc často dostanete levnější model, který úkol zvládne.</p>
+<p>V praxi to znamená dvě věci: Auto vybere vhodný model pro session a u placených plánů má <strong>10% slevu na multiplier</strong>. Microsoft k tomu publikoval paper <strong>HyDRA</strong> (<a href="https://arxiv.org/abs/2605.17106">arXiv</a>): na SWE-Bench Verified umí při stejné kvalitě jako silný Sonnet 4.6 ušetřit <strong>54,1 % nákladů</strong>; v režimu maximální kvality Sonnet dokonce překoná a pořád šetří <strong>12,9 %</strong>.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Auto není random výběr modelu</span>
+<p>Copilot kombinuje zdraví modelů v reálném čase s odhadem nároků úkolu — reasoning, code generation, debugging a tool use. Zároveň je cache-aware: model nemění v každém tahu, protože přepnutí modelu, reasoning levelu nebo context size umí rozbít cache prefixu a zdražit další krok (<a href="https://github.blog/ai-and-ml/github-copilot/getting-more-from-each-token-how-copilot-improves-context-handling-and-model-routing/">GitHub blog</a>).</p>
+</aside>
 </div></div>
 </div>
 </article>
@@ -276,6 +284,18 @@ Vypiš jen cesty a jednu větu proč. Nedělej shrnutí celého repa.</code></pr
 <aside class="ia-callout warning">
 <span class="ia-callout-title">Pozor</span>
 <p>Nezkracujte bezpečnostní, destruktivní nebo compliance instrukce. Nejednoznačnost stojí víc než ušetřené tokeny.</p>
+</aside>
+<p><strong>Reasoning effort nastavujte stejně vědomě jako délku odpovědi.</strong></p>
+<div class="ia-table-wrap"><table>
+<thead><tr><th>Nastavení</th><th>Kdy dává smysl</th><th>Tokenový dopad</th></tr></thead>
+<tbody>
+<tr><td>Nízké</td><td>rychlé dotazy, malé editace, převody formátu</td><td>málo skrytého outputu</td></tr>
+<tr><td>Střední</td><td>běžná agentická práce</td><td>obvykle nejlepší poměr cena/výkon</td></tr>
+<tr><td>Vysoké</td><td>architektura, těžký debug, nejasný multi-step problém</td><td>více reasoning tokenů, vyšší latence</td></tr>
+</tbody></table></div>
+<aside class="ia-callout verdict">
+<span class="ia-callout-title">Za mě</span>
+<p>Střední reasoning je pro běžné kódování dobrý default. Benchmarky typu Expert-SWE (<a href="https://www.digitalapplied.com/blog/reasoning-effort-cost-vs-quality-benchmarks-2026">benchmark</a>) ukazují, že u refactoringu bývá sweet spot právě střední effort: nízký často mine cross-file souvislosti, vysoký přidá cenu a někdy i over-engineering.</p>
 </aside>
 </div></div>
 </div>
@@ -411,7 +431,7 @@ Posledních 30 řádků:
 <article class="ia-card" data-ia-card>
 <button class="ia-card-head" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" type="button" aria-expanded="false" aria-controls="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" data-ia-card-button>
 <span class="ia-card-num">07</span>
-<span class="ia-card-title">Jazyk a struktura promptu — proč angličtina není dogma</span>
+<span class="ia-card-title">Jazyk, struktura promptu a tokenizer — proč angličtina není dogma</span>
 <span class="ia-card-toggle" aria-hidden="true">⌄</span>
 </button>
 <div class="ia-card-body" id="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-panel" role="region" aria-labelledby="card-06-jazyk-a-struktura-promptu-proc-anglictina-neni-dogma-button" data-ia-card-panel>
@@ -538,6 +558,11 @@ zatímco při validační chybě vrátí 400 Bad Request s detaily chyb?</code><
 <span class="ia-callout-title">Závěr</span>
 <p>Používejte rodný jazyk, když jde o kvalitu a vyjadřujete nuance. Pro opakované operační prompty vítězí úsporná angličtina nebo strukturované klíče.</p>
 </aside>
+<p>Ještě jedna vrstva: <strong>modely nemají stejný slovník</strong>. To, že dva modely mají stejnou cenu za milion tokenů, neznamená stejnou cenu za stejný text. Anthropic u Claude Sonnet 5 píše, že nový tokenizer vyrobí pro stejný text přibližně <strong>o 30 % víc tokenů</strong> než Claude Sonnet 4.6; per-token cena je stejná, ale ekvivalentní request může stát víc (<a href="https://platform.claude.com/docs/en/about-claude/models/whats-new-sonnet-5">Anthropic docs</a>). Podobně se mohou lišit modely různých výrobců.</p>
+<aside class="ia-callout rule">
+<span class="ia-callout-title">Pravidlo</span>
+<p>Když porovnáváte modely, neměřte jen cenu za 1M tokenů. Měřte <strong>cenu za vyřešený úkol</strong>: tokenizer, reasoning effort, počet tool callů, retry rate a kvalitu výsledku.</p>
+</aside>
 </div></div>
 </div>
 </article>
@@ -630,6 +655,8 @@ co dělat při změně. Žádná próza, jen seznamy a odkazy.</code></pre>
 <span class="ia-callout-title">Pozor</span>
 <p>Nepoužívané globální MCP servery stojí tokeny dřív, než je vůbec zavoláte. Držte MCP per-workspace.</p>
 </aside>
+<p>Dobrá zpráva: část téhle práce už Copilot začal dělat za vás. VS Code tým popsal <strong>tool search</strong>, kde model dostane jen lehká metadata nástrojů a plná JSON schémata se načtou až na vyžádání (<a href="https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot">VS Code blog</a>). U OpenAI modelů GPT-5.4/5.5 to v experimentu snížilo medián celkových tokenů na tah o <strong>8,61–9,81 %</strong> a medián session tokenů o <strong>8,97–10,92 %</strong>. U Anthropic modelů deferring tool definitions snížil u mediánového uživatele celkové tokeny zhruba o <strong>18 %</strong>.</p>
+<p>Princip ale zůstává: tool search šetří <strong>definice toolů</strong>, ne objem jejich výsledků. MCP má dál vracet malé kandidáty, filtrovat a detail posílat až na vyžádání.</p>
 </div></div>
 </div>
 </article>
@@ -715,6 +742,7 @@ co dělat při změně. Žádná próza, jen seznamy a odkazy.</code></pre>
 </tr>
 </tbody></table></div>
 <p><code>/chronicle tips</code>, <code>/chronicle cost-tips</code> a <code>/chronicle improve</code> slouží jako pravidelná self-reflection.</p>
+<p><strong>Governance spotřeby je další vrstva.</strong> V Copilot CLI jde na session nastavit měkký limit přes <code>/limits set max-ai-credits NUMBER</code> nebo v neinteraktivním běhu <code>--max-ai-credits NUMBER</code> (<a href="https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit">docs</a>). Admini pak mohou řídit user-level budgets, cost center per-user limity, cost center budgety, organization/enterprise budgety a hard stop při vyčerpání (<a href="https://docs.github.com/en/copilot/concepts/billing/budgets-for-usage-based-billing">docs</a>).</p>
 </div></div>
 </div>
 </article>
@@ -742,7 +770,12 @@ co dělat při změně. Žádná próza, jen seznamy a odkazy.</code></pre>
 </ul>
 <aside class="ia-callout rule">
 <span class="ia-callout-title">Pravidlo</span>
-<p>Handoff small: objective, known facts, exact files, constraints, acceptance criteria, output format.</p>
+<p>Malý handoff: cíl, známá fakta, přesné soubory, omezení, akceptační kritéria, formát výstupu.</p>
+</aside>
+<p>Subagent ale nemusí být jen „další velký model ve vedlejším okně&quot;. Směr, který GitHub/Vs Code tým popisuje, jsou specializovaní subagenti pro úzké úkoly: hledání ve workspace, spouštění příkazů a sumarizaci výsledků. Cíl je přesunout hlučnou práci mimo hlavního agenta a nechat ji běžet na nejmenším modelu, který ji zvládne (<a href="https://code.visualstudio.com/blogs/2026/06/17/improving-token-efficiency-in-github-copilot">VS Code blog</a>).</p>
+<aside class="ia-callout warning">
+<span class="ia-callout-title">Levnější model není automaticky levnější výsledek</span>
+<p>Menší model může být levný na token, ale méně efektivní v hledání, plánování nebo používání nástrojů. Když kvůli tomu udělá víc tool callů, přečte víc souborů nebo vyvolá retries, vyjde nakonec dráž než silnější model, který trefí cestu napoprvé.</p>
 </aside>
 </div></div>
 </div>
@@ -791,6 +824,7 @@ steps:
 <h3>Snadné</h3>
 <ul>
 <li>Auto model jako default</li>
+<li>Reasoning effort nenechávat zbytečně vysoko</li>
 <li>Pojmenujte přesné soubory a done criteria</li>
 <li>Nalezení souborů jako první krok</li>
 <li>Omezte výstup</li>
@@ -802,9 +836,10 @@ steps:
 <ul>
 <li>Drobný <code>AGENTS.md</code> + skills + path instructions</li>
 <li>MCP jako search → select → fetch</li>
+<li>Počítat s tím, že modely mají různé tokenizery</li>
 <li>Deterministické toolery</li>
 <li><code>/ask</code>, <code>/fork</code>, <code>/resume</code> vědomě, <code>/compact</code> opatrně</li>
-<li>Subagents jen na nezávislou práci</li>
+<li>Subagents jen na nezávislou práci; discovery/search subagenti jsou slibný směr</li>
 <li>Měřte v CI a ptejte se agenta na sebezlepšení</li>
 </ul></div>
 </div>
