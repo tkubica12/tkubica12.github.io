@@ -14,7 +14,7 @@ STRUCTURE
 - G2 Od řádku k záměru: 04 růst jednotky zadání, 05 spec-driven development
 - G3 Uzavírání smyček u kódování: 06 Shumerův Gauntlet Loop, 07 "It does not.", 08 loop engineering a workshop za $70
 - G4 Hill-climbing a enterprise smyčky: 09 tři vrstvy znalosti + Reverse Information Paradox, 10 hill-climbing a 4 vrstvy adopce, 11 Autopiloti a Agent 365, 12 evals spustitelné, 13 zaměstnanec vs. najatý konzultant
-- G5 Závěry: 3 detail karty + checklist + closing
+- G5 Závěry: 3 sbalovací karty + checklist + closing
 
 KEY POINTS
 - Evals = specifikace, kterou jde spustit. Specifikace říká *jak něco udělat*, evals *jak poznám, že je výsledek dobrý*.

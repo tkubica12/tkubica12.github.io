@@ -9,7 +9,7 @@ language: en
 source_language: cs-CZ
 source_slug: evals-nejcennejsi-aktivum
 translation: machine
-translated_from_hash: 3b97a53f4dfcd1a47a549ac8776b639b58aab0754f99b2bbf43a395adcac6fc7
+translated_from_hash: 3bbdeb4e3531d7217d266a71868de205aeb8a60ca320c29582d3c422daa2e7e6
 translation_status: current
 status: experimental
 canonical_url: "/en/2026/evals-nejcennejsi-aktivum/"
@@ -341,24 +341,24 @@ The first one is perfectly fine and I will keep doing it - when I want a Copilot
 
 ::: group id="zavery" title="Conclusions"
 
-::: detail-grid title="Three things to take away" hint="Click a card for detail"
-::: detail-card title="Value is moving toward measurement" summary="AI will write the prompt, the context and the spec for you today. Not the definition of success."
+If you take three things away from this, take these.
+
+::: card number="" title="Value is moving toward measurement" subtitle="AI will write the prompt, the context and the spec for you today. Not the definition of success." default="closed"
 Every stop along that road was briefly the most important thing and then soaked into the model or into the tools. Prompt engineering dissolved into model capabilities. Context engineering was largely taken over by agentic behaviour. A spec will be written for you by an agent today if you describe the intent.
 
 What does not soak away is the definition of what a good result is. It cannot be derived from public data, because it is specific to you.
 :::
 
-::: detail-card title="The model knows general things, not your company" summary="A critic can run Call of Duty side by side. Not your process."
+::: card number="" title="The model knows general things, not your company" subtitle="A critic can run Call of Duty side by side. Not your process." default="closed"
 Shumer's loop worked mainly because it had a perfect reference point for free. Your company is not like that and should not be - if a model knows your procedures perfectly, you are a commodity heading for zero margin.
 
 So the fact that the model does not know your procedural and tacit knowledge is not a problem to be solved. It is your competitive advantage, which you have to be able to turn into measurable form without giving it away.
 :::
 
-::: detail-card title="No hill-climbing without evals" summary="Just a random walk that looks like progress."
+::: card number="" title="No hill-climbing without evals" subtitle="Just a random walk that looks like progress." default="closed"
 The next phase of adoption is not a better chatbot but a digital worker that learns from how its work turned out. First tuning skills and context, later environments and tuned models for specific company roles.
 
 Both need the same thing: a signal you can climb the hill by. And you have to manufacture that signal yourself - and keep it.
-:::
 :::
 
 ::: arrow-list title="What to do about it in practice"

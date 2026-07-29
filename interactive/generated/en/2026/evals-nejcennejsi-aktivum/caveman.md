@@ -6,7 +6,7 @@ language: en
 status: experimental
 canonical_url: /en/2026/evals-nejcennejsi-aktivum/
 source_slug: evals-nejcennejsi-aktivum
-translated_from_hash: 3b97a53f4dfcd1a47a549ac8776b639b58aab0754f99b2bbf43a395adcac6fc7
+translated_from_hash: 3bbdeb4e3531d7217d266a71868de205aeb8a60ca320c29582d3c422daa2e7e6
 translation_status: current
 ---
 
@@ -28,7 +28,7 @@ STRUCTURE
 - G2 From a line to an intent: 04 growth of the unit of assignment, 05 spec-driven development
 - G3 Closing loops in coding: 06 Shumer's Gauntlet Loop, 07 "It does not.", 08 loop engineering and a $70 workshop
 - G4 Hill-climbing and enterprise loops: 09 three layers of knowledge + Reverse Information Paradox, 10 hill-climbing and 4 adoption layers, 11 Autopilots and Agent 365, 12 executable evals, 13 employee vs. hired consultant
-- G5 Conclusions: 3 detail cards + checklist + closing
+- G5 Conclusions: 3 collapsible cards + checklist + closing
 
 KEY POINTS
 - Evals = a specification you can run. A spec says *how to do something*, evals say *how I know the result is good*.

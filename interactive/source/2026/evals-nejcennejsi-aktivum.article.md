@@ -337,24 +337,24 @@ To první je naprosto v pořádku a budu to dělat pořád - když chci Copilota
 
 ::: group id="zavery" title="Závěry"
 
-::: detail-grid title="Tři věci, které si z toho odnést" hint="Klikněte na kartu pro detail"
-::: detail-card title="Hodnota se stěhuje k měření" summary="Prompt, kontext i specifikaci vám dnes napíše AI sama. Definici úspěchu ne."
+Když si z toho máte odnést tři věci, tak tyhle.
+
+::: card number="" title="Hodnota se stěhuje k měření" subtitle="Prompt, kontext i specifikaci vám dnes napíše AI sama. Definici úspěchu ne." default="closed"
 Každá zastávka na té cestě byla chvíli tím nejdůležitějším a pak se vsákla do modelu nebo do nástrojů. Prompt engineering se rozpustil ve schopnostech modelů. Context engineering z velké části převzalo agentické chování. Specifikaci vám dneska napíše agent, když mu popíšete záměr.
 
 Co se nevsakuje, je definice toho, co je dobrý výsledek. Ta se nedá odvodit z veřejných dat, protože je specifická pro vás.
 :::
 
-::: detail-card title="Model zná obecné věci, vaši firmu ne" summary="Call of Duty si kritik pustí vedle. Váš proces ne."
+::: card number="" title="Model zná obecné věci, vaši firmu ne" subtitle="Call of Duty si kritik pustí vedle. Váš proces ne." default="closed"
 Shumerova smyčka fungovala hlavně proto, že měla zadarmo dokonalý referenční bod. Vaše firma taková není a být nemá - pokud model dokonale zná vaše postupy, jste komodita mířící k nulové marži.
 
 Takže to, že model nezná vaši procedurální a implicitní znalost, není problém k vyřešení. Je to vaše konkurenční výhoda, kterou musíte umět převést do měřitelné podoby, aniž byste ji rozdali.
 :::
 
-::: detail-card title="Bez evalů není hill-climbing" summary="Jen náhodná procházka, která vypadá jako pokrok."
+::: card number="" title="Bez evalů není hill-climbing" subtitle="Jen náhodná procházka, která vypadá jako pokrok." default="closed"
 Další fáze adopce není lepší chatbot, ale digitální pracovník, který se učí z toho, jak jeho práce dopadla. Nejdřív ladění skillů a kontextu, později prostředí a doladěné modely pro konkrétní firemní role.
 
 Obojí ale potřebuje totéž: signál, podle kterého se dá stoupat do kopce. A ten signál si musíte vyrobit sami - a nechat si ho.
-:::
 :::
 
 ::: arrow-list title="Co s tím prakticky"
