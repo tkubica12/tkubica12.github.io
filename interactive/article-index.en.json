@@ -63,6 +63,30 @@
   ],
   "articles": [
     {
+      "slug": "evals-nejcennejsi-aktivum",
+      "year": 2026,
+      "date": "2026-07-29",
+      "title": "Your company's most valuable asset in the AI world is the definition of what good looks like.",
+      "eyebrow": "Where value is moving in AI",
+      "subtitle": "Prompting got old, the agent finds its own context, and it will write the spec for you. So what is left for you to do?",
+      "url": "/en/2026/evals-nejcennejsi-aktivum/",
+      "summary": "The road from prompt engineering through context, agents and spec-driven development to closed loops - and why an executable definition of a good result is a company's most valuable asset.",
+      "labels": [
+        "evals",
+        "loop engineering",
+        "continuous learning",
+        "spec-driven development",
+        "enterprise AI"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ],
+      "source_slug": "evals-nejcennejsi-aktivum",
+      "translated_from_hash": "3b97a53f4dfcd1a47a549ac8776b639b58aab0754f99b2bbf43a395adcac6fc7",
+      "translation_status": "current"
+    },
+    {
       "slug": "foundry-toolbox-search",
       "year": 2026,
       "date": "2026-06-09",

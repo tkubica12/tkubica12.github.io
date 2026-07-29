@@ -63,6 +63,27 @@
   ],
   "articles": [
     {
+      "slug": "evals-nejcennejsi-aktivum",
+      "year": 2026,
+      "date": "2026-07-29",
+      "title": "Nejcennější aktivum vaší firmy ve světě AI je definice toho, co je dobře.",
+      "eyebrow": "Kam se stěhuje hodnota v AI",
+      "subtitle": "Prompt zestárl, kontext si agent najde sám, specifikaci vám napíše. Co ale musíte udělat vy?",
+      "url": "/2026/evals-nejcennejsi-aktivum/",
+      "summary": "Cesta od prompt engineeringu přes kontext, agenty a spec-driven development k uzavřeným smyčkám - a proč je nejcennějším firemním aktivem spustitelná definice toho, co je dobrý výsledek.",
+      "labels": [
+        "evals",
+        "loop engineering",
+        "continuous learning",
+        "spec-driven development",
+        "AI v enterprise"
+      ],
+      "themes": [
+        "ai-agenti-a-kodovani",
+        "ai-produkt-a-byznys"
+      ]
+    },
+    {
       "slug": "agenti-token-kapital-build-2026",
       "year": 2026,
       "date": "2026-06-15",

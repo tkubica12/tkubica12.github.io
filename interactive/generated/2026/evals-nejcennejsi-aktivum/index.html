@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}
+</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+<title>Nejcennější aktivum vaší firmy ve světě AI je definice toho, co je dobře.</title>
+<meta name="description" content="Prompt zestárl, kontext si agent najde sám, specifikaci vám napíše. Co ale musíte udělat vy?">
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+  <button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+  <button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+  <button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+  <p class="ia-eyebrow">Kam se stěhuje hodnota v AI</p>
+  <h1 class="ia-title">Nejcennější aktivum vaší firmy ve světě AI je definice toho, co je dobře.</h1>
+  <p class="ia-subtitle">Prompt zestárl, kontext si agent najde sám, specifikaci vám napíše. Co ale musíte udělat vy?</p>
+  <p class="ia-date"><time datetime="2026-07-29">29. 7. 2026</time></p>
+  <nav class="ia-links" aria-label="Navigace článku">
+    <a href="../../">← Všechny interaktivní články</a>
+    <a href="./source.md">source.md</a>
+    <a href="./caveman.md">caveman.md</a>
+  </nav>
+</header>
+<main id="content">
+<article>
+<div class="ia-prose"><p>Když nastoupí do firmy nový člověk, dostane přístupy, dokumentaci, data a kód. To je ta snadná část, trvá den, a přitom je důležitá - bez ní by nefungoval vůbec. Jenže pak tam sedí ještě půl roku, než začne být opravdu užitečný. V té době se učí něco, co mu nikdo neumí napsat: kdy se který proces obchází a proč je to v pořádku, který zákazník to myslí vážně, co znamená, když někdo na schůzce řekne "to zvládneme".</p>
+<p>Přesně v téhle situaci je dneska každý AI systém, který do firmy pustíte. Tu první část mu dáte za odpoledne. Tu druhou ne.</p>
+<p>Otázka pak zní, jak toho člověka po půl roce vlastně poznáte. Podle čeho víte, že už je dobrý? Protože dokud na tohle neumíte odpovědět, neumíte to naučit ani AI.</p></div>
+<section class="ia-group" id="o-co-jde">
+<h2 class="ia-group-title">O co tady jde</h2>
+<div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button>
+
+<span class="ia-card-title">Nejen data, kód a modely</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-01" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Na Buildu letos v červnu k tomu Satya Nadella řekl větu, která podle mě trochu zapadla - že <strong>privátní evals jsou možná to největší duševní vlastnictví (IP), které dnes firma může mít</strong>. A přidal k tomu test: máte privátní eval, běžíte na modelu A. Dokážete přepnout na model B a stoupat dál? Jestli ano, máte to pod kontrolou.</p>
+<p>Nejen data. Nejen kód. Nejen modely. Nejen specifikace, o kterých se poslední rok mluví jako o novém firemním zlatě. Schopnost změřit, že je výsledek dobrý.</p>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="prompt-agent">
+<h2 class="ia-group-title">Od promptu k agentovi</h2>
+<div class="ia-prose"><p>Nejdřív byla věda se správně zeptat. Pak vyhledat ty správné informace a naservírovat je modelu. A dneska ladíme spíš nástroje a počítač pro agenta - zbytek už si vyřeší sám.</p></div>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button>
+<span class="ia-card-num">01</span>
+<span class="ia-card-title">Prompt engineering a profese, která nikdy nebyla profesí</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-02" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Na začátku to byl jednoznačně prompt. Umění se zeptat. Vznikla kolem toho celá "profese" a existovaly propracované sady pravidel, které jsme si všichni předávali - formulovat pozitivně a ne negacemi, na konec zopakovat to nejdůležitější, dát pár příkladů, přinutit model k postupnému uvažování větou "let's think step by step", oddělovat sekce, strukturovat vstup.</p>
+<p>A tehdy to fakt fungovalo. Rozdíl mezi dobrým a špatným promptem byl rozdíl mezi použitelným a nepoužitelným výstupem.</p>
+<p>Mediální vrchol byl někdy na jaře 2023, kdy Anthropic inzeroval pozici "Prompt Engineer and Librarian" s kompenzací <a href="https://www.washingtonpost.com/business/2023/02/25/prompt-engineers-techs-next-big-job/">až 335 000 dolarů ročně</a>. Zajímavé ale je, že to nikdy nebyl skutečný trh - <a href="https://arxiv.org/abs/2506.00058">analýza inzerátů na LinkedIn</a> našla pouhých 72 prompt-engineer pozic z 20 662, tedy nějakých 0,35 %. Bublina, která se ve skutečnosti nikdy nenafoukla. Jen se o ní hodně psalo.</p>
+<p>Nebylo by ale fér říct, že prompt engineering umřel - jen se rozdělil na dvě části a ta mechanická zmizela v modelu samotném a jeho rozvinutých schopnostech uvažování. OpenAI dnes u reasoning modelů přímo doporučuje <strong>"Avoid chain-of-thought prompts"</strong> a <strong>"Try zero shot first"</strong> (<a href="https://developers.openai.com/api/docs/guides/reasoning-best-practices">reasoning best practices</a>), protože model si uvažování udělá sám a vaše berlička ho spíš rozhodí. Anthropic naopak dodnes tvrdí, že příklady jsou <strong>"one of the most reliable ways"</strong> jak model řídit. Není to černobílé, záleží na modelové rodině a na úloze.</p>
+<p>Ale ta obsahová část - co vlastně chci - je najednou důležitější než forma. A to je celá pointa.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Verdikt</span>
+<p>Ty techniky nezmizely proto, že by byly špatné. Zmizely proto, že model přestal potřebovat berličku. Přestali jsme řešit, <strong>jak</strong> se zeptat, a začali jsme řešit, <strong>na co</strong> se ptáme.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button>
+<span class="ia-card-num">02</span>
+<span class="ia-card-title">Context engineering, vybíráme co by si měl model přečíst</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-03" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Jakmile přestalo záležet na formulaci, přesunula se pozornost o patro výš. Co dostane model do kontextového okna? Jaká data, jaké texty, jak je připravit, jak chunkovat, jak rerankovat. Postavil jsem na tomhle tématu <a href="/2025/rag-part1/">celou sérii o RAG</a> a byla to opravdu věda.</p>
+<p>Termín zviralizoval Tobi Lütke 19. 6. 2025 definicí <strong>"the art of providing all the context for the task to be plausibly solvable by the LLM"</strong> (<a href="https://x.com/tobi/status/1935533422589399127">zdroj</a>). O šest dní později to Andrej Karpathy rozšířil na <strong>"the delicate art and science of filling the context window with just the right information for the next step"</strong> (<a href="https://x.com/karpathy/status/1937902205765607626">zdroj</a>). Anthropic to pak 29. 9. 2025 <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">zformalizoval</a> jako strategie pro kurátorství a udržování optimální sady tokenů během inference, včetně promptu, nástrojů, MCP, historie, paměti i externích dat.</p>
+<p>Všimněte si toho posunu. Přestali jsme ladit otázku a začali ladit to, co je v zorném poli modelu (context window). Pořád jsme ale byli my ti, kdo to zorné pole staví.</p>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button>
+<span class="ia-card-num">03</span>
+<span class="ia-card-title">Agentický přístup, kontext si najdu sám, děkuji</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-04" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>V podobné době přišly nástroje a s nimi agentické chování. Agent se může rozhodnout, že si něco dotáhne. Zeptá se ve stávajících systémech, napíše si query do databáze, přečte si soubor, zkusí to znovu jinak. A iteruje.</p>
+<p>Tím se ta pečlivá příprava kontextu částečně rozpustila. Nemusíme už tak úzkostlivě řešit, jak vybrat těch správných pět odstavců, protože si je agent najde sám.</p>
+<p>RAG sice už není pupek světa, ale je stále zásadním prostředkem optimalizace nákladů, rychlosti a kvality odpovědí. Anthropic sice ukázal, že jejich multi-agent Research systém překonal single-agent Claude Opus 4 v interním evalu <a href="https://www.anthropic.com/engineering/multi-agent-research-system">o 90,2 %</a>, ale spotřeboval při tom zhruba <strong>patnáctkrát víc tokenů</strong> než běžný chat. Microsoft svůj <a href="https://learn.microsoft.com/en-us/azure/search/agentic-retrieval-overview">Agentic Retrieval</a> popisuje explicitně jako věc určenou <em>pro</em> RAG patterny, ne jako jejich náhradu. Dobře připravený kontext pořád zvyšuje spolehlivost a snižuje náklady. Jen už není podmínkou, aby to vůbec fungovalo.</p>
+<p>A pak přišlo to, co mě baví nejvíc - <strong>agent si začal psát poznámky pro svou pozdější práci</strong>. Anthropic vydal <a href="https://claude.com/blog/skills">Agent Skills</a> 16. 10. 2025 a <a href="https://claude.com/blog/context-management">memory tool</a> 29. 9. 2025, formát skillů se pak 18. 12. 2025 <a href="https://agentskills.io/">stal otevřeným standardem</a>.</p>
+<p>Když se agent natrápí přes tři slepé uličky, než najde správný způsob dotazu do databáze, umí to dneska zobecnit a uložit jako skill. Procedurální paměť. Přemýšlecí cache. To už není retrieval, to je začátek učení. Psal jsem o tom podrobněji v článku o <a href="/2026/ai-code-context-feedback/">software jako paměti</a>, kde si můj domácí agent sám napsal CLI a okomentoval si ho ve skillu.</p>
+<aside class="ia-callout info"><span class="ia-callout-title">Kde jsme</span>
+<p>Kontext přestal být něco, co agentovi dodávám. Stal se něčím, co si agent staví - a co si mezi běhy pamatuje.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="radek-zamer">
+<h2 class="ia-group-title">Od řádku k záměru</h2>
+<div class="ia-prose"><p>V oblasti kódování je to zase trochu jiný pohled na změny v posledních pár letech, ale stojí na stejných principech. Výsledkem je změna jednotky práce a zadání - a postupně nás to dovedlo k fenoménu spec-driven development.</p></div>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button>
+<span class="ia-card-num">04</span>
+<span class="ia-card-title">Jak rostla jednotka zadání</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-05" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Jednotka práce v software se za tři roky posunula tak, že se to skoro nedá srovnat. Psal jsem o tom podrobněji <a href="/2026/agenti-token-kapital-build-2026/">v samostatném článku</a>, takže tady jen zkratka:</p>
+<div class="ia-sequence"><h3 class="ia-sequence-title">Kus práce, který můžu předat</h3><ol class="ia-sequence-list"><li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Řádek</strong><p>dopiš mi tenhle for cyklus. Autocomplete, který hádá další řádek.</p></li><li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Funkce</strong><p>napiš celou funkci podle komentáře nebo signatury. A brzy nato změna napříč deseti soubory.</p></li><li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Úloha</strong><p>kódovací agent. Sám si to sestaví, spustí, otestuje, uvidí chybu a opraví ji.</p></li></ol></div>
+<p>Podstatné je, že <strong>neubývalo práce, ubývalo "jak"</strong>. Na první příčce jsem musel vědět úplně přesně, co má být na dalším řádku. Na třetí už jenom to, co má být na konci hotové.</p>
+<p>Na té třetí příčce se poprvé objevila <strong>zpětná vazba</strong>. Agent si spustí testy, uvidí červenou a jde to opravit. To je zárodek celé zbývající části tohohle článku - jen se posuneme o jednu vrstvu smyček nahoru.</p>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button>
+<span class="ia-card-num">05</span>
+<span class="ia-card-title">Spec-driven development: říkám agentovi přesně, co má dělat</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-06" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Když jednotka zadání dorostla do "úlohy", vznikl nový problém. Agent teď pracuje hodinu bez mého dohledu. Chat, ve kterém jsem mu to řekl, je nespolehlivý, zapomíná se, nikdo si ho nepřečte podruhé. Potřeboval jsem trvanlivý artefakt.</p>
+<p>Tak vznikl spec-driven development. AWS uvedl <a href="https://kiro.dev/blog/introducing-kiro/">Kiro</a> 14. 7. 2025, GitHub vydal <a href="https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/">Spec Kit</a> 2. 9. 2025 s cyklem Specify → Plan → Tasks → Implement. Specifikace jako živý zdroj pravdy.</p>
+<p>Chci zdůraznit, že to není móda, ale dobrý inženýrský nápad, a to ze tří důvodů:</p>
+<div class="ia-steps"><h3 class="ia-steps-title">Proč spec-driven dává smysl</h3><ol class="ia-steps-list"><li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Kód přestal být vstup</strong><p>stal se z něj výstupní artefakt. Můžu ho zahodit a nechat vygenerovat znovu. Specifikace je pak jediná věc, kterou opravdu vlastním.</p></div></li><li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Je to čitelné pro člověka i pro stroj</strong><p>na rozdíl od kódu je specifikace srozumitelná i pro obchod, právníky nebo compliance.</p></div></li><li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">A hlavně: je testovatelná</strong><p>dá se podle ní zpětně ověřit, že to agent napsal tak, jak jsme chtěli.</p></div></li></ol></div>
+<p>Ten třetí bod je ten důležitý a málo se o něm mluví. Spec-driven totiž do toho příběhu přinesl <strong>nezávislého kontrolora</strong>. Jeden agent píše kód podle specifikace, druhý agent nebo člověk nezávisle ověří, že ji dodržel. To je strašně užitečná vlastnost, je to auditní artefakt, a nechci o něj přijít ani v budoucnu.</p>
+<p>Jenže. A tady je ta trhlina, kvůli které tenhle článek vlastně píšu.</p>
+<aside class="ia-callout warning"><span class="ia-callout-title">Trhlina</span>
+<p>Specifikace popisuje, <strong>jak něco udělat</strong>. Neříká, jak poznám, že je výsledek dobrý.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="smycka">
+<h2 class="ia-group-title">Uzavírání smyček u kódování</h2>
+<div class="ia-prose"><p>Až sem to bylo o tom, jak dobře agentovi zadat práci. Teď přijde obrat: nejzajímavější věci se začaly dít ve chvíli, kdy jsme přestali zadávat a začali stavět smyčku, která si výsledek sama hodnotí.</p></div>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button>
+<span class="ia-card-num">06</span>
+<span class="ia-card-title">Pokračuj, dokud to nebude tak dobré jako Call of Duty</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-07" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Matt Shumer zveřejnil 25. 7. 2026 <a href="https://x.com/mattshumer_/status/2081054356405731740">post</a> se slovy "Claude Opus 5 one-shotted this game" a ukázkou first-person střílečky. Internet se zbláznil. Metodiku pak o dva dny později popsal pod názvem <a href="https://somethingbig.ai/gauntlet-loop">Gauntlet Loop</a>.</p>
+<p>Ten prompt stojí za přečtení celý, protože je to hezky čistá esence toho přístupu.</p>
+<div class="ia-reveal" data-ia-reveal>
+<button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-01" data-ia-reveal-button>
+<span class="ia-reveal-arrow" aria-hidden="true">›</span>Celé znění Shumerova promptu</button>
+<div class="ia-reveal-body" id="reveal-01" data-ia-reveal-panel>
+<div class="ia-reveal-body-clip">
+<div class="ia-reveal-content ia-prose">
+<p class="ia-code-label"><strong>mshumer/Claude-of-Duty - prompt.md</strong></p>
+<pre><code class="language-text">I want you to build a first-person shooter at the level of the most recent
+Call of Duty games. It should be utterly perfect, visually beautiful, with
+every single thing done at AAA quality—from textures to physics to anything
+you could think of.
+
+Fan out sub-agents and have sub-agents tackle each one individually so that
+the game is utterly perfect. You should /loop on each item and have a separate
+sub-agent check it visually to ensure it looks triple A. That separate
+sub-agent should be a really harsh critic, and if it doesn&#x27;t look triple A,
+it should keep going.
+
+Don&#x27;t stop until each sub-agent is utterly wowed with the quality when compared
+with the actual Call of Duty game. It should literally compare them side by
+side blind and say which one looks better. Do this in ThreeJS. /loop until it&#x27;s
+utterly perfect. Fan out sub-agents and ultracode.</code></pre>
+</div>
+</div>
+</div>
+</div>
+<p>Podstatné na tom není zadání hry. Podstatné je, že tam vůbec není napsáno, <strong>jak</strong> to udělat. Je tam napsáno, <strong>jak se pozná, že je to hotové</strong>: oddělený subagent, nemilosrdný kritik, slepé porovnání vedle sebe se skutečnou hrou, a smyčka běží dál, dokud kritik neřekne dost.</p>
+<p>Shumer to o dva dny později upřesnil: <em>"I gave Claude Code one prompt, then left it alone. It spent many hours working, spawned a massive fleet of subagents, wrote roughly 55,000 lines of code... I did not sit there steering it, at all."</em> Jeden prompt, žádné doptávání, mnoho hodin autonomní práce a zhruba 55 tisíc řádků kódu.</p>
+<p>Ten kritik navíc neměl referenční bod jen v paměti modelu. Shumer to popsal doslova: <em>"For the game, I used actual Call of Duty screenshots. The critic was supposed to look at the two side by side, decide which was better, and keep going whenever ours lost."</em></p>
+<p>Technicky to fungovalo tak, že Playwright pustil vytvářenou hru v headless Chromiu, odchytil jedenáct předem definovaných pohledů ve full HD - prostředí, světlo, materiály, zbraň v ruce, zaměřování, dopady, HUD - a ty pak šly kritikovi proti skutečným snímkům z Call of Duty. Naslepo, aby nevěděl, který obrázek je čí.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Klíčový moment</span>
+<p>Ta smyčka nefungovala jen proto, že byla chytře napsaná. Fungovala proto, že měla k dispozici hotovou, veřejnou, sdílenou definici toho, co je dobře - a to doslova ve formě obrázků, které si kdokoli stáhne.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-08" data-ia-card-button>
+<span class="ia-card-num">07</span>
+<span class="ia-card-title">Vaše firma není Call of Duty</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-08" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Když si otevřete <a href="https://github.com/mshumer/Claude-of-Duty">jeho repozitář</a>, najdete tam něco, co se do virálních postů nedostalo:</p>
+<blockquote>
+<p><strong>"The goal was to match a modern Call of Duty. It does not."</strong></p>
+</blockquote>
+<p>Skóre se během těch smyček posunulo z 3,59 přes 4,14 a 4,05 na konečných 5,05 z deseti - všimněte si, že jedno kolo bylo dokonce horší než předchozí. Dva z jedenácti pohledů se dostaly na hodnocení "CLOSE", zbytek zůstal na "AMATEUR". A ve <strong>všech</strong> slepých A/B srovnáních vyhrálo skutečné Call of Duty.</p>
+<p>Ta smyčka udělala přesně to, k čemu byla postavená. Poctivě změřila, že cíle nedosáhla, a napsala to nahlas. To je mnohem cennější než naleštěná ukázka bez čísla - protože z čísla se dá pokračovat.</p>
+<p>A tady je ta nepříjemná zpráva pro vás.</p>
+<aside class="ia-callout warning"><span class="ia-callout-title">Zásadní zjištění</span>
+<p>Váš referenční bod nikde neleží. Neexistuje složka se snímky, které by kritik položil vedle vašeho procesu a řekl "tady to zaostává". A pokud model zná vaši firmu dokonale, máte mnohem větší problém než pomalou adopci AI - jste komodita a míříte k nulové marži. Jinak řečeno: pokud jste zajímavá firma, model <strong>nezná</strong> naprostou většinu toho, co vás dělá vámi.</p>
+</aside>
+<p>Což znamená, že tu část, kterou Shumer dostal zadarmo, si musíte vyrobit sami. A to je ta nejtěžší práce v celém řetězci.</p>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-09" data-ia-card-button>
+<span class="ia-card-num">08</span>
+<span class="ia-card-title">Loop engineering a 70 USD do koše</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-09" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Ten posun od zadávání práce k navrhování smyček dostal v červnu 2026 i jméno. <a href="https://addyosmani.com/blog/loop-engineering/">Addy Osmani</a> ho 7. 6. definoval jako <strong>"replacing yourself as the person who prompts the agent. You design the system that does it instead."</strong> Peter Steinberger, autor <a href="https://github.com/openclaw/openclaw">OpenClaw</a>, řekl tentýž den totéž jinak: <strong>"You shouldn't be prompting coding agents anymore. You should be designing loops that prompt your agents."</strong></p>
+<p>Já si to překládám takhle. Přestal jsem mluvit s agentem a začal jsem mluvit s <strong>předákem</strong>. Neříkám mu, jak a co má naprogramovat. Říkám mu, čeho chci dosáhnout. Předák si to rozseká na dílčí úlohy, sám napíše specifikace, rozdá práci ostatním agentům a pak je bičuje tak dlouho, dokud výsledek neodpovídá záměru. Já do toho v mezičase nesahám.</p>
+<p>Zní to skvěle. Tak jsem si takovou smyčku postavil.</p>
+<p>Cílem byl jednodenní workshop na Microsoft Foundry - kombinace krátké prezentace, demo ukázek a krátkých hands-on labů pro účastníky. Měl jsem agendu, měl jsem plán. Vytvořil jsem ekosystém subagentů úplně v Mattově duchu: jeden se na to díval očima pedagoga, druhý očima studenta, třetí očima grafika, čtvrtý očima inženýra. A makali na tom.</p>
+<p>O sedmdesát dolarů později mi představili výsledek. Dokonale naleštěné materiály. Krásné, detailní, fakticky naprosto správné, pedagogicky výborně vystavěné.</p>
+<p><strong>Nebyl tam žádný Azure.</strong></p>
+<p>Já chtěl skutečná dema a skutečné laby, kde si účastník sáhne na reálný zdroj. Oni to pojali jako teoretické cvičení, kde praktičnost spočívala v interaktivních formulářích, ve kterých se krásně skládala AI architektura. Výborné. Ale ne to, co jsem chtěl. Letělo to celé do koše.</p>
+<p>Chyba byla samozřejmě u mě. Moje smyčka kontrolovala témata, strukturu, vizuál a pedagogickou návaznost. Nikdy nesáhla na reálný zdroj v Azure. <strong>Vybičoval jsem model k dokonalosti v disciplíně, která nebyla pro výsledek to zásadní.</strong> Model nemá uvnitř představu, co je výsledek, není to Call of Duty - a moje definice dobrého výsledku byla mizerně připravená.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Verdikt</span>
+<p>Loop engineering neposouvá tu těžkou práci pryč. Jen ji přesouvá jinam. Místo "napiš mi, jak to má vypadat" je otázka "napiš mi, podle čeho poznáš, že je to dobře". A to je mnohem těžší otázka, protože na ni většina firem nemá odpověď ani pro své lidi.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="firma">
+<h2 class="ia-group-title">Hill-climbing a enterprise smyčky</h2>
+<div class="ia-prose"><p>Zatím jsme byli u kódu, kde se výsledek dá spustit a otestovat. Teď to samé zkusme ve firmě, kde se většina práce spustit nedá - a přesto se u ní musí poznat, jestli je dobrá.</p></div>
+<div class="ia-card-list">
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-10" data-ia-card-button>
+<span class="ia-card-num">09</span>
+<span class="ia-card-title">Víme víc, než říkáme</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-10" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Představte si, že tyhle principy chcete posunout do lidské práce ve firmě plné unikátních znalostí. Často nevyřčených. Často fungujících jinak, než je napsané - a přitom dobře a flexibilně, protože ta firma prostě funguje.</p>
+<p>Pomáhá mi na to koukat přes tři vrstvy:</p>
+<div class="ia-steps"><h3 class="ia-steps-title">Z čeho se skládá to, co vaši firmu dělá firmou</h3><ol class="ia-steps-list"><li class="ia-step"><span class="ia-step-num">1</span><div><strong class="ia-step-title">Explicitní znalost</strong><p>data. Dokumenty, databáze, čísla, dokumentace. Tohle všichni znají a dvacet let se to označovalo za firemní zlato.</p></div></li><li class="ia-step"><span class="ia-step-num">2</span><div><strong class="ia-step-title">Institucionální a procedurální znalost</strong><p>postupy, procesy, pravidla. Často zabetonovaná v aplikačním kódu, často nikde nepopsaná celá.</p></div></li><li class="ia-step"><span class="ia-step-num">3</span><div><strong class="ia-step-title">Implicitní znalost</strong><p>to, co mají zaměstnanci v hlavách. To, co si nový člověk musí za těch šest měsíců nasbírat, protože mu to nikdo neumí napsat.</p></div></li></ol></div>
+<p>Michael Polanyi to v roce 1966 shrnul větou, kterou nikdo nepřekonal: <strong>"we can know more than we can tell."</strong></p>
+<p>Nechci tvrdit, že první vrstva je bezcenná, to by byla hloupost - bez dat nefunguje nic. Chci říct něco jiného: <strong>je to jediná vrstva, kterou umíte předat za odpoledne.</strong> A co předáte, to se dá zkopírovat.</p>
+<p>Pokud výrobci modelu předáte svoje data, aby je použil na trénink, je to výhoda spíš pro něj než pro vás. A pokud mu necháte poslouchat i lidské interakce a ukládat si je k analýze, může odtéct i to nevyřčené. Mít data v cloudu problém není, odevzdat kontrolu nad nimi problém je. Chci v cloudu použít svoji firemní unikátnost k získání AI na míru - ale chci ten výsledek vlastnit.</p>
+<p>Zatím to nevnímám jako problém. Trochu se ale obávám doby, kdy někteří výrobci budou v zájmu "bezpečnosti" ten výsledek vlastnit za vás. A za rok bude vaše unikátnost náhodou v nabídce "as a service" pro všechny.</p>
+<p>Satya Nadella tomu v <a href="https://x.com/satyanadella/article/2076323181154230284">textu z 12. 7. 2026</a> dal jméno: <strong>Reverse Information Paradox</strong>. Ekonom Kenneth Arrow kdysi popsal, že hodnotu informace kupující nezná, dokud mu ji neodhalíte - jenže jakmile ji odhalíte, má ji zadarmo. AI ten problém podle Nadelly otočila: teď musí svoje know-how odhalit <strong>kupující</strong>, aby pro něj ta inteligence byla vůbec užitečná. Platíte tedy dvakrát. Jednou penězi, podruhé znalostí. A čím lepší výsledek chcete, tím víc té znalosti musíte dát.</p>
+<blockquote>
+<p><strong>"Models learn from exhaust, the prompts people write, the tools agents use, and especially the corrections people make when the model is wrong. Every correction is distilled into institutional know-how. It's the kind of knowledge a competitor could never buy, and the kind that leaks almost imperceptibly: trace by trace, correction by correction, eval by eval."</strong></p>
+</blockquote>
+<p>Všimněte si toho konce. Trace by trace, correction by correction, <strong>eval by eval</strong>.</p>
+<aside class="ia-callout rule"><span class="ia-callout-title">Verdikt</span>
+<p>Co je univerzální, to bude v modelu. Co je vaše, si musíte umět nechat - a platí to pro všechny tři vrstvy, data nevyjímaje.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-11" data-ia-card-button>
+<span class="ia-card-num">10</span>
+<span class="ia-card-title">Hill-climbing machine a učení při práci</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-11" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Když víme, že rozhoduje smyčka, a víme, že u firemních věcí nemáme hotovou definici úspěchu, kudy dál? Za mě je odpověď continuous learning, respektive on-the-job learning. Zkušenost nasbíraná při skutečném provádění práce a v interakci s ostatními je pro naprostou většinu ekonomicky důležitých činností nenahraditelná. Pokud má AI opravdu násobit schopnosti lidí, musí se učit i z nejasných signálů.</p>
+<p>Microsoft pro to má hezký název. V oznámení nových MAI modelů z 2. 6. 2026 tým píše, že cílem je postavit <strong>"what we think of as a hill-climbing machine: an organization that can continuously improve, cycle after cycle"</strong> (<a href="https://microsoft.ai/news/building-a-hillclimbing-machine-launching-seven-new-mai-models/">zdroj</a>).</p>
+<p>Z opačného konce to popisuje Thinking Machines Lab: <strong>"Most AI in use today is trained in a handful of places and then frozen"</strong> (<a href="https://thinkingmachines.ai/blog/the-future-worth-building-is-human/">manifest z 10. 7. 2026</a>). Jejich <a href="https://thinkingmachines.ai/news/introducing-inkling/">Inkling</a> z 15. 7. 2026 je pro můj argument obzvlášť pěkný - je to ukázka modelu, který si sám připraví evaly, nasbírá data a přes Tinker se dotrénuje. Řízený experiment, ne magie, ale směr je jasný.</p>
+<p>Kde reálně jsme dnes? Za mě ve čtyřech vrstvách, které se překrývají:</p>
+<div class="ia-sequence"><h3 class="ia-sequence-title">Čtyři vrstvy dnešní adopce</h3><ol class="ia-sequence-list"><li class="ia-sequence-item"><span class="ia-sequence-step">1</span><strong>Pomocník na chatu</strong><p>ptám se, dostávám odpovědi. Nejrozšířenější a nejmíň zajímavé.</p></li><li class="ia-sequence-item"><span class="ia-sequence-step">2</span><strong>Auditovatelné automatizační workflow</strong><p>zpracování faktur a podobné procesy. Deterministické mantinely, jasný výstup.</p></li><li class="ia-sequence-item"><span class="ia-sequence-step">3</span><strong>Osobní pracant s dopadem do reálného světa</strong><p>sáhne do kalendáře, něco vytvoří, pošle to mailem, počká na odpovědi, posbírá data, analyzuje je a založí lead do CRM nebo doplní poznámku ze zápisu schůzky.</p></li><li class="ia-sequence-item"><span class="ia-sequence-step">4</span><strong>Digitální pracovník</strong><p>už to není můj nástroj, ale entita v organizaci. Má vlastní schránku, je na Teamsech, má přidělené přístupy a učí se z toho, jak jeho práce dopadla.</p></li></ol></div>
+<p>Ta třetí vrstva je dneska nejzajímavější prakticky, protože si takového pracanta můžete <strong>vychovávat</strong>. Mění si vlastní skilly a učí se od vás. Prakticky to jde třeba přes <a href="https://learn.microsoft.com/en-us/microsoft-365/copilot/cowork/">Microsoft 365 Copilot Cowork</a>, který je od června 2026 v GA a pracuje napříč Outlookem, Teams, Office a SharePointem se schvalováním citlivých akcí.</p>
+<p>Čtvrtá vrstva je ta, kvůli které tenhle článek píšu, a věnuju jí celou další kapitolu.</p>
+<p>Zajímavý kousek skládačky je ale ve Foundry. <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agent-optimizer-overview">Agent Optimizer</a> vezme baseline konfiguraci agenta a eval dataset a automaticky vylepší jeho instrukce, obsah skillů, popisy nástrojů i volbu modelu. A <a href="https://learn.microsoft.com/en-us/azure/foundry/observability/how-to/traces-to-dataset">Observability</a> k tomu umí z produkčních traces vyrobit ten eval dataset. Dohromady je to smyčka: reálné běhy → dataset → optimalizace → lepší agent.</p>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-12" data-ia-card-button>
+<span class="ia-card-num">11</span>
+<span class="ia-card-title">Autopiloti a agent jako člen týmu</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-12" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Aby se agent mohl učit z práce, musí být její součástí. Ne nástroj, který si otevřu, ale kolega, kterému něco přijde.</p>
+<p>Na Buildu 2026 k tomu Microsoft představil novou produktovou kategorii, a to docela explicitně: <strong>"Today we are introducing a new category of agents called Autopilots. Autopilots are always-on agents that work autonomously, with their own identity, and act on your behalf."</strong> (<a href="https://www.microsoft.com/en-us/microsoft-365/blog/2026/06/02/introducing-microsoft-scout-your-always-on-personal-agent/">oznámení</a>). Prvním zástupcem je <a href="https://learn.microsoft.com/en-us/microsoft-scout/overview">Microsoft Scout</a>. Copilot sedí vedle vás a čeká, až se ozvete. Autopilot běží, i když u toho nejste. Nejsou to konkurenti, jsou to souběžné kategorie - ale ten směr je podle mě jednoznačný.</p>
+<p>Firemně použitelné je to až se správou. <a href="https://learn.microsoft.com/en-us/microsoft-agent-365/overview">Microsoft Agent 365</a> je od 1. 5. 2026 v GA jako enterprise control plane: registr agentů, lifecycle, přístupy, Purview, Defender, identita v Entra. Licencovaný "agent user" má vlastní mailbox, OneDrive, UPN a dá se zmínit v Teams.</p>
+<p>Že to nemusí být jen Microsoft, je snad jasné - <a href="https://github.com/NousResearch/hermes-agent">Hermes Agent</a> od Nous Research se popisuje jako agent, který <em>"creates skills from experience, improves them during use"</em>, <a href="https://github.com/openclaw/openclaw">OpenClaw</a> používám doma. A není to buď-anebo: tyhle systémy můžou běžet v Azure, napojit se na Microsoft 365 a být spravované přes Agent 365 stejně jako Scout.</p>
+<aside class="ia-callout warning"><span class="ia-callout-title">Pozor na slovo self-improving</span>
+<p>U všech těchhle systémů dnes "self-improving" znamená zápis do paměti a úpravu lokálních instrukcí nebo skillů. <strong>Zatím</strong> to neznamená automatickou změnu vah modelu - ale směr, kterým jde Microsoft i ostatní, je jasný: nejen optimalizace skillů, ale i reinforcement learning environments a doladěné váhy.</p>
+</aside>
+<aside class="ia-callout info"><span class="ia-callout-title">Na jindy</span>
+<p>Dalším krokem je koordinované kolektivní učení agentů - jeden se něco naučí a ostatní to dostanou. To je ale téma na samostatný článek.</p>
+</aside>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-13" data-ia-card-button>
+<span class="ia-card-num">12</span>
+<span class="ia-card-title">Definici dobrého výsledku musíte umět spustit</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-13" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Tady je moje hlavní doporučení. Firma by měla systematicky budovat a formalizovat definici toho, co je dobrý výsledek. Evaluations, reward funkce, reward model, testy, akceptační kritéria, user stories - říkejte tomu jakkoli. Podstatné je, že to musí být <strong>spustitelné</strong>, ne jen napsané.</p>
+<p>Nejsem v tom naštěstí sám. Kromě citované Satyovy věty o privátních evalech jako největším IP (<a href="https://www.latent.space/p/satya-2026">celý rozhovor</a>) říká Mustafa Suleyman na MAI keynote něco, co tu myšlenku posouvá ještě dál: <strong>"So with us, the RLEs and the models you build inside of them become your moat."</strong> (<a href="https://microsoft.ai/news/microsoft-build-2026-mai-keynote-transcript/">přepis</a>). Tedy že moat tvoří reinforcement learning environments a modely, které v nich vytrénujete. To je hezká gradace - evals jsou první krok, prostředí druhý, vlastní model třetí.</p>
+<p>Mimo Microsoft to zní stejně. Greg Brockman už v prosinci 2023 napsal <strong>"evals are surprisingly often all you need"</strong> (<a href="https://x.com/gdb/status/1733553161884127435">zdroj</a>), Garry Tan z Y Combinatoru v roce 2025 <strong>"Evals are emerging as the real moat for AI startups"</strong> (<a href="https://x.com/garrytan/status/1892952656940880036">zdroj</a>) a Anthropic v <a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Demystifying evals</a> upozorňuje, že jejich <em>"value compounds over the lifecycle of an agent"</em>.</p>
+<p>Co dobré evals odemknou:</p>
+<div class="ia-arrow-list"><h3 class="ia-arrow-list-title">Co získáte, když umíte změřit kvalitu</h3><ul><li>Otestujete modely různých výrobců i open source proti <strong>své</strong> definici kvality, ne proti cizímu benchmarku.</li><li>Můžete dotrénovat menší specializovaný model pro konkrétní firemní roli.</li><li>Můžete ladit skilly, kontext i nástroje proti měřitelnému výsledku místo dojmu.</li><li>Získáte schopnost <strong>přepnout</strong> řešení i model, aniž byste letěli naslepo.</li></ul></div>
+<p>Ta poslední položka je podle mě nejpodceňovanější a Satya na ni míří tím svým testem s modelem A a B. Prostředí se mění technologicky, politicky i strategicky a nebude to jen souboj OpenAI versus Anthropic. xAI se <a href="https://x.ai/news/xai-joins-spacex">2. 2. 2026 spojilo se SpaceX</a> a vydalo <a href="https://x.ai/news/grok-4-5">Grok 4.5</a>. V Evropě je Mistral s open modely pod Apache 2.0. A open source je dnes fakt kvalitní - <a href="https://www.kimi.com/blog/kimi-k3">Kimi K3</a> se v nezávislém <a href="https://artificialanalysis.ai/models/kimi-k3">Artificial Analysis indexu</a> drží nad GPT-5.5 i nad Claude Opus 4.8, tedy nad modely, které ještě před dvěma měsíci byly extratřída světa. <a href="https://z.ai/blog/glm-5.2">GLM-5.2</a> je celkově o kus níž, ale na dlouhých kódovacích úlohách se s touhle třídou měří taky. Jestli to platí i pro <em>vaši</em> úlohu, zjistíte jedině vlastními evaly.</p>
+</div>
+</div>
+</div>
+</article>
+<article class="ia-card" data-ia-card>
+<button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-14" data-ia-card-button>
+<span class="ia-card-num">13</span>
+<span class="ia-card-title">Chci zaměstnance, ne najaté konzultanty</span>
+<span class="ia-card-toggle" aria-hidden="true">▾</span>
+</button>
+<div class="ia-card-body" id="card-14" data-ia-card-panel>
+<div class="ia-card-body-clip">
+<div class="ia-card-content ia-prose">
+<p>Nejde o to, jestli cloud ano nebo ne. Cloud rozhodně ano. Výnosy z rozsahu jsou v téhle hře naprosto zásadní a netýkají se jen infrastruktury - týkají se hlavně platforem, orchestrace, bezpečnostních a compliance systémů, evaluačních nástrojů a rychlosti, s jakou přibývají nové modely. Tohle si sami doma nepostavíte a nemá myslím smysl se o to pokoušet.</p>
+<p>Jde o něco jiného: <strong>komu se to učení připíše.</strong></p>
+<div class="ia-tabs" data-ia-tabs>
+<div class="ia-tab-list" role="tablist">
+<button class="ia-tab" id="tab-dva-modely-zamestnanec" role="tab" aria-selected="true" aria-controls="panel-dva-modely-zamestnanec" type="button">Zaměstnanec (chci)</button>
+<button class="ia-tab" id="tab-dva-modely-konzultant" role="tab" aria-selected="false" aria-controls="panel-dva-modely-konzultant" type="button">Najatý konzultant (nechci)</button>
+</div>
+<div class="ia-tab-panel" id="panel-dva-modely-zamestnanec" role="tabpanel" aria-labelledby="tab-dva-modely-zamestnanec">
+<p>Zaměstnanec se u vás půl roku učí a ta zkušenost zůstává ve firmě. Ví, kdy se který proces obchází. Zná vaše zákazníky. A když si tuhle znalost zapíše, zapíše si ji do vašich systémů.</p>
+<p>Tohle chci od AI. Od dodavatele beru stavební bloky - flexibilní výběr modelů, izolované prostředí, šifrovanou storage, evaluační nástroje, správu identit agentů a řízení jejich životního cyklu. Na tom si postavím svoje AI, ať už je to Scout, Copilot Cowork, Hermes, nebo vlastní řešení ve Foundry řízené přes Agent 365.</p>
+<p>Moje evals, moje skilly, moje případně dotrénované váhy. Všechno v mém tenantu, izolovaně, šifrovaně. Když se rozhodnu přepnout model nebo odejít, beru si to s sebou.</p>
+</div>
+<div class="ia-tab-panel" id="panel-dva-modely-konzultant" role="tabpanel" aria-labelledby="tab-dva-modely-konzultant" hidden>
+<p>Konzultant přijde, vyřeší problém a je vidět hned. Jenže to nejcennější, co si odnáší, je zkušenost s vaším prostředím - a tu si odnáší <strong>k sobě</strong>. Příští čtvrtletí ji prodá někomu jinému. Ve vašem odvětví. Možná přímo vaší konkurenci.</p>
+<p>Přeloženo do AI: předám někomu to, co je pro mě unikátní, a on mi to "přidá do modelu". Ten model ale pak použije i jinde.</p>
+<p>Fungovalo by to skvěle - první rok. Pak by se moje unikátnost stala součástí obecné schopnosti, kterou má i konkurence. Efektivně bych zaplatil za to, aby ze mě někdo odsál důvod mojí existence. Přesně tomu Satya říká Reverse Information Paradox.</p>
+</div>
+</div>
+<p>Satya to pojmenoval přesně takhle - firemní stopy z reálné práce mají trénovat <em>"not a generalist model, but... the company veteran agent"</em>. A z toho plyne, co po dodavateli chtít: <strong>skutečnou hranici důvěry</strong>, uvnitř které se vaše data, traces, evals, doladěné váhy a paměť hromadí a zlepšují dohromady. Mluví o ní jako o místě, kde se skládá lidský a token kapitál - a o <a href="https://tomaskubica.cz/2026/agenti-token-kapital-build-2026/">token kapitálu jsem psal samostatně</a>. Shrnul to jednou větou, kterou bych si dal na zeď:</p>
+<blockquote>
+<p><strong>"In consuming intelligence, you are creating intelligence. And what you create should belong to you."</strong></p>
+</blockquote>
+<p>Ta hranice nevede mezi cloudem a onprem. Vede mezi <strong>schopností, kterou si kupuji</strong>, a <strong>schopností, kterou si vychovávám</strong>.</p>
+<p>To první je naprosto v pořádku a budu to dělat pořád - když chci Copilota, který rozumí Excelu, nechci ho učit Excel. To druhé je pracant, kterému dáte firemní nástroje, pustíte ho k reálné práci a budete ho učit. Může to být klidně taky od Microsoftu: Copilot Cowork, Scout, nebo vlastnoručně postavené řešení ve Foundry napojené do Microsoft 365 a řízené přes Agent 365. Není to o tom, jestli si to napíšete sami. Je to o tom, jestli si necháte to, co se naučí.</p>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<section class="ia-group" id="zavery">
+<h2 class="ia-group-title">Závěry</h2>
+<div class="ia-prose"><div class="ia-detail-grid"><div class="ia-detail-grid-head"><h3 class="ia-detail-grid-title">Tři věci, které si z toho odnést</h3><p class="ia-detail-grid-hint">Klikněte na kartu pro detail</p></div><div class="ia-detail-grid-items"><article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Hodnota se stěhuje k měření</span><span class="ia-detail-card-summary">Prompt, kontext i specifikaci vám dnes napíše AI sama. Definici úspěchu ne.</span></div><div class="ia-detail-content ia-prose"><p>Každá zastávka na té cestě byla chvíli tím nejdůležitějším a pak se vsákla do modelu nebo do nástrojů. Prompt engineering se rozpustil ve schopnostech modelů. Context engineering z velké části převzalo agentické chování. Specifikaci vám dneska napíše agent, když mu popíšete záměr.</p>
+<p>Co se nevsakuje, je definice toho, co je dobrý výsledek. Ta se nedá odvodit z veřejných dat, protože je specifická pro vás.</p></div></article><article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Model zná obecné věci, vaši firmu ne</span><span class="ia-detail-card-summary">Call of Duty si kritik pustí vedle. Váš proces ne.</span></div><div class="ia-detail-content ia-prose"><p>Shumerova smyčka fungovala hlavně proto, že měla zadarmo dokonalý referenční bod. Vaše firma taková není a být nemá - pokud model dokonale zná vaše postupy, jste komodita mířící k nulové marži.</p>
+<p>Takže to, že model nezná vaši procedurální a implicitní znalost, není problém k vyřešení. Je to vaše konkurenční výhoda, kterou musíte umět převést do měřitelné podoby, aniž byste ji rozdali.</p></div></article><article class="ia-detail-card"><div class="ia-detail-card-button"><span class="ia-detail-card-title">Bez evalů není hill-climbing</span><span class="ia-detail-card-summary">Jen náhodná procházka, která vypadá jako pokrok.</span></div><div class="ia-detail-content ia-prose"><p>Další fáze adopce není lepší chatbot, ale digitální pracovník, který se učí z toho, jak jeho práce dopadla. Nejdřív ladění skillů a kontextu, později prostředí a doladěné modely pro konkrétní firemní role.</p>
+<p>Obojí ale potřebuje totéž: signál, podle kterého se dá stoupat do kopce. A ten signál si musíte vyrobit sami - a nechat si ho.</p></div></article></div></div><div class="ia-arrow-list"><h3 class="ia-arrow-list-title">Co s tím prakticky</h3><ul><li>U každého AI use case si nejdřív napište, jak poznáte, že je výsledek dobrý. Teprve pak řešte prompt a nástroje.</li><li>Zkontrolujte, jestli vaše smyčka měří <strong>výsledek</strong>, ne jen formu. Moje neměřila a stálo mě to sedmdesát dolarů.</li><li>Sbírejte evals jako firemní aktivum, ne jako vedlejší produkt projektu. Jejich hodnota v čase roste.</li><li>Udělejte si Satyův test: dokážete vyměnit model a stoupat dál? Jestli ne, nemáte to pod kontrolou vy.</li></ul></div></div>
+</section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose"><p>Kdo neumí změřit, co je dobrý výsledek, <strong>nemá vlastní AI</strong>. Má předplatné.</p></div></section>
+</article>
+</main>
+<footer class="ia-footer">
+  <div class="ia-article-nav"><a href="../../">← Všechny interaktivní články</a></div>
+  <p>Agent-friendly: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>
