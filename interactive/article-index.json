@@ -63,6 +63,28 @@
   ],
   "articles": [
     {
+      "slug": "vlastni-model-vlastni-server",
+      "year": 2026,
+      "date": "2026-09-14",
+      "title": "Otevřený AI model má mnoho výhod. Většina z nich nevyžaduje vlastní hardware.",
+      "eyebrow": "Open weights, vlastní inference a peníze",
+      "subtitle": "Otevřené váhy dávají kontrolu. Ale kdo zaplatí GPU, když nemá práci? Pojďme projít výhody open-weight modelů, vyzkoušet jejich provoz a propočítat náklady na vlastní server, cloudovou VM i hotové API.",
+      "url": "/2026/vlastni-model-vlastni-server/",
+      "summary": "Výhody otevřených modelů bez nutnosti kupovat server a měření Nemotronu na A100: jak souběh požadavků a využití placeného času mění cenu API, cloudové VM a vlastního hardwaru.",
+      "labels": [
+        "open weights",
+        "inference",
+        "GPU",
+        "AI ekonomika",
+        "Nemotron",
+        "vLLM"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys",
+        "ai-agenti-a-kodovani"
+      ]
+    },
+    {
       "slug": "evals-nejcennejsi-aktivum",
       "year": 2026,
       "date": "2026-07-29",

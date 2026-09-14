@@ -63,6 +63,31 @@
   ],
   "articles": [
     {
+      "slug": "vlastni-model-vlastni-server",
+      "year": 2026,
+      "date": "2026-09-14",
+      "title": "An open AI model has many advantages. Most of them do not require your own hardware.",
+      "eyebrow": "Open weights, self-hosted inference, and money",
+      "subtitle": "Open weights give you control. But who pays for the GPU when it has no work? Let's explore the advantages of open-weight models, try running them, and calculate the costs of our own server, a cloud VM, and a ready-made API.",
+      "url": "/en/2026/vlastni-model-vlastni-server/",
+      "summary": "Separating the advantages of open weights from hardware ownership, with A100 inference measurements and a five-year cost comparison of an API, cloud VMs, and on-prem. Concurrency, useful utilization, latency, and cache billing determine the economics.",
+      "labels": [
+        "open weights",
+        "inference",
+        "GPU",
+        "batch size",
+        "utilization",
+        "costs"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys",
+        "ai-agenti-a-kodovani"
+      ],
+      "source_slug": "vlastni-model-vlastni-server",
+      "translated_from_hash": "f6c582131bab5f87f9a5751e9337a514f79a949c77f456aafcc5e749e5e72ac1",
+      "translation_status": "current"
+    },
+    {
       "slug": "evals-nejcennejsi-aktivum",
       "year": 2026,
       "date": "2026-07-29",
