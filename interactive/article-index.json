@@ -63,6 +63,27 @@
   ],
   "articles": [
     {
+      "slug": "proc-open-source-modely-nejsou-stokrat-levnejsi",
+      "year": 2026,
+      "date": "2026-09-15",
+      "title": "Proč open source modely nejsou stokrát levnější? Prozkoumejme Paretovu hranici.",
+      "eyebrow": "Cena modelů, inference a Paretova hranice",
+      "subtitle": "Levnější token není levnější práce. Otevřené váhy nejsou GPU zdarma. A malý model není totéž co velký model bez marže. Pojďme si na jednom grafu ukázat, co má při výběru skutečně smysl porovnávat.",
+      "url": "/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/",
+      "summary": "Paretova hranice ceny a schopností modelů: náklady inference, marže za serving a váhy, velikost modelu a cena celé úlohy místo samotného tokenu. Proč stonásobný rozdíl v ceně není automaticky zásluha otevřené licence.",
+      "labels": [
+        "open weights",
+        "inference",
+        "AI ekonomika",
+        "Paretova hranice",
+        "evaluations"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys",
+        "ai-agenti-a-kodovani"
+      ]
+    },
+    {
       "slug": "vlastni-model-vlastni-server",
       "year": 2026,
       "date": "2026-09-14",

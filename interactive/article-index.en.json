@@ -63,6 +63,31 @@
   ],
   "articles": [
     {
+      "slug": "proc-open-source-modely-nejsou-stokrat-levnejsi",
+      "year": 2026,
+      "date": "2026-09-15",
+      "title": "Why aren't open-source models a hundred times cheaper? Let's explore the Pareto frontier.",
+      "eyebrow": "Model pricing, inference, and the Pareto frontier",
+      "subtitle": "A cheaper token doesn't mean cheaper work. Open weights don't mean free GPUs. And a small model isn't a large model with the margin removed. Let's use one chart to see what actually makes sense to compare when choosing a model.",
+      "url": "/en/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/",
+      "summary": "Using the Pareto frontier to compare model quality and task costs rather than token prices alone. Open weights, serving economics, model size, and illustrative margin calculations explain why openness alone doesn't produce hundredfold savings.",
+      "labels": [
+        "open weights",
+        "Pareto frontier",
+        "inference",
+        "model pricing",
+        "benchmarks",
+        "evals"
+      ],
+      "themes": [
+        "ai-produkt-a-byznys",
+        "ai-agenti-a-kodovani"
+      ],
+      "source_slug": "proc-open-source-modely-nejsou-stokrat-levnejsi",
+      "translated_from_hash": "1d877be4260b8e96093556b13d47fd471d0608ebba87812cd2eb591fd7f9532c",
+      "translation_status": "current"
+    },
+    {
       "slug": "vlastni-model-vlastni-server",
       "year": 2026,
       "date": "2026-09-14",

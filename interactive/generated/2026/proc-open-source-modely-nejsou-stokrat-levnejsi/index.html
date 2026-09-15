@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="cs-CZ">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="description" content="Levnější token není levnější práce. Otevřené váhy nejsou GPU zdarma. A malý model není totéž co velký model bez marže. Pojďme si na jednom grafu ukázat, co má při výběru skutečně smysl porovnávat.">
+<link rel="canonical" href="/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<title>Proč open source modely nejsou stokrát levnější? Prozkoumejme Paretovu hranici.</title>
+<style>:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}</style>
+<link rel="stylesheet" href="../../assets/interactive-article.css">
+
+<link rel="alternate" hreflang="cs-CZ" href="/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<link rel="alternate" hreflang="en" href="/en/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<link rel="alternate" hreflang="x-default" href="/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+</head>
+<body>
+<div class="ia-controls" aria-label="Ovládání článku">
+<button class="ia-control" type="button" data-expand-all>Rozbalit vše</button>
+<button class="ia-control" type="button" data-collapse-all>Sbalit vše</button>
+<button class="ia-control theme" type="button" data-theme-toggle>Tmavý režim</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<div class="ia-author-row"><img class="ia-avatar ia-avatar-small" src="../../assets/img/avatar.png" alt="Tomáš Kubica" width="40" height="40" decoding="async"><p class="ia-eyebrow">Cena modelů, inference a Paretova hranice</p></div>
+<h1 class="ia-title">Proč open source modely nejsou stokrát levnější? Prozkoumejme Paretovu hranici.</h1>
+<p class="ia-subtitle">Levnější token není levnější práce. Otevřené váhy nejsou GPU zdarma. A malý model není totéž co velký model bez marže. Pojďme si na jednom grafu ukázat, co má při výběru skutečně smysl porovnávat.</p>
+<p class="ia-date"><time datetime="2026-09-15">15. 9. 2026</time></p>
+<nav class="ia-links" aria-label="Navigace článku">
+<a href="../../">← Všechny interaktivní články</a>
+<a href="./" aria-current="page" lang="cs-CZ" hreflang="cs-CZ">CZ</a>
+<a href="../../en/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/" lang="en" hreflang="en">EN</a>
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+<main id="content" class="ia-prose">
+<p>„Tenhle open source model je stokrát levnější než Claude nebo GPT.“ Může to být pravda? Samozřejmě. Jen bych se hned zeptal: <strong>než který model, při jakém nastavení a na jaké práci?</strong></p>
+
+<p>V <a href="/2026/vlastni-model-vlastni-server/">minulém článku o otevřených modelech a vlastním hardwaru</a> jsem odděloval dvě věci: jaký model si vyberu a kdo ho bude provozovat. Na měření jsme si ukázali, proč vlastní GPU dává smysl jen pokud pro něj máte opravdu hodně práce - větší batch size a 24x7. Dnes se chci vrátit k té první otázce. Je samotná otevřenost vah důvodem k dramaticky nižší ceně?</p>
+
+<p>Zdá se, že nižší ano, ale dramaticky ne. Otevřeným modelům fandím, ale cenové srovnání potřebuje dva pohledy. <strong>Kolik práce model zvládne a kolik mě ta práce stojí.</strong> A přesně k tomu se hodí Paretova hranice.</p>
+
+<p>Stejně jako minule budu přesnější než v titulku: mluvím hlavně o <strong>open-weight modelech</strong>, jejichž váhy si můžu stáhnout a za podmínek licence provozovat. Jejich protějškem jsou modely s uzavřenými vahami, ne „komerční modely“. Komerčně se totiž poskytují obě skupiny.</p>
+<section class="ia-group" id="paretova-hranice"><h2 class="ia-group-title">Nejdřív obrázek: co je dobrá koupě?</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">Paretova hranice: lepší už jen za nějaký ústupek</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Pojďme se podívat na tenhle graf od Artificial Analysis.</p>
+
+<figure class="ia-figure"><a href="../../images/2026/2026-09-15-paretova-hranice-modelu.png" data-ia-lightbox=""><img alt="Graf Artificial Analysis z 15. září 2026: na vodorovné logaritmické ose je cena benchmarkové úlohy v USD, na svislé Intelligence Index. Tečkovaná Paretova hranice spojuje nedominované varianty; mezi levnými body je GPT-5.6 Luna a GLM-5.3-Flash, nejvyššího skóre dosahují GPT-6 Astra a Claude Fable 5.1." src="../../images/2026/2026-09-15-paretova-hranice-modelu.png" class="ia-image" loading="lazy"></a><figcaption>Artificial Analysis, 15. 9. 2026.</figcaption></figure>
+
+<p><em>Zdroj: Artificial Analysis, snímek z 15. 9. 2026. <a href="https://artificialanalysis.ai/?models=gemini-3-5-flash-lite%2Cglm-5-3-flash%2Cgpt-6-astra%2Cclaude-fable-5-1%2Cgpt-5-6-luna%2Cmuse-glimmer%2Cdeepseek-v4-pro%2Cgemini-3-8-flash%2Cqwen3-8-2-4t-a95b%2Cmuse-spark-1-3%2Cqwen3-8-27b%2Cclaude-opus-5%2Cgpt-5-6-terra%2Cgrok-4-6%2Cclaude-fable-5%2Cglm-5-3%2Cgpt-5-6-sol%2Cdeepseek-v4-1-flash%2Cmistral-medium-3-5%2Ckimi-k3%2Cinkling%2Cclaude-fable-5-1-low%2Cclaude-sonnet-5-high%2Cclaude-4-5-haiku-reasoning%2Cgpt-6-astra-medium%2Cgpt-5-6-luna-medium%2Cgemini-3-1-pro-preview%2Cgemini-3-8-flash-medium%2Cqwen3-8-flash-next#intelligence-comparison-tabs">Otevřít interaktivní graf s tímto výběrem modelů</a>. Můžete si přidat další modely i varianty nastavení. Živá data se budou měnit, komentář níže patří k obrázku.</em></p>
+
+<p><strong>Nahoru je lépe, doleva je levněji.</strong> Na svislé ose je souhrnné skóre Intelligence Index, na vodorovné cena jedné benchmarkové úlohy. Ne cena milionu tokenů. Vodorovná osa je navíc logaritmická: posun z 0,1 na 1 dolar je stejný násobek jako z 1 na 10 dolarů. Vpravo tedy peníze přibývají rychleji, než by se mohlo zdát.</p>
+
+<p>Tečkovaná čára ukazuje <strong>Paretovu hranici</strong>, anglicky <em>Pareto frontier</em>. Formálně hranici paretovsky optimálních řešení, prakticky množinu voleb, které někdo jiný jednoduše nepřebije.</p>
+
+<p>Když najdu model, který je levnější a přitom má stejné nebo lepší výsledky, dražší model je v těchto dvou kritériích <strong>slabší</strong>. Totéž platí, když za stejnou cenu dostanu lepší výsledek. Alespoň v jednom kritériu se zlepším a v žádném si nepohorším.</p>
+
+<p>Na hranici už taková jednoznačně lepší alternativa není. Chci vyšší kvalitu? Musím si připlatit. Chci nižší cenu? Musím něco slevit z kvality. <strong>Neexistuje jeden vítěz pro všechny rozpočty a všechna zadání.</strong></p>
+
+<p>To je důležitý rozdíl proti hledání jednoho „nejlepšího poměru cena/výkon“. Skóre 50 také neznamená dvojnásobnou užitečnost proti skóre 25. Nejprve si potřebuju říct, jakou kvalitu vůbec vyžaduju.</p>
+
+<p>A ještě jedna věc: čára mezi body není nabídka modelu, který můžu koupit někde uprostřed. Ani mi nezaručuje, že smícháním dvou modelů dostanu bod na spojnici. Je to orientace v naměřených možnostech, ne fyzikální zákon.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="odkud-se-bere-cena"><h2 class="ia-group-title">Proč otevřené váhy neznamenají inference zadarmo</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">Platím za provoz a za schopnost toho modelu</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V ceně API bych si pro začátek oddělil dvě ekonomické vrstvy.</p>
+
+<p>První je <strong>provozování modelu</strong>. GPU, paměť, propojení, energie, datacentrum, software a lidé, kteří to drží v chodu. A také odměna poskytovateli, který to celé zajišťuje a nese riziko nevyužité kapacity. V tomhle je serving modelů docela klasický cloudový byznys.</p>
+
+<p>Druhá je <strong>vývoj modelu a hodnota jeho vah</strong>. Někdo zaplatil výzkum, data, trénink a post-training. U uzavřeného modelu si přístup k výsledku kupuju od jeho vlastníka nebo partnera. U otevřeného modelu můžu mít právo váhy používat bez průběžné licenční platby, pokud mi to jeho licence dovoluje.</p>
+
+<p>Neznamená to, že vývoj otevřeného modelu nic nestál. Znamená to, že ho nemusím platit stejným způsobem. <strong>Otevřenost může odstranit licenční platbu za váhy. Neodstraní práci, kterou musí udělat hardware při používání modelu.</strong></p>
+
+<p>Navíc tyhle dvě vrstvy na faktuře obvykle neuvidím odděleně. API cena není povinně „náklad na generování tokenů plus marže za váhy“. Ovlivňuje ji konkurence, kapacita, obchodní strategie nebo snaha získat zákazníky. Může být dočasně i pod náklady.</p>
+
+<p>Právě v provozní vrstvě podle mě budou výnosy z rozsahu hrát zásadní roli. Velký provider má poptávku z více aplikací a časových pásem. Dokáže skládat požadavky do větších dávek, lépe využívat cache a rozpočítat specialisty na serving přes obrovský objem.</p>
+
+<p>V minulém měření jsme se při přechodu z jednoho na padesát souběžných požadavků dostali s cache asi na <strong>5,5násobek souhrnné kapacity</strong>. Jeden požadavek ale trval déle. A vedle batch size potřebuju také využití v čase: ideálně práci, která se blíží nepřetržitému provozu, ne GPU čekající každý večer na ráno.</p>
+
+<p>To neznamená, že vlastní inference musí běžet přesně 24×7, jinak se nikdy nevyplatí. Znamená to, že její ekonomiku určuje <strong>množství užitečné práce při přijatelné latenci</strong>.</p>
+
+<p>Tyhle výhody přitom může využít poskytovatel otevřených i uzavřených modelů. <strong>Když odstraním jeho marži, automaticky tím nezískám jeho provozní náklady.</strong></p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">Malý model není velký model bez marže</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tady podle mě vzniká velká část těch stonásobných úspor. Vezmu relativně malý otevřený model a porovnám ho s drahým frontier modelem. Rozdíl v ceníku může být obrovský. Jenže jsem nezměnil pouze licenci. Změnil jsem i to, co kupuju.</p>
+
+<p>Pro pořádek jednotky: <strong>B je miliarda, T je bilion</strong>. Model 2T tedy má dva biliony parametrů.</p>
+
+<table>
+<thead>
+<tr>
+<th>Ilustrativní velikost</th>
+<th>Česky</th>
+<th style="text-align: right;">Poměr počtu parametrů proti 3T</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3B</td>
+<td>3 miliardy</td>
+<td style="text-align: right;">1 000× méně</td>
+</tr>
+<tr>
+<td>30B</td>
+<td>30 miliard</td>
+<td style="text-align: right;">100× méně</td>
+</tr>
+<tr>
+<td>300B</td>
+<td>300 miliard</td>
+<td style="text-align: right;">10× méně</td>
+</tr>
+<tr>
+<td>3T</td>
+<td>3 biliony</td>
+<td style="text-align: right;">základ srovnání</td>
+</tr>
+</tbody>
+</table>
+
+<p>Tohle nejsou vymyšlené velikostní kategorie mimo realitu. <a href="https://huggingface.co/moonshotai/Kimi-K3">Kimi K3 má podle zveřejněné modelové karty 2,8T parametrů celkem a 104B aktivních na token</a>. U <strong>Mixture of Experts</strong> mají aktivní parametry velký vliv na compute nároky, všechny váhy se ale musejí někam vejít. A nejde jen o kapacitu paměti: zásadním limitem je i její propustnost při načítání potřebných vah a práci s cache. Neznamená to, že při každém tokenu načítám všechny experty.</p>
+
+<p>To je také jeden z důvodů, proč na rozdíl od domácího použití dává ve velkém servingu smysl <a href="https://docs.nvidia.com/dynamo/v1.0.0/design-docs/disaggregated-serving">disagregace prefill a decode</a>. Zpracování vstupu bývá více omezené výpočtem, postupné generování zase pamětí a její propustností. Provider může každou fázi poslat na jinak nastavený hardware a škálovat je odděleně. Musí se mu ovšem vyplatit i přenos KV cache mezi nimi.</p>
+
+<p>Ani míru <strong>sparsity</strong>, tedy jak malou část expertů aktivuju, nemůžu zvyšovat libovolně bez dopadu na schopnosti. <a href="https://arxiv.org/html/2508.18672v3">Experimenty s MoE a reasoningem</a> ukazují, že více parametrů při vysoké sparsity pomáhá ukládání znalostí, ale uvažování potřebuje také dost aktivního výpočtu a trénovacích dat na parametr. Co je efektivní pro znalosti, tedy nemusí být efektivní pro reasoning. Není to univerzální optimální poměr pro každý model, ale dobrý důvod, proč nestačí donekonečna přidávat neaktivní experty.</p>
+
+<p>Od jednotek miliard k jednotkám bilionů jsme přibližně na třech řádech. Velikost ovšem není přesný ceník ani automatická známka kvality. Záleží na architektuře, tréninku, kvantizaci i konkrétní úloze. Menší specializovaný model může být na mém zadání lepší než větší obecný.</p>
+
+<p>Nemůžu tedy vzít stonásobek parametrů a prohlásit ho za stonásobek ceny inference. Ale pořád porovnávám výrazně odlišné hardwarové a schopnostní třídy, ne stejný výrobek s odlepenou cenovkou za licenci.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">&#8250;</span>A co z toho opravdu poběží v notebooku?</button><div class="ia-reveal-body" id="reveal-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Čistě na uložení vah potřebuje 30B model ve čtyřbitové reprezentaci přibližně <strong>15 GB</strong>, ve dvoubajtové BF16 asi <strong>60 GB</strong>. Bez KV cache, aktivací, kvantizačních metadat a režie runtime. U 3B je to desetina, u 3T stonásobek.</p>
+
+<p>Jednotky B se proto mohou vejít i do menších zařízení, desítky B už chtějí podstatně víc paměti. Není ale pravda, že jedinou cestou je notebook s velkou dedikovanou grafikou. Pomoci může velká sjednocená paměť nebo offload do RAM; otázkou zůstává rychlost, délka kontextu a baterie.</p>
+
+<p><strong>„Vejde se mi to tam“ a „chci s tím pracovat“ jsou dvě různá kritéria.</strong> A ani jedno samo neříká, jestli ten model zvládne úlohy, které běžně dávám frontier coding agentovi.</p>
+</div></div></div></div>
+<p>Levný malý model může být skvělá volba. Jen k tomu nepotřebuje otevřené váhy. Existují i levné modely s uzavřenými vahami — přesně ty si do cenového srovnání nesmím zapomenout přidat.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">Technologický náskok může část výhody otevřených vah vyrovnat</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>V úplné špičce grafu jsou na tomto snímku uzavřené modely Astra a Fable. O kus níž už se pohybují velmi schopné otevřené modely jako GLM-5.3 a Kimi K3.</p>
+
+<p>Moje pracovní hypotéza je, že tým na technologické špičce může část náskoku proměnit také v efektivitu: dosáhnout určité kvality s menším výpočtem, kratším reasoningem nebo lépe optimalizovaným servingem. Pak může uzavřený model potřebovat na srovnatelnou práci méně hardwaru, ale současně mi účtovat víc za přístup k vahám.</p>
+
+<p>O jakých maržích se vůbec bavíme? V <a href="https://techcrunch.com/2025/11/04/anthropic-expects-b2b-demand-to-boost-revenue-to-70b-in-2028-report/">mediálních odhadech pro rok 2025</a> se u předního poskytovatele modelů objevovalo kolem <strong>50 % hrubé marže</strong>. <a href="https://money.usnews.com/investing/news/articles/2026-09-13/anthropic-tells-investors-it-will-be-profitable-for-second-straight-quarter-ft-reports">Zářijové zprávy z roku 2026</a> už mluví o více než <strong>80 %</strong>, ovšem před podíly distribučních partnerů a náklady na trénink. Beru je jako řádové odhady, ne auditovanou časovou řadu jednoho API; zářijovou zprávu navíc Reuters nezávisle neověřil.</p>
+
+<p>U cloudu zase pro orientaci vidíme třeba <a href="https://ir.aboutamazon.com/news-release/news-release-details/2026/Amazon-com-Announces-Fourth-Quarter-Results/default.aspx">za rok 2025 tržby AWS 128,7 miliardy USD a provozní zisk 45,6 miliardy</a>, tedy provozní marži asi <strong>35 %</strong>. To ale není hrubá marže na pronájmu jedné GPU. Tato různě definovaná procenta nemůžu jednoduše odečíst a rozdíl prohlásit za cenu vah.</p>
+
+<p>Pro řádovou kalkulačku proto vezmu <strong>50 nebo 80 % jako celkovou modelovou marži uzavřené služby</strong>, zahrnující odměnu za serving i modelovou prémii. U otevřené varianty nechám <strong>30 % za serving</strong>. Není to rekonstrukce účetnictví konkrétní firmy: pokud nakupuje compute od cloudu, část infrastrukturní marže už může být zahrnutá v jejích nákladech. Tady obě varianty počítám od stejné nákladové základny a nic nepřičítám dvakrát.</p>
+
+<p>Přímý náklad na inferenci stejné práce bude u uzavřeného modelu <strong>100 jednotek</strong>. Otevřená alternativa bude v našem příkladu o <strong>15 % nákladnější</strong>, tedy 115. Třicetiprocentní marže poskytovatele znamená, že náklad tvoří 70 % prodejní ceny: otevřené API proto stojí <strong>164,29 jednotky</strong>, ne 149,50 jako při pouhé 30% přirážce.</p>
+
+<table>
+<thead>
+<tr>
+<th>Celková modelová marže uzavřené služby</th>
+<th style="text-align: right;">Cena uzavřené služby</th>
+<th style="text-align: right;">Cena otevřené služby s 30% serving marží</th>
+<th style="text-align: right;">Kolikrát je uzavřená varianta dražší</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50 %</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">164,29</td>
+<td style="text-align: right;">1,22×</td>
+</tr>
+<tr>
+<td>80 %</td>
+<td style="text-align: right;">500</td>
+<td style="text-align: right;">164,29</td>
+<td style="text-align: right;">3,04×</td>
+</tr>
+</tbody>
+</table>
+
+<p>Jak v tom modelově oddělím ty dvě složky? Při přímém nákladu 100 by samotný serving s 30% marží stál <strong>142,86</strong>: sto za inferenci, 42,86 jako odměna provozovateli. Do konečných 200 pak zbývá <strong>57,14</strong> jako modelová prémie; do 500 zbývá <strong>357,14</strong>. To není čistý zisk za váhy, financuje se z toho i vývoj, trénink a další náklady.</p>
+
+<p>Patnáctiprocentní rozdíl v efektivitě i třicetiprocentní serving marže zůstávají <strong>předpoklady příkladu</strong>, ne měřením konkrétního endpointu. Kdyby byly obě varianty provozně stejně efektivní, vyjde poměr cen <strong>1,4× až 3,5×</strong>. S naším rozdílem efektivity přibližně <strong>1,2× až 3×</strong>. Pro firmu to může být zajímavá úspora, ale řádově jsme pořád úplně jinde než u <strong>100×</strong>.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">Levnější token ještě neznamená levnější odpověď</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Když modely porovnávám přes API, nestačí mi cena za milion tokenů. Potřebuju vědět, kolik jich spotřebují na stejnou práci. Včetně reasoningu, vstupu, opakovaného kontextu a případných dalších pokusů.</p>
+
+<p>Úplně jednoduchý příklad: jeden model má výstupní tokeny za polovinu, ale potřebuje jich třikrát tolik. <strong>Jen jeho výstup mě pak stojí o polovinu víc.</strong> Vstup a cache zatím nechávám stranou.</p>
+
+<p>U Kimi K3 to není jen akademická otázka. V údajích Artificial Analysis dostupných při přípravě článku má <a href="https://artificialanalysis.ai/models/kimi-k3">Kimi K3 v nastavení max</a> přibližně <strong>160 milionů výstupních tokenů</strong> za běh Intelligence Indexu, zatímco <a href="https://artificialanalysis.ai/models/gpt-5-6-sol">GPT-5.6 Sol v nastavení max</a> asi <strong>90 milionů</strong>. Kimi má přitom v uvedeném ceníku output za 15 USD za milion, Sol za 20 USD. Levnější token, ale větší spotřeba; vážená cena benchmarkové úlohy vychází u obou přibližně na dva dolary.</p>
+
+<p>Proti <a href="https://artificialanalysis.ai/models/claude-opus-5">Opusu 5 v nastavení max</a>, který má uvedeno asi 140 milionů výstupních tokenů, je ale rozdíl ve spotřebě mnohem menší. Neřekl bych tedy obecně, že Kimi potřebuje násobně víc tokenů než všechny uzavřené modely. <strong>Záleží, proti čemu a v jakém nastavení ho měřím.</strong></p>
+
+<p>Ani z těchto souhrnných tokenových počtů nelze prostým dělením dopočítat vodorovnou osu grafu. <a href="https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index">Cost per Intelligence Index Task</a> je vážený průměr nákladů jednotlivých evaluací na úlohu. Zohledňuje jejich váhy v indexu a příslušné účtované tokeny — vstup, cache, reasoning a odpověď.</p>
+
+<p>Proto se mi ten graf líbí víc než samotný ceník. Pořád ale ukazuje <strong>cenu benchmarkové úlohy, ne cenu úspěšně vyřešeného firemního případu</strong>. Kvalita je na druhé ose. Když mi levný agent úlohu pokazí, jeho tokeny se sice hezky účtují, ale já práci pořád nemám hotovou.</p>
+
+<p>A při vlastním hostování musím API cenu nahradit svým úplným provozním nákladem. Tenhle obrázek sám o sobě neříká, kolik by mě Kimi stálo na mém clusteru.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="jak-to-pouzivat"><h2 class="ia-group-title">Zpátky ke grafu: co z něj plyne pro výběr</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">Na Paretově hranici je mix dodavatelů otevřených i proprietárních modelů</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Když se vrátím k obrázku, vidím tři důležité věci.</p>
+
+<p><strong>Úplný vrchol schopností není automaticky dostupný v otevřené variantě.</strong> Astra a Fable jsou nahoře kolem skóre 53. GLM-5.3 a Kimi K3 kolem 44–45, Sol kolem 47 a Opus 5 kolem 51. To neznamená, že otevřený model nemůže některou konkrétní úlohu zvládnout stejně dobře nebo lépe, ale pro tento benchmark to vychází takhle. Váš use case samozřejmě může být jiný - nicméně nečekám propastně jiné výsledky.</p>
+
+<p><strong>O kus níž otevřené modely skutečně konkurují, ale nevidím automatickou stonásobnou slevu.</strong> Kimi K3, GLM-5.3 a Sol se tu všechny pohybují přibližně kolem dvou dolarů za úlohu. Opus stojí kolem šesti, ale má také vyšší skóre. Když zvolím Kimi místo Opusu, může to být správné rozhodnutí. Jen je to v tomhle grafu obchod mezi cenou a kvalitou, ne důkaz stejného výsledku třikrát levněji.</p>
+
+<p><strong>Levný konec trhu není vyhrazený otevřeným modelům.</strong> GPT-5.6 Luna v nastavení medium leží úplně vlevo, přibližně na 0,016 USD za úlohu. To je proti Solu více než stonásobný cenový rozdíl — uvnitř nabídky jednoho výrobce uzavřených modelů. Jenže Luna tu má skóre kolem 25,5, nikoli Solových 47. A otevřený GLM-5.3-Flash je naopak zajímavý bod hranice kolem 0,25 USD a skóre 42. Pozor, Flash není stejná varianta jako GLM-5.3 max z předchozího odstavce.</p>
+
+<p>Zajímavé je, jak si vedou někteří výrobci (ke dni, kdy jsem tento článek napsal). <strong>OpenAI</strong> má velmi vyrovnané portfolio od malých (Luna, Terra) až po velké velmi schopné modely (Sol, Astra). <strong>Anthropic</strong> umí excelovat v high-end spektru, ale jeho cenově dostupnější varianty dnes na Paretovu hranici nemají (Haiku je úplně mimo, Sonnet nic moc, Opus rovněž ztrácí cenově optimální dech). <strong>Google</strong> je dnes ve stavu, kdy je high-end v podobě Gemini Pro mimo hru, ale střední třída s Gemini 3.8 Flash je na Paretově hranici, zatímco nižší třída s 3.5 Flash-Lite je aktuálně mimo hru.</p>
+
+<p>Za mě přesně tohle rozbíjí zkratku „otevřené rovná se levné, uzavřené rovná se drahé“. Na zajímavých místech jsou obě skupiny. Některé jiné modely mají ve sledované dvojici kritérií alternativu, která je levnější i schopnější, bez ohledu na licenci.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">Nakonec potřebuju vlastní Paretovu hranici</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Tenhle graf bych používal jako výborný začátek výběru, ne jako jeho konec. Intelligence Index skládá různé typy úloh a jejich váhy. Moje aplikace ale může celý den dělat jednu věc, na kterou je menší model výborný.</p>
+
+<p>Začal bych vlastními příklady a jasnou laťkou: co musí model zvládnout a co už je chyba. Pak bych porovnal několik levných i silnějších modelů, otevřených i uzavřených, včetně rozumných nastavení reasoningu. Vedle výsledků bych měřil <strong>celý účet za hotovou práci</strong>: všechny pokusy, nástroje, případný fallback a opravy člověkem.</p>
+
+<p>Tohle znovu ukazuje, proč jsou do budoucna tak důležité <strong>vlastní evaluations sady a vlastní trénovací prostředí (RLE)</strong>, tak jak jsem o tom už <a href="https://tomaskubica.cz/2026/evals-nejcennejsi-aktivum/">psal v článku o evals jako nejcennějším aktivu</a>.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Závěr"><div class="ia-quote ia-prose">
+<p>Největší cenový rozdíl není mezi otevřeným a uzavřeným modelem, ale mezi modelem <strong>tak akorát pro moji úlohu</strong> a modelem, který je na ni moc hloupý (a levný) nebo zbytečně chytrý (a drahý).</p>
+</div></section>
+</main>
+<footer class="ia-footer">
+<div class="ia-article-nav">
+  <a href="../../">← Všechny interaktivní články</a>
+</div>
+
+<section class="ia-related" aria-labelledby="related-title">
+  <p class="ia-related-kicker">Doporučeno dál</p>
+  <h2 id="related-title"><a href="../../2026/vlastni-model-vlastni-server/">Otevřený AI model má mnoho výhod. Většina z nich nevyžaduje vlastní hardware.</a></h2>
+  <p>Navazuje na stejné téma: AI agenti a kódování. Výhody otevřených modelů bez nutnosti kupovat server a měření Nemotronu na A100: jak souběh požadavků a využití placeného času mění cenu API, cloudové VM a vlastního hardwaru.</p>
+  <p class="ia-related-meta"><time datetime="2026-09-14">14. 9. 2026</time></p>
+</section>
+<p>Agent-friendly verze: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a> · <a href="https://github.com/tkubica12" rel="noopener">GitHub</a> · <a href="https://github.com/tkubica12/tkubica12.github.io" rel="noopener">zdroj webu</a></p>
+</footer>
+</div>
+<script src="../../assets/interactive-article.js"></script>
+</body>
+</html>

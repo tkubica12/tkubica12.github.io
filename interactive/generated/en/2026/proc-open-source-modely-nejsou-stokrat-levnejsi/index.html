@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script>
+(() => {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("clawpilotTheme");
+  const isTheme = (value) => value === "light" || value === "dark";
+  let stored = null;
+  try { stored = localStorage.getItem("interactive-article-theme"); } catch {}
+  const system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", isTheme(requested) ? requested : isTheme(stored) ? stored : system);
+})();
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="description" content="A cheaper token doesn&#x27;t mean cheaper work. Open weights don&#x27;t mean free GPUs. And a small model isn&#x27;t a large model with the margin removed. Let&#x27;s use one chart to see what actually makes sense to compare when choosing a model.">
+<link rel="canonical" href="/en/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<title>Why aren&#x27;t open-source models a hundred times cheaper? Let&#x27;s explore the Pareto frontier.</title>
+<style>:root {
+  --cp-bg: #ffffff;
+  --cp-bg-elevated: #f8fafc;
+  --cp-surface: #f6f8fa;
+  --cp-surface-soft: #eef2f6;
+  --cp-panel: #ffffff;
+  --cp-text: #172033;
+  --cp-text-muted: #475569;
+  --cp-text-soft: #64748b;
+  --cp-border: #d8dee9;
+  --cp-border-strong: #b6c2cf;
+  --cp-accent: #0969da;
+  --cp-accent-soft: rgba(9, 105, 218, 0.08);
+  --cp-link: #0969da;
+  --cp-success: #1a7f37;
+  --cp-warning: #9a6700;
+  --cp-danger: #cf222e;
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --cp-bg: #0d1117;
+  --cp-bg-elevated: #161b22;
+  --cp-surface: #161b22;
+  --cp-surface-soft: #21262d;
+  --cp-panel: #0d1117;
+  --cp-text: #f0f6fc;
+  --cp-text-muted: #c9d1d9;
+  --cp-text-soft: #8b949e;
+  --cp-border: #30363d;
+  --cp-border-strong: #484f58;
+  --cp-accent: #58a6ff;
+  --cp-accent-soft: rgba(88, 166, 255, 0.13);
+  --cp-link: #58a6ff;
+  --cp-success: #3fb950;
+  --cp-warning: #d29922;
+  --cp-danger: #f85149;
+  color-scheme: dark;
+}</style>
+<link rel="stylesheet" href="../../../assets/interactive-article.css">
+
+<link rel="alternate" hreflang="cs-CZ" href="/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<link rel="alternate" hreflang="en" href="/en/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+<link rel="alternate" hreflang="x-default" href="/2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">
+</head>
+<body>
+<div class="ia-controls" aria-label="Article controls">
+<button class="ia-control" type="button" data-expand-all>Expand all</button>
+<button class="ia-control" type="button" data-collapse-all>Collapse all</button>
+<button class="ia-control theme" type="button" data-theme-toggle>Dark mode</button>
+</div>
+<div class="ia-page">
+<header class="ia-header">
+<div class="ia-author-row"><img class="ia-avatar ia-avatar-small" src="../../../assets/img/avatar.png" alt="Tomáš Kubica" width="40" height="40" decoding="async"><p class="ia-eyebrow">Model pricing, inference, and the Pareto frontier</p></div>
+<h1 class="ia-title">Why aren&#x27;t open-source models a hundred times cheaper? Let&#x27;s explore the Pareto frontier.</h1>
+<p class="ia-subtitle">A cheaper token doesn&#x27;t mean cheaper work. Open weights don&#x27;t mean free GPUs. And a small model isn&#x27;t a large model with the margin removed. Let&#x27;s use one chart to see what actually makes sense to compare when choosing a model.</p>
+<p class="ia-date"><time datetime="2026-09-15">15 September 2026</time></p>
+<nav class="ia-links" aria-label="Article navigation">
+<a href="../../../en/">← All interactive articles</a>
+<a href="../../../2026/proc-open-source-modely-nejsou-stokrat-levnejsi/" lang="cs-CZ" hreflang="cs-CZ">CZ</a>
+<a href="./" aria-current="page" lang="en" hreflang="en">EN</a>
+<a href="./source.md">source.md</a>
+<a href="./caveman.md">caveman.md</a>
+</nav>
+</header>
+
+<aside class="ia-callout warning ia-translation-notice">
+  <p>Machine translation from Czech <a href="../../../2026/proc-open-source-modely-nejsou-stokrat-levnejsi/">original</a>.</p>
+</aside>
+<main id="content" class="ia-prose">
+<p>"This open-source model is a hundred times cheaper than Claude or GPT." Could that be true? Of course. I'd just immediately ask: <strong>cheaper than which model, at what settings, and doing what work?</strong></p>
+
+<p>In <a href="/en/2026/vlastni-model-vlastni-server/">my previous article about open models and your own hardware</a>, I separated two things: which model I choose and who will run it. Our measurements showed why having your own GPU makes sense only if you have plenty of work for it — larger batch sizes and 24×7 operation. Today I want to come back to the first question. Is openness of the weights itself a reason for a dramatically lower price?</p>
+
+<p>It seems to mean a lower price, yes, but not a dramatically lower one. I'm a fan of open models, but a price comparison needs two perspectives. <strong>How much work the model can handle, and how much that work costs me.</strong> And that's exactly where the Pareto frontier comes in.</p>
+
+<p>As in the previous article, I'll be more precise than the headline: I'm mainly talking about <strong>open-weight models</strong>, whose weights I can download and run under the terms of their license. Their counterparts are closed-weight models, not "commercial models." Both groups are offered commercially.</p>
+<section class="ia-group" id="paretova-hranice"><h2 class="ia-group-title">First, a picture: what&#x27;s a good buy?</h2><div class="ia-card-list">
+<article class="ia-card is-open" data-ia-card><button class="ia-card-head" type="button" aria-expanded="true" aria-controls="card-01" data-ia-card-button><span class="ia-card-num">01</span><span class="ia-card-title">The Pareto frontier: getting better means making a tradeoff</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-01" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Let's look at this chart from Artificial Analysis.</p>
+
+<figure class="ia-figure"><a href="../../../images/2026/2026-09-15-paretova-hranice-modelu.png" data-ia-lightbox=""><img alt="Artificial Analysis chart from September 15, 2026: the horizontal logarithmic axis shows the cost of a benchmark task in USD, the vertical axis the Intelligence Index. The dotted Pareto frontier connects non-dominated variants; GPT-5.6 Luna and GLM-5.3-Flash are among the low-cost points, while GPT-6 Astra and Claude Fable 5.1 have the highest scores." src="../../../images/2026/2026-09-15-paretova-hranice-modelu.png" class="ia-image" loading="lazy"></a><figcaption>Artificial Analysis, 15 September 2026.</figcaption></figure>
+
+<p><em>Source: Artificial Analysis, snapshot from September 15, 2026. <a href="https://artificialanalysis.ai/?models=gemini-3-5-flash-lite%2Cglm-5-3-flash%2Cgpt-6-astra%2Cclaude-fable-5-1%2Cgpt-5-6-luna%2Cmuse-glimmer%2Cdeepseek-v4-pro%2Cgemini-3-8-flash%2Cqwen3-8-2-4t-a95b%2Cmuse-spark-1-3%2Cqwen3-8-27b%2Cclaude-opus-5%2Cgpt-5-6-terra%2Cgrok-4-6%2Cclaude-fable-5%2Cglm-5-3%2Cgpt-5-6-sol%2Cdeepseek-v4-1-flash%2Cmistral-medium-3-5%2Ckimi-k3%2Cinkling%2Cclaude-fable-5-1-low%2Cclaude-sonnet-5-high%2Cclaude-4-5-haiku-reasoning%2Cgpt-6-astra-medium%2Cgpt-5-6-luna-medium%2Cgemini-3-1-pro-preview%2Cgemini-3-8-flash-medium%2Cqwen3-8-flash-next#intelligence-comparison-tabs">Open the interactive chart with this selection of models</a>. You can add more models and settings. The live data will change; the commentary below refers to the image.</em></p>
+
+<p><strong>Up is better, left is cheaper.</strong> The vertical axis shows the aggregate Intelligence Index score, the horizontal axis the cost of one benchmark task. Not the price of a million tokens. The horizontal axis is also logarithmic: moving from $0.10 to $1 is the same multiple as moving from $1 to $10. So as we move right, the money adds up faster than it might seem.</p>
+
+<p>The dotted line shows the <strong>Pareto frontier</strong>. Formally, the frontier of Pareto-optimal solutions; in practice, a set of choices that another option can't simply beat.</p>
+
+<p>If I find a model that is cheaper and produces the same or better results, the more expensive model is <strong>inferior</strong> on these two criteria. The same applies if I get a better result for the same price. I improve on at least one criterion without making either one worse.</p>
+
+<p>On the frontier, there is no such unambiguously better alternative. Want higher quality? I have to pay more. Want a lower price? I have to give up some quality. <strong>There is no single winner for every budget and every task.</strong></p>
+
+<p>That's an important difference from looking for a single "best price/performance ratio." A score of 50 doesn't mean twice the usefulness of a score of 25, either. First I need to decide what quality I actually require.</p>
+
+<p>And one more thing: the line between two points isn't an offer for a model I can buy somewhere in the middle. Nor does it guarantee that mixing two models will give me a point on that line. It's a guide to the measured options, not a law of physics.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="odkud-se-bere-cena"><h2 class="ia-group-title">Why open weights don&#x27;t mean free inference</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-02" data-ia-card-button><span class="ia-card-num">02</span><span class="ia-card-title">I&#x27;m paying for operations and for the model&#x27;s capabilities</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-02" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>To start with, I'd separate two economic layers in an API price.</p>
+
+<p>The first is <strong>running the model</strong>. GPUs, memory, interconnects, power, the datacenter, software, and the people keeping it all running. Plus compensation for the provider that handles all this and bears the risk of unused capacity. In this respect, model serving is a fairly conventional cloud business.</p>
+
+<p>The second is <strong>developing the model and the value of its weights</strong>. Someone paid for research, data, training, and post-training. With a closed model, I buy access to the result from its owner or a partner. With an open model, I may have the right to use the weights without an ongoing license payment, if its license allows it.</p>
+
+<p>That doesn't mean developing the open model cost nothing. It means I don't have to pay for it in the same way. <strong>Openness can remove a license payment for the weights. It doesn't remove the work the hardware has to do when I use the model.</strong></p>
+
+<p>Besides, I usually won't see these two layers itemized on the invoice. An API price doesn't have to be "the cost of generating tokens plus a margin for the weights." Competition, capacity, business strategy, and efforts to attract customers all affect it. It can even be below cost temporarily.</p>
+
+<p>I think economies of scale will play a crucial role in the operational layer. A large provider has demand from multiple applications and time zones. It can combine requests into larger batches, make better use of caching, and spread the cost of serving specialists across enormous volumes.</p>
+
+<p>In our previous measurements, going from one to fifty concurrent requests with caching gave us about <strong>5.5 times the aggregate capacity</strong>. But each request took longer. And alongside batch size, I also need utilization over time: ideally, work that approaches continuous operation, not a GPU waiting every evening for morning to come.</p>
+
+<p>That doesn't mean self-hosted inference has to run exactly 24×7 or it can never pay off. It means its economics are determined by <strong>the amount of useful work at an acceptable latency</strong>.</p>
+
+<p>Providers of both open and closed models can take advantage of these benefits. <strong>Removing their margin doesn't automatically give me their operating costs.</strong></p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-03" data-ia-card-button><span class="ia-card-num">03</span><span class="ia-card-title">A small model isn&#x27;t a large model with the margin removed</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-03" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>This, I think, is where much of the talk about hundredfold savings comes from. I take a relatively small open model and compare it with an expensive frontier model. The difference on the price list can be enormous. But I haven't just changed the license. I've also changed what I'm buying.</p>
+
+<p>Just to be clear about the units: <strong>B means billion, T means trillion</strong>. A 2T model therefore has two trillion parameters.</p>
+
+<table>
+<thead>
+<tr>
+<th>Illustrative size</th>
+<th>In words</th>
+<th style="text-align: right;">Parameter count compared with 3T</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3B</td>
+<td>3 billion</td>
+<td style="text-align: right;">1,000× fewer</td>
+</tr>
+<tr>
+<td>30B</td>
+<td>30 billion</td>
+<td style="text-align: right;">100× fewer</td>
+</tr>
+<tr>
+<td>300B</td>
+<td>300 billion</td>
+<td style="text-align: right;">10× fewer</td>
+</tr>
+<tr>
+<td>3T</td>
+<td>3 trillion</td>
+<td style="text-align: right;">comparison baseline</td>
+</tr>
+</tbody>
+</table>
+
+<p>These aren't imaginary size categories detached from reality. <a href="https://huggingface.co/moonshotai/Kimi-K3">According to its published model card, Kimi K3 has 2.8T total parameters and 104B active per token</a>. With <strong>Mixture of Experts</strong>, active parameters have a major effect on compute requirements, but all the weights still have to fit somewhere. And it's not just about memory capacity: memory bandwidth when loading the necessary weights and working with the cache is another crucial limit. That doesn't mean I load every expert for every token.</p>
+
+<p>That's also one reason why, unlike home use, large-scale serving benefits from <a href="https://docs.nvidia.com/dynamo/v1.0.0/design-docs/disaggregated-serving">disaggregating prefill and decode</a>. Processing the input tends to be more compute-bound, while generating tokens one by one is more constrained by memory and its bandwidth. A provider can send each phase to differently configured hardware and scale them independently. But transferring the KV cache between them has to be worth the cost, too.</p>
+
+<p>Nor can I increase <strong>sparsity</strong> — how small a fraction of the experts I activate — arbitrarily without affecting capabilities. <a href="https://arxiv.org/html/2508.18672v3">Experiments with MoE and reasoning</a> show that more parameters at high sparsity help with knowledge storage, but reasoning also needs enough active computation and training data per parameter. So what's efficient for knowledge isn't necessarily efficient for reasoning. This isn't a universally optimal ratio for every model, but it is a good reason why simply adding more and more inactive experts isn't enough.</p>
+
+<p>From single-digit billions to single-digit trillions, we're looking at roughly three orders of magnitude. Size isn't a precise price list or an automatic measure of quality, though. Architecture, training, quantization, and the specific task all matter. A smaller specialized model can outperform a larger general-purpose one on my task.</p>
+
+<p>So I can't take a hundred times as many parameters and declare that inference costs a hundred times as much. But I'm still comparing significantly different hardware and capability classes, not the same product with its license price tag peeled off.</p>
+<div class="ia-reveal" data-ia-reveal><button class="ia-reveal-button" type="button" aria-expanded="false" aria-controls="reveal-1" data-ia-reveal-button><span class="ia-reveal-arrow" aria-hidden="true">&#8250;</span>And which of these will actually run on a laptop?</button><div class="ia-reveal-body" id="reveal-1" data-ia-reveal-panel><div class="ia-reveal-body-clip"><div class="ia-reveal-content ia-prose">
+<p>Just storing the weights of a 30B model takes approximately <strong>15 GB</strong> at four bits, or about <strong>60 GB</strong> in two-byte BF16. That's without the KV cache, activations, quantization metadata, and runtime overhead. For 3B, it's a tenth of that; for 3T, a hundred times as much.</p>
+
+<p>Models with single-digit billions of parameters can therefore fit on smaller devices, while tens of billions need substantially more memory. But a laptop with a large dedicated GPU isn't the only way. Plenty of unified memory or offloading to RAM can help; speed, context length, and battery life remain the question.</p>
+
+<p><strong>"It fits" and "I want to work with it" are two different criteria.</strong> Neither one, on its own, tells me whether the model can handle the tasks I routinely give a frontier coding agent.</p>
+</div></div></div></div>
+<p>A cheap small model can be a great choice. It just doesn't need open weights to be one. Cheap closed-weight models exist too — and I mustn't forget to include those in the price comparison.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-04" data-ia-card-button><span class="ia-card-num">04</span><span class="ia-card-title">A technological lead can offset part of the open-weight advantage</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-04" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>At the very top of this chart snapshot are the closed models Astra and Fable. A little further down, we already find very capable open models such as GLM-5.3 and Kimi K3.</p>
+
+<p>My working hypothesis is that a team at the technological frontier can also turn some of its lead into efficiency: achieving a certain quality with less computation, shorter reasoning, or better-optimized serving. A closed model might then need less hardware for comparable work while charging me more for access to its weights.</p>
+
+<p>What sort of margins are we even talking about? <a href="https://techcrunch.com/2025/11/04/anthropic-expects-b2b-demand-to-boost-revenue-to-70b-in-2028-report/">Media estimates for 2025</a> put a leading model provider at around <strong>50% gross margin</strong>. <a href="https://money.usnews.com/investing/news/articles/2026-09-13/anthropic-tells-investors-it-will-be-profitable-for-second-straight-quarter-ft-reports">Reports from September 2026</a> already talk about more than <strong>80%</strong>, but before distribution partners' shares and training costs. I treat these as ballpark estimates, not an audited time series for a single API; Reuters also did not independently verify the September report.</p>
+
+<p>For context on the cloud side, we can look at <a href="https://ir.aboutamazon.com/news-release/news-release-details/2026/Amazon-com-Announces-Fourth-Quarter-Results/default.aspx">AWS's 2025 revenue of $128.7 billion and operating income of $45.6 billion</a>, or an operating margin of about <strong>35%</strong>. But that isn't the gross margin on renting out a single GPU. I can't simply subtract these differently defined percentages and call the difference the price of the weights.</p>
+
+<p>So for a back-of-the-envelope calculation, I'll use <strong>50% or 80% as the total modeled margin of the closed service</strong>, including compensation for serving and the model premium. For the open alternative, I'll keep <strong>30% for serving</strong>. This isn't a reconstruction of any particular company's accounts: if it buys compute from a cloud provider, some infrastructure margin may already be included in its costs. Here I'm calculating both options from the same cost basis without counting anything twice.</p>
+
+<p>The direct inference cost of the same work will be <strong>100 units</strong> for the closed model. In our example, the open alternative will cost <strong>15% more</strong>, or 115. A 30% provider margin means costs make up 70% of the selling price: the open API therefore costs <strong>164.29 units</strong>, not 149.50 as it would with a simple 30% markup.</p>
+
+<table>
+<thead>
+<tr>
+<th>Total modeled margin of the closed service</th>
+<th style="text-align: right;">Closed-service price</th>
+<th style="text-align: right;">Open-service price with a 30% serving margin</th>
+<th style="text-align: right;">How many times more expensive the closed option is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50%</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">164.29</td>
+<td style="text-align: right;">1.22×</td>
+</tr>
+<tr>
+<td>80%</td>
+<td style="text-align: right;">500</td>
+<td style="text-align: right;">164.29</td>
+<td style="text-align: right;">3.04×</td>
+</tr>
+</tbody>
+</table>
+
+<p>How do I separate the two components in this model? At a direct cost of 100, serving alone with a 30% margin would cost <strong>142.86</strong>: a hundred for inference and 42.86 as the operator's compensation. That leaves <strong>57.14</strong> of the final 200 as the model premium; at 500, it leaves <strong>357.14</strong>. This isn't pure profit on the weights — it also funds development, training, and other costs.</p>
+
+<p>The 15% efficiency difference and the 30% serving margin remain <strong>assumptions in this example</strong>, not measurements of a specific endpoint. If both options were equally efficient to run, the price ratio would be <strong>1.4× to 3.5×</strong>. With our efficiency difference, it's approximately <strong>1.2× to 3×</strong>. For a company, that could be a worthwhile saving, but we're still nowhere near the order of magnitude of <strong>100×</strong>.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-05" data-ia-card-button><span class="ia-card-num">05</span><span class="ia-card-title">A cheaper token doesn&#x27;t necessarily mean a cheaper answer</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-05" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>When I compare models through APIs, the price per million tokens isn't enough. I need to know how many tokens they'll use for the same work. Including reasoning, input, repeated context, and any additional attempts.</p>
+
+<p>A very simple example: one model's output tokens cost half as much, but it needs three times as many. <strong>Its output alone then costs me 50% more.</strong> I'm leaving input and caching aside for now.</p>
+
+<p>With Kimi K3, this isn't just an academic question. In the Artificial Analysis data available while preparing this article, <a href="https://artificialanalysis.ai/models/kimi-k3">Kimi K3 at max settings</a> uses approximately <strong>160 million output tokens</strong> for an Intelligence Index run, while <a href="https://artificialanalysis.ai/models/gpt-5-6-sol">GPT-5.6 Sol at max settings</a> uses about <strong>90 million</strong>. Yet the listed output price for Kimi is $15 per million, versus $20 for Sol. Cheaper tokens, but higher consumption; the weighted cost per benchmark task comes out to around two dollars for both.</p>
+
+<p>Compared with <a href="https://artificialanalysis.ai/models/claude-opus-5">Opus 5 at max settings</a>, which is listed at about 140 million output tokens, the consumption difference is much smaller. So I wouldn't make a blanket claim that Kimi needs several times more tokens than all closed models. <strong>It depends on what I compare it with and at what settings.</strong></p>
+
+<p>Nor can I work out the chart's horizontal axis just by dividing these aggregate token counts. <a href="https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index">Cost per Intelligence Index Task</a> is a weighted average of the per-task costs of individual evaluations. It accounts for their weights in the index and the relevant billable tokens — input, cache, reasoning, and the answer.</p>
+
+<p>That's why I like this chart more than a price list on its own. But it still shows <strong>the cost of a benchmark task, not the cost of a successfully solved business case</strong>. Quality is on the other axis. If a cheap agent messes up the task, its tokens still get billed just fine, but my work still isn't done.</p>
+
+<p>And with self-hosting, I have to replace the API price with my own full operating cost. This picture alone doesn't tell me what Kimi would cost on my cluster.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-group" id="jak-to-pouzivat"><h2 class="ia-group-title">Back to the chart: what it tells me about choosing a model</h2><div class="ia-card-list">
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-06" data-ia-card-button><span class="ia-card-num">06</span><span class="ia-card-title">The Pareto frontier mixes vendors of open and proprietary models</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-06" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>Coming back to the picture, I see three important things.</p>
+
+<p><strong>The very highest level of capability isn't automatically available in an open version.</strong> Astra and Fable are at the top, scoring around 53. GLM-5.3 and Kimi K3 are around 44–45, Sol around 47, and Opus 5 around 51. That doesn't mean an open model can't handle a specific task just as well or better, but this is how the benchmark comes out. Your use case can of course be different — though I don't expect dramatically different results.</p>
+
+<p><strong>A little further down, open models really do compete, but I don't see an automatic hundredfold discount.</strong> Kimi K3, GLM-5.3, and Sol are all roughly around two dollars per task here. Opus costs around six, but it also scores higher. Choosing Kimi instead of Opus may be the right decision. In this chart, though, it's a tradeoff between price and quality, not proof of the same result at a third of the price.</p>
+
+<p><strong>The cheap end of the market isn't reserved for open models.</strong> GPT-5.6 Luna at medium settings sits all the way to the left, at approximately $0.016 per task. That's a price difference of more than a hundredfold compared with Sol — within the range of a single closed-model vendor. But Luna's score here is around 25.5, not Sol's 47. Meanwhile, the open GLM-5.3-Flash is an interesting point on the frontier at around $0.25 and a score of 42. Careful: Flash isn't the same variant as GLM-5.3 max from the previous paragraph.</p>
+
+<p>It's interesting to see how some vendors are doing as of the day I wrote this article. <strong>OpenAI</strong> has a very well-balanced portfolio, from small models (Luna, Terra) to large, highly capable ones (Sol, Astra). <strong>Anthropic</strong> can excel at the high end, but its more affordable variants can't make the Pareto frontier today (Haiku is way off, Sonnet isn't great, and Opus is also running out of steam on price optimality). <strong>Google</strong> is currently in a position where its high end, Gemini Pro, is out of the running, but the midrange Gemini 3.8 Flash is on the Pareto frontier, while the lower-end 3.5 Flash-Lite is currently out of the running.</p>
+
+<p>For me, this is exactly what breaks the shortcut of "open equals cheap, closed equals expensive." Both groups occupy interesting positions. Some other models have an alternative that's both cheaper and more capable on the two criteria we're tracking, regardless of the license.</p>
+</div></div></div></article>
+<article class="ia-card" data-ia-card><button class="ia-card-head" type="button" aria-expanded="false" aria-controls="card-07" data-ia-card-button><span class="ia-card-num">07</span><span class="ia-card-title">In the end, I need my own Pareto frontier</span><span class="ia-card-toggle" aria-hidden="true">&#9662;</span></button><div class="ia-card-body" id="card-07" data-ia-card-panel><div class="ia-card-body-clip"><div class="ia-card-content ia-prose">
+<p>I'd use this chart as an excellent starting point for choosing a model, not the end of the process. The Intelligence Index combines different types of tasks and their weights. But my application might spend all day doing one thing that a smaller model is excellent at.</p>
+
+<p>I'd start with my own examples and a clear bar: what the model must handle and what counts as an error. Then I'd compare several cheap and more capable models, both open and closed, including sensible reasoning settings. Alongside the results, I'd measure <strong>the entire bill for completed work</strong>: every attempt, tool, possible fallback, and human correction.</p>
+
+<p>This shows once again why <strong>our own evaluation suites and training environments (RLE)</strong> are so important for the future, as I already <a href="/en/2026/evals-nejcennejsi-aktivum/">wrote in my article about evals as the most valuable asset</a>.</p>
+</div></div></div></article>
+</div></section>
+<section class="ia-closing" aria-label="Conclusion"><div class="ia-quote ia-prose">
+<p>The biggest price difference isn't between an open and a closed model, but between a model that's <strong>just right for my task</strong> and one that's too dumb (and cheap) or unnecessarily smart (and expensive) for it.</p>
+</div></section>
+</main>
+<footer class="ia-footer">
+<div class="ia-article-nav">
+  <a href="../../../en/">← All interactive articles</a>
+</div>
+
+<section class="ia-related" aria-labelledby="related-title">
+  <p class="ia-related-kicker">Recommended next</p>
+  <h2 id="related-title"><a href="../../2026/vlastni-model-vlastni-server/">An open AI model has many advantages. Most of them do not require your own hardware.</a></h2>
+  <p>Continues the same topic: AI agents and coding. Separating the advantages of open weights from hardware ownership, with A100 inference measurements and a five-year cost comparison of an API, cloud VMs, and on-prem. Concurrency, useful utilization, latency, and cache billing determine the economics.</p>
+  <p class="ia-related-meta"><time datetime="2026-09-14">14. 9. 2026</time></p>
+</section>
+<p>Agent-friendly version: <a href="./source.md">source.md</a> · <a href="./caveman.md">caveman.md</a> · <a href="https://github.com/tkubica12" rel="noopener">GitHub</a> · <a href="https://github.com/tkubica12/tkubica12.github.io" rel="noopener">site source</a></p>
+</footer>
+</div>
+<script src="../../../assets/interactive-article.js"></script>
+</body>
+</html>

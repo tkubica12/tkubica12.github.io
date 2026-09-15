@@ -499,11 +499,13 @@ def copy_article_files(
         for filename in ("index.html", "source.md", "caveman.md"):
             path = article_dir / filename
             if path.is_file():
-                text = path.read_text(encoding="utf-8").replace(legacy_url, public_url)
+                original = path.read_bytes().decode("utf-8")
+                text = original.replace(legacy_url, public_url)
                 if filename == "index.html":
                     image_prefix = "../../../images/" if output_subdir else "../../images/"
                     text = text.replace("../../../../images/", image_prefix)
-                path.write_text(text, encoding="utf-8")
+                if text != original:
+                    path.write_bytes(text.encode("utf-8"))
 
 
 def remove_unpublished_outputs(output_root: Path) -> None:
@@ -1032,9 +1034,9 @@ def patch_translation_notice(text: str, article: Article, cs_by_slug: dict[str, 
 <aside class="ia-callout warning ia-translation-notice">
   <p>{notice}</p>
 </aside>""".rstrip()
-    if 'class="ia-translation-notice"' in text:
+    if 'class="ia-callout warning ia-translation-notice"' in text:
         return re.sub(
-            r'<aside class="ia-callout warning ia-translation-notice">\s*<p>.*?</p>\s*</aside>',
+            r'\n?<aside class="ia-callout warning ia-translation-notice">\s*<p>.*?</p>\s*</aside>',
             block,
             text,
             count=1,
