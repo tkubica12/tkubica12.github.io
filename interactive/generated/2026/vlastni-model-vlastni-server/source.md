@@ -322,5 +322,5 @@ Za mě tedy nejdřív vybrat model, který práci zvládne. Potom říct, jakou 
 :::
 
 ::: closing
-Otevřené váhy mi dávají možnosti a preferuji **kvalitní modely přes API**. Vlastní hardware bych kupoval až ve chvíli, kdy pro něj mám **konkrétní důvod a dost práce**.
+Otevřené váhy přináší mnoho výhod jako je míra kontroly, flexibilita, schopnost řešit nestandardní situace včetně politické nestability. Využívejte je přes API od důvěryhodného poskytovatele jako je Microsoft. Používat je na vlastním serveru myslím pro naprostou většinu případů nedává vůbec smysl - je to nesmyslně drahé.
 :::

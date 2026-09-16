@@ -5,7 +5,7 @@ META
 - source: source.md
 - date: 2026-09-14
 - language: en; machine translation from cs-CZ
-- source-sha256: f6c582131bab5f87f9a5751e9337a514f79a949c77f456aafcc5e749e5e72ac1
+- source-sha256: 8d4bcb653240b8bf8a6a3fce671aa57b68ccdef84a54964ef5fa17bcd3bc3515
 - thesis: Separate model choice, self-hosted inference, hardware ownership. Most open-weight benefits need no purchased server. Economics require enough concurrent useful work for enough paid time.
 
 ## 01 Model versus location
@@ -152,4 +152,4 @@ on-prem = USD 59 316 + H × u × USD 0.126
 - Most open-weight benefits require no owned hardware. For measured workload, low concurrency/irregular use favors cheap API; sustained concurrent demand may favor self-hosting.
 - Compare reserved VM with FULL on-prem budget, not card price versus endless PAYG.
 - Working c50/64%-cached-API thresholds ~54% reserved / ~43% on-prem. On-prem advantage only ~USD 2.6k/year for extra differential costs.
-- Author prefers quality models via APIs; own hardware only for specific reason AND enough work. Avoiding provider margin does not make idle owned capacity free.
+- Open weights: control, flexibility, handling unusual situations including political instability. Author recommends APIs from trusted providers such as Microsoft; in his view, own servers make no sense for the vast majority of use cases because they are absurdly expensive. Avoiding provider margin does not make idle owned capacity free.

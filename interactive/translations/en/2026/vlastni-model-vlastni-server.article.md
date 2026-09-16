@@ -9,7 +9,7 @@ language: en
 source_language: cs-CZ
 source_slug: vlastni-model-vlastni-server
 translation: machine
-translated_from_hash: f6c582131bab5f87f9a5751e9337a514f79a949c77f456aafcc5e749e5e72ac1
+translated_from_hash: 8d4bcb653240b8bf8a6a3fce671aa57b68ccdef84a54964ef5fa17bcd3bc3515
 translation_status: current
 status: experimental
 published: true
@@ -327,5 +327,5 @@ So, to me: first choose a model that can do the work. Then state the control and
 :::
 
 ::: closing
-Open weights give me options, and I prefer **quality models through APIs**. I would only buy my own hardware once I have **a specific reason and enough work for it**.
+Open weights bring many benefits, such as control, flexibility, and the ability to handle unusual situations, including political instability. Use them through an API from a trusted provider such as Microsoft. I think running them on your own server makes no sense at all for the vast majority of use cases - it is absurdly expensive.
 :::

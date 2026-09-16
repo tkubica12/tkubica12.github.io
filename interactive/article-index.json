@@ -91,7 +91,7 @@
       "eyebrow": "Open weights, vlastní inference a peníze",
       "subtitle": "Otevřené váhy dávají kontrolu. Ale kdo zaplatí GPU, když nemá práci? Pojďme projít výhody open-weight modelů, vyzkoušet jejich provoz a propočítat náklady na vlastní server, cloudovou VM i hotové API.",
       "url": "/2026/vlastni-model-vlastni-server/",
-      "summary": "Výhody otevřených modelů bez nutnosti kupovat server a měření Nemotronu na A100: jak souběh požadavků a využití placeného času mění cenu API, cloudové VM a vlastního hardwaru.",
+      "summary": "Kontrola a flexibilita otevřených vah přes API důvěryhodného poskytovatele. Měření Nemotronu na A100 ukazuje ekonomiku souběhu a vytížení; vlastní server podle mě pro naprostou většinu případů nedává smysl.",
       "labels": [
         "open weights",
         "inference",

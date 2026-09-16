@@ -4,7 +4,7 @@ META
 - Datum: 2026-09-14; jazyk: cs-CZ; experimental; published: true; dostupný EN strojový překlad.
 - URL: /2026/vlastni-model-vlastni-server/
 - Source: interactive\source\2026\vlastni-model-vlastni-server.article.md; veřejná kopie: [source.md](./source.md).
-- source-sha256: f6c582131bab5f87f9a5751e9337a514f79a949c77f456aafcc5e749e5e72ac1
+- source-sha256: 8d4bcb653240b8bf8a6a3fce671aa57b68ccdef84a54964ef5fa17bcd3bc3515
 - Teze: otevřené váhy ≠ vlastní inference ≠ vlastní hardware. Kontrola, menší lock-in, legitimní použití, data, latence a cena jsou různé otázky. Většinu výhod získám bez nákupu serveru.
 - Struktura: 12 karet; první část očekávání (01–06), druhá měření a ekonomika stejného modelu (07–12).
 
@@ -186,4 +186,4 @@ on-prem = 59 316 USD + H × u × 0,126 USD
 - Pořadí: model zvládající práci → potřebná kontrola/odezva → kdo provozuje GPU. Odstranit marži poskytovatele ≠ neplatit vlastní idle server.
 
 ZÁVĚR
-- Otevřené váhy dávají možnosti; autor preferuje **kvalitní modely přes API**. Vlastní hardware až s **konkrétním důvodem a dostatkem práce**.
+- Otevřené váhy: kontrola, flexibilita, řešení nestandardních situací včetně politické nestability. Autor doporučuje API od důvěryhodného poskytovatele, jako je Microsoft; vlastní server podle něj pro naprostou většinu případů nedává smysl, je nesmyslně drahý.

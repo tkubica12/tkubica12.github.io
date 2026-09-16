@@ -95,7 +95,7 @@
       "eyebrow": "Open weights, self-hosted inference, and money",
       "subtitle": "Open weights give you control. But who pays for the GPU when it has no work? Let's explore the advantages of open-weight models, try running them, and calculate the costs of our own server, a cloud VM, and a ready-made API.",
       "url": "/en/2026/vlastni-model-vlastni-server/",
-      "summary": "Separating the advantages of open weights from hardware ownership, with A100 inference measurements and a five-year cost comparison of an API, cloud VMs, and on-prem. Concurrency, useful utilization, latency, and cache billing determine the economics.",
+      "summary": "Open-weight control and flexibility through a trusted provider's API. Nemotron measurements on an A100 show the economics of concurrency and utilization; in my view, owning a server makes no sense for the vast majority of use cases.",
       "labels": [
         "open weights",
         "inference",
@@ -109,7 +109,7 @@
         "ai-agenti-a-kodovani"
       ],
       "source_slug": "vlastni-model-vlastni-server",
-      "translated_from_hash": "f6c582131bab5f87f9a5751e9337a514f79a949c77f456aafcc5e749e5e72ac1",
+      "translated_from_hash": "8d4bcb653240b8bf8a6a3fce671aa57b68ccdef84a54964ef5fa17bcd3bc3515",
       "translation_status": "current"
     },
     {
